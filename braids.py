@@ -17,6 +17,9 @@ class VectorMixin:
     def __iter__(self):
         return self.coefficients.items().__iter__()
 
+    def __contains__(self, i):
+        return i in self.coefficients
+
     def __len__(self):
         return len(self.coefficients)
 
@@ -1101,7 +1104,7 @@ class RootTransform:
         return self.__class__(self.graph, new)
 
     def to_coxeter_transform(self):
-        return CoxeterTranform(self.graph, self.sigma)
+        return CoxeterTransform(self.graph, self.sigma)
 
     def is_constant(self):
         return all(r.is_constant() for r in self.sigma.values())
@@ -1135,7 +1138,7 @@ class RootTransform:
         return s
 
 
-class CoxeterTranform(RootTransform):
+class CoxeterTransform(RootTransform):
     def __init__(self, coxeter_graph, sigma=None):
         if sigma:
             assert set(sigma.keys()) == set(coxeter_graph.generators)
@@ -1151,13 +1154,13 @@ class CoxeterTranform(RootTransform):
 
     @classmethod
     def from_word(cls, coxeter_graph, word):
-        g = CoxeterTranform(coxeter_graph)
+        g = CoxeterTransform(coxeter_graph)
         for i in word:
             g *= i
         return g
 
     def copy(self):
-        other = CoxeterTranform(self.graph, self.sigma)
+        other = CoxeterTransform(self.graph, self.sigma)
         other._right_descents = self._right_descents
         other._minimal_right_descent = self._minimal_right_descent
         other._minimal_reduced_word = self._minimal_reduced_word
@@ -1205,7 +1208,7 @@ class CoxeterTranform(RootTransform):
 
     def multiply_up(self, word):
         """
-        With u = self and v = CoxeterTranform(word), returns the
+        With u = self and v = CoxeterTransform(word), returns the
         product uv if ell(uv) = ell(u) + ell(v) and None otherwise.
         Input `word` should be list or tuple of integers.
         """
@@ -1218,7 +1221,7 @@ class CoxeterTranform(RootTransform):
 
     def multiply_down(self, word):
         """
-        With u = self and v = CoxeterTranform(word), returns the
+        With u = self and v = CoxeterTransform(word), returns the
         product uv if ell(uv) = ell(u) - ell(v) and None otherwise.
         Input `word` should be iterable over list or tuple of integers.
         """
@@ -1234,8 +1237,8 @@ class CoxeterWord:
     def __init__(self, coxeter_graph, word=()):
         self.graph = coxeter_graph
         self.word = []
-        self.left_action = CoxeterTranform.identity(coxeter_graph)
-        self.right_action = CoxeterTranform.identity(coxeter_graph)
+        self.left_action = CoxeterTransform.identity(coxeter_graph)
+        self.right_action = CoxeterTransform.identity(coxeter_graph)
         self.is_reduced = True
         for i in word:
             self.extend_right(i)
@@ -1531,11 +1534,9 @@ class BraidResolver:
         return \
             BraidResolver == type(other) and \
             self.graph == other.graph and \
-            self.s == other.s and \
-            self.t == other.t and \
             self.sigma == other.sigma and \
-            self.word_s == other.word_s and \
-            self.word_t == other.word_t and \
+            self.word_s.left_action == other.word_s.left_action and \
+            self.word_t.left_action == other.word_t.left_action and \
             self.constraints == other.constraints
 
     def __len__(self):
@@ -1593,63 +1594,47 @@ class BraidResolver:
             return False
 
     def branch(self, should_filter=True):
-        children = []
-        quadratic = self.is_quadratic_constraint_factorable()
-        strong = self.get_strong_descents()
-        descents = self.get_weak_descents()
-
-        descr = '\nBRANCHING: '
-
         t0 = time.time()
-        if len(self.sigma) == 0:
-            descr += 'first iteration'
-            children = self.get_first_iteration()
-        elif quadratic:
-            descr += 'reducing quadratic constraint'
-            children = self.get_iteration_from_quadratic_constraints()
-        elif strong:
-            current = [self]
-            iterations = 0
-            while current:
-                new = []
-                for state in current:
-                    state.reduce()
-                    if not state.is_valid():
-                        continue
-                    strong = state.get_strong_descents()
-                    if strong:
-                        new += state.get_iteration_from_strong_descent(strong.pop())
-                    else:
-                        children.append(state)
-                current = new
-                iterations += 1
-            descr += 'strong descent, iterations=%s' % iterations
-        elif descents:
-            descr += 'weak descents'
-            children = self.get_iteration_from_weak_descents(descents)
-        elif self.sigma.is_constant() and not self.sigma.is_complete():
-            descr += 'new descent'
-            children = self.get_iteration_from_new_descent()
-        elif self.sigma.is_constant() and not self.sigma.is_identity():
-            descr += 'empty'
-            children = []
-        else:
-            raise Exception('Bad case: %s' % self)
+        children, label = self._get_children()
 
         t1 = time.time()
         for child in children:
             child.reduce()
+
         t2 = time.time()
         children = [child for child in children if not should_filter or child.is_valid()]
-        t3 = time.time()
 
-        descr += '\n'
+        t3 = time.time()
+        descr = '\n'
+        descr += 'BRANCHING: %s\n' % label
         descr += '  CONSTRUCT: %s seconds\n' % (t1-t0)
         descr += '  REDUCTION: %s seconds\n' % (t2-t1)
         descr += '  VALIDITY : %s seconds' % (t3-t2)
         return children, descr
 
-    def get_first_iteration(self):
+    def _get_children(self):
+        children = []
+        quadratic = self.is_quadratic_constraint_factorable()
+        strong = self.get_strong_descents()
+        descents = self.get_weak_descents()
+
+        if len(self.sigma) == 0:
+            return self._get_children_first_iteration(), 'first iteration'
+        elif quadratic:
+            return self._get_children_from_quadratic_constraint(), 'reducing quadratic constraint'
+        elif strong:
+            children, iterations = self._get_children_from_strong_descents()
+            return children, 'strong descent, depth=%s' % iterations
+        elif descents:
+            return self._get_children_from_weak_descents(descents), 'weak descents'
+        elif self.sigma.is_constant() and not self.sigma.is_complete():
+            return self._get_children_from_new_descent(), 'new descent'
+        elif self.sigma.is_constant() and not self.sigma.is_identity():
+            return [], 'empty'
+        else:
+            raise Exception('Bad case: %s' % self)
+
+    def _get_children_first_iteration(self):
         gens = [self.s, self.t]
         alpha = Root(self.graph, self.graph.star(self.s))
         beta = Root(self.graph, self.graph.star(self.t))
@@ -1668,7 +1653,7 @@ class BraidResolver:
 
         return [fixer, transposer]
 
-    def get_iteration_from_quadratic_constraints(self):
+    def _get_children_from_quadratic_constraint(self):
         children = []
         for factor in self.constraints.quadratic_constraints[0].get_factors():
             child = self.copy()
@@ -1676,28 +1661,45 @@ class BraidResolver:
             children.append(child)
         return children
 
-    def get_iteration_from_weak_descents(self, descents):
+    def _get_children_from_weak_descents(self, descents):
         children = []
         for i in descents:
-            children.append(self.branch_from_descent(i, True))
-            children.append(self.branch_from_descent(i, False))
-            children.append(self.branch_from_descent(i, True, descent=False))
-            children.append(self.branch_from_descent(i, False, descent=False))
+            children.append(self._branch_from_descent(i, True))
+            children.append(self._branch_from_descent(i, False))
+            children.append(self._branch_from_descent(i, True, descent=False))
+            children.append(self._branch_from_descent(i, False, descent=False))
         return children
 
-    def get_iteration_from_strong_descent(self, i):
+    def _get_children_from_strong_descents(self):
+        children = []
+        current = [self]
+        iterations = 0
+        while current:
+            new = []
+            for state in current:
+                state.reduce()
+                if not state.is_valid():
+                    continue
+                strong = state.get_strong_descents()
+                if strong:
+                    new += state._get_children_from_next_strong_descent(strong.pop())
+                else:
+                    children.append(state)
+            current = new
+            iterations += 1
+        return children, iterations
+
+    def _get_children_from_next_strong_descent(self, i):
         children = []
         if self.sigma[i].is_constant():
-            if self.sigma[i] == Root(self.graph, self.graph.star(i), -1):
-                children.append(self.branch_from_descent(i, translate=True))
-            else:
-                children.append(self.branch_from_descent(i, translate=False))
+            commutes = self.sigma[i] == Root(self.graph, self.graph.star(i), -1)
+            children.append(self._branch_from_descent(i, translate=commutes))
         else:
-            children.append(self.branch_from_descent(i, True))
-            children.append(self.branch_from_descent(i, False))
+            children.append(self._branch_from_descent(i, True))
+            children.append(self._branch_from_descent(i, False))
         return children
 
-    def branch_from_descent(self, i, translate=True, descent=True):
+    def _branch_from_descent(self, i, translate=True, descent=True):
         # print(self.sigma)
         beta = self.sigma[i]
         # print(beta)
@@ -1730,7 +1732,7 @@ class BraidResolver:
         # print('done')
         return new
 
-    def get_iteration_from_new_descent(self):
+    def _get_children_from_new_descent(self):
         g = self.graph
         children = []
 
@@ -1925,7 +1927,7 @@ class ResolverQueue:
         return y
 
     def generate_atoms(self, relations, start_word):
-        start = CoxeterTranform.from_word(self.graph, reverse_tuple(start_word))
+        start = CoxeterTransform.from_word(self.graph, reverse_tuple(start_word))
         relations = {(reverse_tuple(a), reverse_tuple(b)) for a, b in relations}
         generated = set()
         to_add = {start}
@@ -1941,7 +1943,7 @@ class ResolverQueue:
         return {x.get_inverse() for x in generated}
 
     def are_connected(self, relations, start_word, target_word):
-        target = CoxeterTranform.from_word(self.graph, target_word)
+        target = CoxeterTransform.from_word(self.graph, target_word)
         return target in self.generate_atoms(relations, start_word)
 
     def minify_relation(self, relations):
