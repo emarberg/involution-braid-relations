@@ -632,7 +632,7 @@ class Multinumber(VectorMixin, NumberMixin):
 
     def __lt__(self, other):
         diff = other - self
-        return diff.get_constant_part() > 0 and 0 <= diff
+        return 0 < diff.get_constant_part() and 0 <= diff
 
     def __le__(self, other):
         other = self.prepare(other, False)
@@ -982,6 +982,14 @@ class Root(VectorMixin, NumberMixin):
 
     def is_negative(self):
         return (not self.is_zero()) and all(v <= 0 for v in self.coefficients.values())
+
+    def is_valid(self):
+        if self.is_zero():
+            return False
+        values = self.coefficients.values()
+        if any(v < 0 for v in values) and any(v > 0 for v in values):
+            return False
+        return True
 
     def set_variables_to_zero(self, variables):
         new = Root(self.graph)
@@ -1590,19 +1598,18 @@ class BraidResolver:
         strong = self.get_strong_descents()
         descents = self.get_weak_descents()
 
-        print('')
+        descr = '\nBRANCHING: '
 
         t0 = time.time()
         if len(self.sigma) == 0:
-            print('BRANCHING: first iteration')
+            descr += 'first iteration'
             children = self.get_first_iteration()
         elif quadratic:
-            print('BRANCHING: reducing quadratic constraint')
+            descr += 'reducing quadratic constraint'
             children = self.get_iteration_from_quadratic_constraints()
         elif strong:
-            print('BRANCHING: strong descent, iterations=', end='')
             current = [self]
-            i = 0
+            iterations = 0
             while current:
                 new = []
                 for state in current:
@@ -1615,19 +1622,19 @@ class BraidResolver:
                     else:
                         children.append(state)
                 current = new
-                i += 1
-            print(i)
+                iterations += 1
+            descr += 'strong descent, iterations=%s' % iterations
         elif descents:
-            print('BRANCHING: weak descents')
+            descr += 'weak descents'
             children = self.get_iteration_from_weak_descents(descents)
         elif self.sigma.is_constant() and not self.sigma.is_complete():
-            print('BRANCHING: new descent')
+            descr += 'new descent'
             children = self.get_iteration_from_new_descent()
         elif self.sigma.is_constant() and not self.sigma.is_identity():
-            print('BRANCHING: empty')
+            descr += 'empty'
             children = []
         else:
-            raise Exception('Bad case: %s' % str(self))
+            raise Exception('Bad case: %s' % self)
 
         t1 = time.time()
         for child in children:
@@ -1635,10 +1642,12 @@ class BraidResolver:
         t2 = time.time()
         children = [child for child in children if not should_filter or child.is_valid()]
         t3 = time.time()
-        print('  CONSTRUCT: %s seconds' % (t1-t0))
-        print('  REDUCTION: %s seconds' % (t2-t1))
-        print('  VALIDITY : %s seconds' % (t3-t2))
-        return children
+
+        descr += '\n'
+        descr += '  CONSTRUCT: %s seconds\n' % (t1-t0)
+        descr += '  REDUCTION: %s seconds\n' % (t2-t1)
+        descr += '  VALIDITY : %s seconds' % (t3-t2)
+        return children, descr
 
     def get_first_iteration(self):
         gens = [self.s, self.t]
@@ -1749,37 +1758,45 @@ class BraidResolver:
         return children
 
     def is_valid(self):
-        # invalid if word_s and word_t have common descent
-        if self.graph.get_order(self.s, self.t) == 2:
-            if any(self.graph.get_order(u, v) > 2
-                   for u in self.word_s.right_descents
-                   for v in self.word_t.right_descents):
-                print("+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++")
-                return False
-        if not self.word_s.right_descents.isdisjoint(self.word_t.right_descents):
+        if not self.are_descents_valid():
             return False
         # invalid if word_s or word_t is not reduced
         if not self.word_s.is_reduced or not self.word_t.is_reduced:
             return False
+        if not self.is_sigma_valid():
+            return False
+        # ignore if any cannot be satisfied
+        if not self.constraints.is_valid():
+            return False
+
+        return True
+
+    def are_descents_valid(self):
+        """
+        Returns False if word_s and word_t share a right descent, or have (distinct)
+        right descents with product of order greater than m_st. These cases may be excluded
+        by induction.
+        """
+        if not self.word_s.right_descents.isdisjoint(self.word_t.right_descents):
+            return False
+        if any(self.graph.get_order(u, v) > self.graph.get_order(self.s, self.t)
+           for u in self.word_s.right_descents
+           for v in self.word_t.right_descents):
+                return False
+        return True
+
+    def is_sigma_valid(self):
         # invalid if sigma sends any root to 0 or non-negative/positive combination of simple roots
-        for root in self.sigma.values():
-            if root == 0:
-                return False
-            values = root.coefficients.values()
-            if any(v < 0 for v in values) and any(v > 0 for v in values):
-                return False
+        if any(not root.is_valid() for root in self.sigma.values()):
+            return False
         # if sigma sends all roots to positive roots, and no variables remain
         if self.sigma.is_constant() and self.sigma.is_complete() and self.sigma.is_positive():
             # invalid if sigma is not trivial
             if not self.sigma.is_identity():
                 return False
-            # invalid if word_s and word_t are involution words for the same element
-            elif not self.is_valid_involution_word_pair():
+            # invalid if word_s and word_t are not involution words for the same element
+            if not self.is_valid_involution_word_pair():
                 return False
-        # ignore if any cannot be satisfied
-        if not self.constraints.is_valid():
-            return False
-
         return True
 
     def is_valid_involution_word_pair(self):
@@ -1980,8 +1997,10 @@ class ResolverQueue:
             self._print_verbose('-----------')
             self._print_verbose(self.queue[0])
 
-            children = self.queue[0].branch()
+            children, descr = self.queue[0].branch()
             self.queue = self.queue[1:]
+            self._print(descr)
+
             self._print_verbose('')
             self._print_verbose('-------------')
             self._print_verbose('Child states:')
