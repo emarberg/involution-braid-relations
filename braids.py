@@ -1039,6 +1039,7 @@ class RootTransform:
         self.graph = coxeter_graph
         self.sigma = sigma.copy()
         self._strong_descents = None
+        self._semistrong_descents = None
         self._weak_descents = None
 
     def __eq__(self, other):
@@ -1051,11 +1052,13 @@ class RootTransform:
 
     def _unset_cached_properties(self):
         self._strong_descents = None
+        self._semistrong_descents = None
         self._weak_descents = None
 
     def copy(self):
         other = RootTransform(self.graph, self.sigma)
         other._strong_descents = self._strong_descents
+        other._semistrong_descents = self._strong_descents
         other._weak_descents = self._weak_descents
         return other
 
@@ -1072,6 +1075,15 @@ class RootTransform:
                 if any(f < 0 for f in self.sigma[i].coefficients.values())
             }
         return self._strong_descents
+
+    @property
+    def semistrong_descents(self):
+        if self._semistrong_descents is None:
+            self._semistrong_descents = {
+                i for i in self.sigma
+                if any(f <= 0 for f in self.sigma[i].coefficients.values())
+            }
+        return self._semistrong_descents
 
     @property
     def weak_descents(self):
@@ -1260,6 +1272,9 @@ class CoxeterWord:
         if type(other) != CoxeterWord:
             return False
         return self.graph == other.graph and self.word == other.word
+
+    def __len__(self):
+        return len(self.word)
 
     def to_involution_word(self):
         new = CoxeterWord(self.graph)
@@ -1470,6 +1485,11 @@ class ConstraintsManager:
             f for f in self.nonpositive_constraints
             if not (f <= 0)
         ]
+        if len(self.nonpositive_constraints) > 10:
+            self.nonpositive_constraints = [
+                f for f in self.nonpositive_constraints
+                if not any(f <= g and f != g for g in self.nonpositive_constraints)
+            ]
         self.nonzero_constraints = [
             r for r in self.nonzero_constraints
             if not any(v < 0 or v > 0 for v in r.coefficients.values())
@@ -1551,8 +1571,9 @@ class BraidResolver:
         s += '\n'
         s += 'sigma = %s' % self.sigma
         s += '\n'
-        s += 'strong descents: %s\n' % list(self.sigma.strong_descents)
-        s += '  weak descents: %s\n' % list(self.sigma.weak_descents)
+        s += '    strong descents: %s\n' % list(self.get_strong_descents())
+        s += 'semistrong descents: %s\n' % list(self.get_semistrong_descents())
+        s += '      weak descents: %s\n' % list(self.get_weak_descents())
         s += str(self.constraints)
         s += '***************\n'
         return s
@@ -1580,6 +1601,9 @@ class BraidResolver:
     def get_weak_descents(self):
         descents_to_avoid = self.word_s.left_descents.union(self.word_t.left_descents)
         return self.sigma.weak_descents.difference(descents_to_avoid)
+
+    def get_semistrong_descents(self):
+        return self.sigma.semistrong_descents
 
     def get_strong_descents(self):
         descents_to_avoid = self.word_s.left_descents.union(self.word_t.left_descents)
@@ -1616,6 +1640,7 @@ class BraidResolver:
         children = []
         quadratic = self.is_quadratic_constraint_factorable()
         strong = self.get_strong_descents()
+        semistrong = self.get_semistrong_descents()
         descents = self.get_weak_descents()
 
         if len(self.sigma) == 0:
@@ -1625,6 +1650,8 @@ class BraidResolver:
         elif strong:
             children, iterations = self._get_children_from_strong_descents()
             return children, 'strong descent, depth=%s' % iterations
+        elif semistrong:
+            return self._get_children_from_semistrong_descents(semistrong), 'semistrong descent'
         elif descents:
             return self._get_children_from_weak_descents(descents), 'weak descents'
         elif self.sigma.is_constant() and not self.sigma.is_complete():
@@ -1669,6 +1696,23 @@ class BraidResolver:
             children.append(self._branch_from_descent(i, True, descent=False))
             children.append(self._branch_from_descent(i, False, descent=False))
         return children
+
+    def _get_children_from_semistrong_descents(self, descents):
+        i = list(descents)[0]
+        constraints = [(j, f) for (j, f) in self.sigma[i].coefficients.items() if f <= 0]
+        nonzero_root = sum(Root(self.graph, j, f) for (j, f) in constraints)
+
+        child_a = self._branch_from_descent(i, True)
+        child_a.constraints.add_nonzero_constraint(nonzero_root)
+
+        child_b = self._branch_from_descent(i, False)
+        child_b.constraints.add_nonzero_constraint(nonzero_root)
+
+        child_c = self.copy()
+        for _, f in constraints:
+            child_c.constraints.add_zero_constraint(f)
+
+        return [child_a, child_b, child_c]
 
     def _get_children_from_strong_descents(self):
         children = []
@@ -1906,11 +1950,18 @@ class ResolverQueue:
     def get_progress(self):
         d = {}
         for state in self.queue:
-            d[len(state)] = d.get(len(state), 0) + 1
+            l = len(state)
+            d[l] = d.get(l, 0) + 1
+        e = {}
+        for state in self.queue:
+            l = len(state.word_s)
+            e[l] = e.get(l, 0) + 1
         if not d:
             return '0'
         else:
-            return ' '.join([str(ell) + '^' + str(mul) for ell, mul in sorted(d.items())])
+            d_str = ' '.join([str(ell) + '^' + str(mul) for ell, mul in sorted(d.items())])
+            e_str = ' '.join([str(ell) + '^' + str(mul) for ell, mul in sorted(e.items())])
+            return d_str + ' = ' + e_str
 
     def _add_final(self, child):
         u = tuple(child.word_s.word)
