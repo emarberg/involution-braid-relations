@@ -598,18 +598,17 @@ class Polynomial(VectorMixin, NumberMixin):
         return self[Monomial()]
 
     def set_variable(self, variable, value):
-        if type(variable) == str:
+        if type(variable) == int:
+            pass
+        elif type(variable) == str:
             variable = Monomial.string_to_index(variable)
-        if type(variable) == Monomial:
-            variable = variable.exponents
-        if type(variable) == dict:
-            assert len(variable) == 1
-            (variable, e) = list(variable.items())[0]
-            assert e == 1
-        assert type(variable) == int
+        elif type(variable) == Monomial and list(variable.exponents.values()) == [1]:
+            variable = list(variable.exponents.keys())[0]
+        else:
+            raise Exception('Invalid input `%s` to Polynomial.set_variable.' % variable)
 
         new = Polynomial()
-        for monomial, coeff in self.coefficients.items():
+        for monomial, coeff in self:
             e = monomial[variable]
             if e != 0 and value != 0:
                 exponents = {i: e for i, e in monomial.exponents.items() if i != variable}
@@ -617,36 +616,34 @@ class Polynomial(VectorMixin, NumberMixin):
             elif e < 0 and value == 0:
                 raise Exception('Division by zero when setting variable in `%s`' % str(self))
             elif e == 0:
-                new += Polynomial(monomial) * coeff
+                new[monomial] += coeff
         return new
 
     def set_variables_to_zero(self, variables):
         """Input `variables` should be set of integers."""
         new = Polynomial()
-        for i, v in self.coefficients.items():
+        for i, v in self:
             if set(i.exponents.keys()).isdisjoint(set(variables)):
-                new.coefficients[i] = v
+                new[i] = v
         return new
 
     @classmethod
-    def prepare(cls, other, strict):
-        if type(other) in [int, RationalNumber, QuadraticNumber, Monomial]:
-            other = Polynomial(other)
-        return other
+    def to_polynomial(cls, other):
+        if type(other) == Polynomial:
+            return other
+        else:
+            return Polynomial(other)
 
     def __lt__(self, other):
         diff = other - self
-        return 0 < diff.get_constant_part() and 0 <= diff
+        return 0 < diff.get_constant_part() and all(0 < c for c in diff.coefficients.values())
 
     def __le__(self, other):
-        other = self.prepare(other, False)
-        if type(other) != Polynomial:
-            return False
         diff = other - self
         return all(0 < c for c in diff.coefficients.values())
 
     def __add__(self, other):
-        other = self.prepare(other, True)
+        other = self.to_polynomial(other)
         new = Polynomial()
         keys = set(self.coefficients.keys()).union(other.coefficients.keys())
         new.coefficients = {i: self[i] + other[i] for i in keys if self[i] + other[i] != 0}
@@ -655,41 +652,34 @@ class Polynomial(VectorMixin, NumberMixin):
     def __mul__(self, other):
         if type(other) == Root:
             return other * self
-        other = self.prepare(other, True)
-        new = Polynomial()
-        for monomial_1, coeff_1 in other.coefficients.items():
-            summand = Polynomial()
-            for monomial_2, coeff_2 in self.coefficients.items():
-                summand.coefficients[monomial_1*monomial_2] = coeff_1 * coeff_2
-            new += summand
-        return new
+        else:
+            other = self.to_polynomial(other)
+            new = Polynomial()
+            for monomial_1, coeff_1 in other:
+                for monomial_2, coeff_2 in self:
+                    new[monomial_1*monomial_2] += coeff_1 * coeff_2
+            return new
 
     def __truediv__(self, other):
         if type(other) == Polynomial and other.is_constant():
             other = other[1]
+
         if not (type(other) in [int, RationalNumber, QuadraticNumber] and other != 0):
             raise Exception('Cannot divide Polynomial by `%s`' % str(other))
-
-        new = Polynomial()
-        new.coefficients = self.coefficients.copy()
-        for i in new.coefficients:
-            v = new.coefficients[i]
-            if type(v) != QuadraticNumber:
-                v = QuadraticNumber(v)
-            new.coefficients[i] = v/other
-        return new
+        else:
+            other = QuadraticNumber.to_quadratic_number(other)
+            new = Polynomial()
+            for i, v in self:
+                new[i] = v/other
+            return new
 
     def __getitem__(self, i):
         if i == 1:
             i = Monomial()
-        elif type(i) == dict:
+        elif type(i) in [dict, str]:
             i = Monomial(i)
 
-        v = self.coefficients.get(i, 0)
-        if type(v) == QuadraticNumber:
-            return v
-        else:
-            return QuadraticNumber(v)
+        return super(Polynomial, self).__getitem__(i)
 
     def __repr__(self):
         if len(self) == 0:
