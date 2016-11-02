@@ -421,7 +421,7 @@ class QuadraticNumber(VectorMixin, NumberMixin):
         if not (type(other) in [int, RationalNumber, QuadraticNumber] and other != 0):
             raise Exception('Cannot divide Quadratic number by `%s`' % str(other))
         if self == 0:
-            return self
+            return QuadraticNumber(0)
         elif type(other) in [int, RationalNumber]:
             return self * RationalNumber(1, other)
         elif other.is_rational():
@@ -1041,8 +1041,8 @@ class Root(VectorMixin, NumberMixin):
 
     def __add__(self, other):
         if other == 0:
-            return self
-        elif type(other) == Root and self.graph == other.graph:
+            other = Root(self.graph)
+        if type(other) == Root and self.graph == other.graph:
             indices = set(self.coefficients.keys()).union(set(other.coefficients.keys()))
             new = Root(self.graph)
             new.coefficients = {i: self[i] + other[i] for i in indices if (self[i] + other[i]) != 0}
@@ -1435,64 +1435,56 @@ class ConstraintsManager:
         if type(c) == Root:
             for v in c.coefficients.values():
                 self.add_zero_constraint(v)
-            return
-
-        if type(c) != Polynomial:
-            c = Polynomial(c)
-
-        if c.is_linear() and c not in self.zero_constraints:
-            self.zero_constraints.append(c)
-        elif not c.is_linear() and c not in self.quadratic_constraints:
-            self.quadratic_constraints.append(c)
+        else:
+            c = Polynomial.to_polynomial(c)
+            if c.is_linear() and c not in self.zero_constraints:
+                self.zero_constraints.append(c)
+            elif not c.is_linear() and c not in self.quadratic_constraints:
+                self.quadratic_constraints.append(c)
 
     def add_nonpositive_constraint(self, c):
         if type(c) == Root:
             for v in c.coefficients.values():
                 self.add_nonpositive_constraint(v)
             return
-
-        if type(c) != Polynomial:
-            c = Polynomial(c)
-
-        if c not in self.nonpositive_constraints + self.zero_constraints:
-            if -c in self.nonpositive_constraints:
-                self.add_zero_constraint(c)
-            else:
-                self.nonpositive_constraints.append(c)
+        else:
+            c = Polynomial.to_polynomial(c)
+            if c not in self.nonpositive_constraints + self.zero_constraints:
+                if -c in self.nonpositive_constraints:
+                    self.add_zero_constraint(c)
+                else:
+                    self.nonpositive_constraints.append(c)
 
     def add_nonzero_constraint(self, root):
         if root not in self.nonzero_constraints:
             self.nonzero_constraints.append(root)
 
     def row_reduce_zero_constraints(self):
-        bad_constraints = []
+        degenerate_constraints = []
         while self.zero_constraints:
-            row = self.zero_constraints[0]
-            self.zero_constraints = self.zero_constraints[1:]
-            variables = list(row.get_variables())
+            row = self.zero_constraints.pop()
+            variables = row.get_variables()
             if not variables:
                 if row != 0:
-                    bad_constraints.append(row)
+                    degenerate_constraints.append(row)
                 continue
 
-            var = Monomial({variables[0]: 1})
-            substitution = Polynomial(var) - row / row[var]
-            assert substitution[var] == 0
+            var = Monomial({variables.pop(): 1})
+            substitution = -row / row[var]
+            substitution[var] = 0
 
             for i in range(len(self.pivots)):
                 prev_var, prev_subst = self.pivots[i]
                 c = prev_subst[var]
                 if c != 0:
-                    prev_subst -= c*Polynomial(var)
-                    prev_subst += c*substitution
-                    assert prev_subst[var] == 0
-                    self.pivots[i] = (prev_var, prev_subst)
+                    new_subst = prev_subst + c*substitution
+                    new_subst[var] = 0
+                    self.pivots[i] = (prev_var, new_subst)
 
             self.pivots.append((var, substitution))
             self.row_reduce_by_pivot(var, substitution)
 
-
-        self.zero_constraints = bad_constraints
+        self.zero_constraints = degenerate_constraints
 
     def row_reduce_by_pivot(self, var, substitution):
         self.zero_constraints = [
@@ -1506,14 +1498,14 @@ class ConstraintsManager:
 
     @classmethod
     def reduced_row_generator(cls, var, substitution, old_constraints):
-        new_constraints = []
         for constraint in old_constraints:
             c = constraint[var]
             if c != 0:
-                constraint -= c*Polynomial(var)
-                constraint += c*substitution
-            new_constraints.append(constraint)
-        return new_constraints
+                new_constraint = constraint + c*substitution
+                new_constraint[var] = 0
+                yield new_constraint
+            else:
+                yield constraint
 
     def remove_vacuous_constraints(self):
         self.zero_constraints = [
@@ -1647,8 +1639,8 @@ class BraidResolver:
     def get_unconditional_descents(self):
         descents_to_avoid = self.word_s.left_descents.union(self.word_t.left_descents)
         unconditional = self.sigma.unconditional_descents
-        return sorted(unconditional.intersection(descents_to_avoid)) + \
-            sorted(unconditional.difference(descents_to_avoid))
+        return list(unconditional.intersection(descents_to_avoid)) + \
+            list(unconditional.difference(descents_to_avoid))
 
     def is_quadratic_constraint_factorable(self):
         if self.constraints.quadratic_constraints:
