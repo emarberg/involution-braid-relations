@@ -1067,9 +1067,9 @@ class RootTransform:
            all(type(r) == Root and r.graph == coxeter_graph for r in sigma.values()):
             self.graph = coxeter_graph
             self.sigma = sigma.copy()
-            self._strong_descents = None
-            self._semistrong_descents = None
-            self._weak_descents = None
+            self._unconditional_descents = None
+            self._strong_conditional_descents = None
+            self._weak_conditional_descents = None
         else:
             raise Exception('Invalid inputs (%s, %s) to RootTransform.' % (coxeter_graph, sigma))
 
@@ -1081,15 +1081,15 @@ class RootTransform:
         return self.sigma[i]
 
     def _unset_cached_properties(self):
-        self._strong_descents = None
-        self._semistrong_descents = None
-        self._weak_descents = None
+        self._unconditional_descents = None
+        self._strong_conditional_descents = None
+        self._weak_conditional_descents = None
 
     def copy(self):
         other = RootTransform(self.graph, self.sigma)
-        other._strong_descents = self._strong_descents
-        other._semistrong_descents = self._strong_descents
-        other._weak_descents = self._weak_descents
+        other._unconditional_descents = self._unconditional_descents
+        other._strong_conditional_descents = self._unconditional_descents
+        other._weak_conditional_descents = self._weak_conditional_descents
         return other
 
     def __setitem__(self, i, value):
@@ -1102,31 +1102,31 @@ class RootTransform:
             )
 
     @property
-    def strong_descents(self):
-        if self._strong_descents is None:
-            self._strong_descents = {
+    def unconditional_descents(self):
+        if self._unconditional_descents is None:
+            self._unconditional_descents = {
                 i for i in self.sigma
                 if any(f < 0 for f in self.sigma[i].coefficients.values())
             }
-        return self._strong_descents
+        return self._unconditional_descents
 
     @property
-    def semistrong_descents(self):
-        if self._semistrong_descents is None:
-            self._semistrong_descents = {
+    def strong_conditional_descents(self):
+        if self._strong_conditional_descents is None:
+            self._strong_conditional_descents = {
                 i for i in self.sigma
                 if any(f <= 0 for f in self.sigma[i].coefficients.values())
             }
-        return self._semistrong_descents
+        return self._strong_conditional_descents
 
     @property
-    def weak_descents(self):
-        if self._weak_descents is None:
-            self._weak_descents = {
+    def weak_conditional_descents(self):
+        if self._weak_conditional_descents is None:
+            self._weak_conditional_descents = {
                 i for i in self.sigma
                 if not any(0 < f for f in self.sigma[i].coefficients.values())
             }
-        return self._weak_descents
+        return self._weak_conditional_descents
 
     @classmethod
     def identity(cls, coxeter_graph):
@@ -1134,24 +1134,24 @@ class RootTransform:
         return cls(coxeter_graph, sigma)
 
     def __mul__(self, j):
-        if j not in self.graph.generators:
-            raise Exception('Cannot multiply %s by %s.' % (self.__name__, j))
-        else:
+        if j in self.graph.generators:
             new = {}
             for i in self.sigma:
                 root = Root(self.graph, i).reflect(j)
                 for k, v in root:
                     new[i] = new.get(i, 0) + self.sigma[k] * v
             return self.__class__(self.graph, new)
+        else:
+            raise Exception('Cannot multiply %s by %s.' % (self.__name__, j))
 
     def __rmul__(self, j):
-        if j not in self.graph.generators:
-            raise Exception('Cannot right multiply %s by %s.' % (self.__name__, j))
-        else:
+        if j in self.graph.generators:
             new = {}
             for i in self.sigma:
                 new[i] = self.sigma[i].reflect(j)
             return self.__class__(self.graph, new)
+        else:
+            raise Exception('Cannot right multiply %s by %s.' % (self.__name__, j))
 
     def to_coxeter_transform(self):
         return CoxeterTransform(self.graph, self.sigma)
@@ -1191,10 +1191,13 @@ class RootTransform:
 class CoxeterTransform(RootTransform):
     def __init__(self, coxeter_graph, sigma=None):
         if sigma:
-            assert set(sigma.keys()) == set(coxeter_graph.generators)
-            assert all(type(r) == Root and r.graph == coxeter_graph for r in sigma.values())
-            assert all(r.is_constant() for r in sigma.values())
-            self.sigma = sigma.copy()
+            keys_valid = set(sigma.keys()) == set(coxeter_graph.generators)
+            roots_valid = all(type(r) == Root and r.graph == coxeter_graph for r in sigma.values())
+            nonvariable = all(r.is_constant() for r in sigma.values())
+            if keys_valid and roots_valid and nonvariable:
+                self.sigma = sigma.copy()
+            else:
+                raise Exception('Invalid input `sigma = %s` to CoxeterTransform.' % sigma)
         else:
             self.sigma = {i: Root(coxeter_graph, i) for i in coxeter_graph.generators}
         self.graph = coxeter_graph
@@ -1222,10 +1225,13 @@ class CoxeterTransform(RootTransform):
         self._minimal_reduced_word = None
 
     def __setitem__(self, i, value):
-        assert value.is_constant()
-        assert i in self.graph.generators and type(value) == Root and value.graph == self.graph
-        self.sigma[i] = value
-        self._unset_cached_properties()
+        if not (value.is_constant() and type(value) == Root and value.graph == self.graph):
+            raise Exception('Invalid value `%s` in CoxeterTransform.__setitem__.' % value)
+        elif i not in self.graph.generators:
+            raise Exception('Invalid index `%s` in CoxeterTransform.__setitem__.' % i)
+        else:
+            self.sigma[i] = value
+            self._unset_cached_properties()
 
     @property
     def right_descents(self):
@@ -1473,9 +1479,6 @@ class ConstraintsManager:
             substitution = Polynomial(var) - row / row[var]
             assert substitution[var] == 0
 
-            #if other:
-            #    print(1.1, other.sigma)
-
             for i in range(len(self.pivots)):
                 prev_var, prev_subst = self.pivots[i]
                 c = prev_subst[var]
@@ -1484,12 +1487,10 @@ class ConstraintsManager:
                     prev_subst += c*substitution
                     assert prev_subst[var] == 0
                     self.pivots[i] = (prev_var, prev_subst)
-            #if other:
-            #    print(1.2, other.sigma)
+
             self.pivots.append((var, substitution))
             self.row_reduce_by_pivot(var, substitution)
-            #if other:
-            #    print(1.3, other.sigma)
+
 
         self.zero_constraints = bad_constraints
 
@@ -1609,9 +1610,9 @@ class BraidResolver:
         s += '\n'
         s += 'sigma = %s' % self.sigma
         s += '\n'
-        s += '    strong descents: %s\n' % list(self.get_strong_descents())
-        s += 'semistrong descents: %s\n' % list(self.get_semistrong_descents())
-        s += '      weak descents: %s\n' % list(self.get_weak_descents())
+        s += '     unconditional descents: %s\n' % list(self.get_unconditional_descents())
+        s += 'strong conditional descents: %s\n' % list(self.get_strong_conditional_descents())
+        s += '  weak conditional descents: %s\n' % list(self.get_weak_conditional_descents())
         s += str(self.constraints)
         s += '***************\n'
         return s
@@ -1636,18 +1637,18 @@ class BraidResolver:
         else:
             return m//2
 
-    def get_weak_descents(self):
+    def get_weak_conditional_descents(self):
         descents_to_avoid = self.word_s.left_descents.union(self.word_t.left_descents)
-        return self.sigma.weak_descents.difference(descents_to_avoid)
+        return self.sigma.weak_conditional_descents.difference(descents_to_avoid)
 
-    def get_semistrong_descents(self):
-        return self.sigma.semistrong_descents
+    def get_strong_conditional_descents(self):
+        return self.sigma.strong_conditional_descents
 
-    def get_strong_descents(self):
+    def get_unconditional_descents(self):
         descents_to_avoid = self.word_s.left_descents.union(self.word_t.left_descents)
-        strong = self.sigma.strong_descents
-        return sorted(strong.intersection(descents_to_avoid)) + \
-            sorted(strong.difference(descents_to_avoid))
+        unconditional = self.sigma.unconditional_descents
+        return sorted(unconditional.intersection(descents_to_avoid)) + \
+            sorted(unconditional.difference(descents_to_avoid))
 
     def is_quadratic_constraint_factorable(self):
         if self.constraints.quadratic_constraints:
@@ -1677,21 +1678,23 @@ class BraidResolver:
     def _get_children(self):
         children = []
         quadratic = self.is_quadratic_constraint_factorable()
-        strong = self.get_strong_descents()
-        semistrong = self.get_semistrong_descents()
-        descents = self.get_weak_descents()
+        unconditional = self.get_unconditional_descents()
+        strong = self.get_strong_conditional_descents()
+        weak = self.get_weak_conditional_descents()
 
         if len(self.sigma) == 0:
             return self._get_children_first_iteration(), 'first iteration'
         elif quadratic:
             return self._get_children_from_quadratic_constraint(), 'reducing quadratic constraint'
+        elif unconditional:
+            children, iterations = self._get_children_from_unconditional_descents()
+            return children, 'unconditional descent, depth=%s' % iterations
         elif strong:
-            children, iterations = self._get_children_from_strong_descents()
-            return children, 'strong descent, depth=%s' % iterations
-        elif semistrong:
-            return self._get_children_from_semistrong_descents(semistrong), 'semistrong descent'
-        elif descents:
-            return self._get_children_from_weak_descents(descents), 'weak descents'
+            children = self._get_children_from_strong_conditional_descents(strong)
+            return children, 'strong conditional descent'
+        elif weak:
+            children = self._get_children_from_weak_conditional_descents(weak)
+            return children, 'weak conditional descents'
         elif self.sigma.is_constant() and not self.sigma.is_complete():
             return self._get_children_from_new_descent(), 'new descent'
         elif self.sigma.is_constant() and not self.sigma.is_identity():
@@ -1726,7 +1729,7 @@ class BraidResolver:
             children.append(child)
         return children
 
-    def _get_children_from_weak_descents(self, descents):
+    def _get_children_from_weak_conditional_descents(self, descents):
         children = []
         for i in descents:
             children.append(self._branch_from_descent(i, True))
@@ -1735,7 +1738,7 @@ class BraidResolver:
             children.append(self._branch_from_descent(i, False, descent=False))
         return children
 
-    def _get_children_from_semistrong_descents(self, descents):
+    def _get_children_from_strong_conditional_descents(self, descents):
         i = list(descents)[0]
         constraints = [(j, f) for (j, f) in self.sigma[i].coefficients.items() if f <= 0]
         nonzero_root = sum(Root(self.graph, j, f) for (j, f) in constraints)
@@ -1752,7 +1755,7 @@ class BraidResolver:
 
         return [child_a, child_b, child_c]
 
-    def _get_children_from_strong_descents(self):
+    def _get_children_from_unconditional_descents(self):
         children = []
         current = [self]
         iterations = 0
@@ -1762,16 +1765,16 @@ class BraidResolver:
                 state.reduce()
                 if not state.is_valid():
                     continue
-                strong = state.get_strong_descents()
-                if strong:
-                    new += state._get_children_from_next_strong_descent(strong.pop())
+                descents = state.get_unconditional_descents()
+                if descents:
+                    new += state._get_children_from_next_unconditional_descent(descents.pop())
                 else:
                     children.append(state)
             current = new
             iterations += 1
         return children, iterations
 
-    def _get_children_from_next_strong_descent(self, i):
+    def _get_children_from_next_unconditional_descent(self, i):
         children = []
         if self.sigma[i].is_constant():
             commutes = self.sigma[i] == Root(self.graph, self.graph.star(i), -1)
@@ -1782,11 +1785,8 @@ class BraidResolver:
         return children
 
     def _branch_from_descent(self, i, translate=True, descent=True):
-        # print(self.sigma)
         beta = self.sigma[i]
-        # print(beta)
         new = self.copy()
-        # print(new)
         if not descent:
             new.constraints.add_nonpositive_constraint(-beta)
         else:
@@ -1797,21 +1797,10 @@ class BraidResolver:
             alpha = Root(new.graph, new.graph.star(i))
             if translate:
                 new.constraints.add_zero_constraint(beta + alpha)
-                # print(new.sigma)
                 new.sigma = new.sigma * i
-                # print('translate: %s' % new.sigma)
             else:
                 new.constraints.add_nonzero_constraint(beta + alpha)
-                # print(new.sigma)
                 new.sigma = self.graph.star(i) * new.sigma * i
-                # print('conjugate: %s' % new.sigma)
-        # print('reducing')
-        # print(new)
-        # print(self.sigma)
-        # new.reduce()
-        # print(self.sigma)
-        # print(new)
-        # print('done')
         return new
 
     def _get_children_from_new_descent(self):
@@ -1893,12 +1882,7 @@ class BraidResolver:
 
     def reduce(self):
         self.constraints.row_reduce_zero_constraints()
-        #if other:
-        #    print(1, other.sigma)
         self.simplify_sigma()
-        #if other:
-        #    print(2, other.sigma)
-        # next, reduce by inequalities
         zeros = set()
         for f in self.constraints.nonpositive_constraints:
             if 0 <= f:
@@ -1907,8 +1891,6 @@ class BraidResolver:
             self.set_variables_to_zero(zeros)
             self.constraints.row_reduce_zero_constraints()
             self.simplify_sigma()
-        #if other:
-        #    print(3, other.sigma)
         self.constraints.remove_vacuous_constraints()
 
     def simplify_sigma(self):
