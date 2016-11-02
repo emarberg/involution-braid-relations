@@ -49,7 +49,7 @@ class VectorMixin:
         s = ''
         for i, v in sorted(self.coefficients.items()):
             alpha = self.get_index_repr(i)
-            if alpha == '' and v > 0:
+            if alpha == '' and 0 < v:
                 s += ' + ' + str(v)
             elif alpha == '' and v < 0:
                 s += ' - ' + str(-v)
@@ -57,7 +57,7 @@ class VectorMixin:
                 s += ' + ' + alpha
             elif v == -1:
                 s += ' - ' + alpha
-            elif v > 0 and type(v) == RationalNumber:
+            elif 0 < v and type(v) == RationalNumber:
                 s += ' + ' + str(v) + '*' + alpha
             elif v < 0 and type(v) == RationalNumber:
                 s += ' - ' + str(-v) + '*' + alpha
@@ -108,7 +108,7 @@ class NumberMixin:
         return -(self - other)
 
     def __pow__(self, exponent):
-        assert type(exponent) == int and exponent > 0
+        assert type(exponent) == int and 0 < exponent
         if exponent == 1:
             return self + 0
         elif exponent % 2 == 0:
@@ -166,7 +166,7 @@ class RationalNumber(NumberMixin):
         return (self - other).numerator < 0
 
     def __add__(self, other):
-        if type(other) in [QuadraticNumber, Multinumber]:
+        if type(other) in [QuadraticNumber, Polynomial]:
             return other + self
         other = self.prepare(other)
         n = self.numerator*other.denominator + other.numerator*self.denominator
@@ -174,7 +174,7 @@ class RationalNumber(NumberMixin):
         return RationalNumber(p, q)
 
     def __mul__(self, other):
-        if type(other) in [Root, QuadraticNumber, Multinumber]:
+        if type(other) in [Root, QuadraticNumber, Polynomial]:
             return other * self
         other = self.prepare(other)
         p, q = self.reduce(self.numerator*other.numerator, self.denominator*other.denominator)
@@ -183,7 +183,7 @@ class RationalNumber(NumberMixin):
     def __truediv__(self, other):
         if type(other) == QuadraticNumber:
             return QuadraticNumber(self) / other
-        elif type(other) == Multinumber and other.is_constant():
+        elif type(other) == Polynomial and other.is_constant():
             return self / other.get_constant_part()
         else:
             return RationalNumber(self, other)
@@ -224,9 +224,7 @@ class PrimeFactorization:
         return self.factorization.get(p, 0)
 
     def __eq__(self, other):
-        if type(other) != PrimeFactorization:
-            return False
-        return self.n == other.n
+        return type(other) == PrimeFactorization and self.n == other.n
 
     def __lt__(self, other):
         return self.n < other.n
@@ -330,7 +328,7 @@ class QuadraticNumber(VectorMixin, NumberMixin):
         return all(pf.n == 1 for pf in self.coefficients)
 
     def is_real(self):
-        return all(pf.n > 0 for pf in self.coefficients)
+        return all(0 < pf.n for pf in self.coefficients)
 
     def to_float(self):
         assert self.is_real()
@@ -347,7 +345,7 @@ class QuadraticNumber(VectorMixin, NumberMixin):
 
     def decompose(self):
         positive_part, negative_part = QuadraticNumber(), QuadraticNumber()
-        positive_part.coefficients = {i: v for i, v in self.coefficients.items() if v > 0}
+        positive_part.coefficients = {i: v for i, v in self.coefficients.items() if 0 < v}
         negative_part.coefficients = {i: -v for i, v in self.coefficients.items() if v < 0}
         return positive_part, negative_part
 
@@ -357,9 +355,9 @@ class QuadraticNumber(VectorMixin, NumberMixin):
             return False
         diff = other - self
         if diff.is_rational():
-            return diff[PrimeFactorization(1)] > 0
+            return 0 < diff[PrimeFactorization(1)]
         elif diff.is_real():
-            if all(c > 0 for c in diff.coefficients.values()):
+            if all(0 < c for c in diff.coefficients.values()):
                 return True
             elif all(c < 0 for c in diff.coefficients.values()):
                 return False
@@ -371,7 +369,7 @@ class QuadraticNumber(VectorMixin, NumberMixin):
             raise Exception('Cannot compare quadratic numbers have non-real difference.')
 
     def __add__(self, other):
-        if type(other) in [Multinumber]:
+        if type(other) in [Polynomial]:
             return other + self
         other = self.prepare(other, True)
         keys = set(self.coefficients.keys()).union(set(other.coefficients.keys()))
@@ -380,7 +378,7 @@ class QuadraticNumber(VectorMixin, NumberMixin):
         return new
 
     def __mul__(self, other):
-        if type(other) in [Root, Multinumber]:
+        if type(other) in [Root, Polynomial]:
             return other * self
         other = self.prepare(other, True)
         new = QuadraticNumber()
@@ -510,7 +508,7 @@ class Monomial:
         return s
 
 
-class Multinumber(VectorMixin, NumberMixin):
+class Polynomial(VectorMixin, NumberMixin):
     def __init__(self, i=None):
         self.coefficients = {}
         if i is not None:
@@ -525,7 +523,7 @@ class Multinumber(VectorMixin, NumberMixin):
                 if i != 0:
                     self.coefficients[Monomial()] = i
             else:
-                raise Exception('Invalid input type `%s` for Multinumber' % str(type(i)))
+                raise Exception('Invalid input type `%s` for Polynomial' % str(type(i)))
 
     def get_variables(self):
         return set(i for monomial in self.coefficients for i in monomial.exponents)
@@ -539,7 +537,7 @@ class Multinumber(VectorMixin, NumberMixin):
         b = self[{x: 1}]
         c = self[{}]
 
-        if self != a*Multinumber({x: 2}) + b*Multinumber({x: 1}) + c*Multinumber({}):
+        if self != a*Polynomial({x: 2}) + b*Polynomial({x: 1}) + c*Polynomial({}):
             return False
         if a == 0 and b == 0:
             return False
@@ -553,7 +551,7 @@ class Multinumber(VectorMixin, NumberMixin):
         a = self[{x: 2}]
         b = self[{x: 1}]
         c = self[{}]
-        x = Multinumber({x: 1})
+        x = Polynomial({x: 1})
 
         if self != a*x**2 + b*x + c:
             raise Exception('Cannot factor `%s`' % str(self))
@@ -583,7 +581,7 @@ class Multinumber(VectorMixin, NumberMixin):
 
     def is_linear(self):
         for monomial in self.coefficients:
-            if len(monomial.exponents) > 1:
+            if 1 < len(monomial.exponents):
                 return False
             for i, e in monomial.exponents.items():
                 if e != 1:
@@ -607,21 +605,21 @@ class Multinumber(VectorMixin, NumberMixin):
             assert e == 1
         assert type(variable) == int
 
-        new = Multinumber()
+        new = Polynomial()
         for monomial, coeff in self.coefficients.items():
             e = monomial[variable]
             if e != 0 and value != 0:
                 exponents = {i: e for i, e in monomial.exponents.items() if i != variable}
-                new += Multinumber(exponents) * coeff * (value**e)
+                new += Polynomial(exponents) * coeff * (value**e)
             elif e < 0 and value == 0:
                 raise Exception('Division by zero when setting variable in `%s`' % str(self))
             elif e == 0:
-                new += Multinumber(monomial) * coeff
+                new += Polynomial(monomial) * coeff
         return new
 
     def set_variables_to_zero(self, variables):
         """Input `variables` should be set of integers."""
-        new = Multinumber()
+        new = Polynomial()
         for i, v in self.coefficients.items():
             if set(i.exponents.keys()).isdisjoint(set(variables)):
                 new.coefficients[i] = v
@@ -630,8 +628,8 @@ class Multinumber(VectorMixin, NumberMixin):
     @classmethod
     def prepare(cls, other, strict):
         if type(other) in [int, RationalNumber, QuadraticNumber, Monomial]:
-            other = Multinumber(other)
-        return super(Multinumber, cls).prepare(other, strict)
+            other = Polynomial(other)
+        return super(Polynomial, cls).prepare(other, strict)
 
     def __lt__(self, other):
         diff = other - self
@@ -639,14 +637,14 @@ class Multinumber(VectorMixin, NumberMixin):
 
     def __le__(self, other):
         other = self.prepare(other, False)
-        if type(other) != Multinumber:
+        if type(other) != Polynomial:
             return False
         diff = other - self
-        return all(c > 0 for c in diff.coefficients.values())
+        return all(0 < c for c in diff.coefficients.values())
 
     def __add__(self, other):
         other = self.prepare(other, True)
-        new = Multinumber()
+        new = Polynomial()
         keys = set(self.coefficients.keys()).union(other.coefficients.keys())
         new.coefficients = {i: self[i] + other[i] for i in keys if self[i] + other[i] != 0}
         return new
@@ -655,21 +653,21 @@ class Multinumber(VectorMixin, NumberMixin):
         if type(other) == Root:
             return other * self
         other = self.prepare(other, True)
-        new = Multinumber()
+        new = Polynomial()
         for monomial_1, coeff_1 in other.coefficients.items():
-            summand = Multinumber()
+            summand = Polynomial()
             for monomial_2, coeff_2 in self.coefficients.items():
                 summand.coefficients[monomial_1*monomial_2] = coeff_1 * coeff_2
             new += summand
         return new
 
     def __truediv__(self, other):
-        if type(other) == Multinumber and other.is_constant():
+        if type(other) == Polynomial and other.is_constant():
             other = other[1]
         if not (type(other) in [int, RationalNumber, QuadraticNumber] and other != 0):
-            raise Exception('Cannot divide Multinumber by `%s`' % str(other))
+            raise Exception('Cannot divide Polynomial by `%s`' % str(other))
 
-        new = Multinumber()
+        new = Polynomial()
         new.coefficients = self.coefficients.copy()
         for i in new.coefficients:
             v = new.coefficients[i]
@@ -733,7 +731,7 @@ class CoxeterGraph:
         for i, j, m in triples:
             if i != j and m != 2:
                 # check that m=m_ij is a positive int or infinity
-                assert (type(m) == int and m >= 3) or m == np.infty
+                assert (type(m) == int and 3 <= m) or m == np.infty
                 # check that triples does not contain inconsistent entries
                 assert self.orders.get((i, j), m) == m
                 self.orders[(i, j)] = m
@@ -848,7 +846,7 @@ class CoxeterGraph:
 
     @staticmethod
     def B(n):
-        assert n >= 2
+        assert 2 <= n
         triples = [(i, i+1, 3) for i in range(1, n-1)] + [(0, 1, 4)]
         return CoxeterGraph(triples)
 
@@ -864,13 +862,13 @@ class CoxeterGraph:
 
     @staticmethod
     def D(n, star=None):
-        assert n >= 4
+        assert 4 <= n
         triples = [(i, i+1, 3) for i in range(1, n-1)] + [(0, 2, 3)]
         return CoxeterGraph(triples, star)
 
     @staticmethod
     def D2(n):
-        assert n >= 4
+        assert 4 <= n
         star = [(0, 1)] + [(i, i) for i in range(2, n)]
         return CoxeterGraph.D(n, star)
 
@@ -976,12 +974,12 @@ class Root(VectorMixin, NumberMixin):
 
     def is_constant(self):
         for i, v in self.coefficients.items():
-            if type(v) == Multinumber and not v.is_constant():
+            if type(v) == Polynomial and not v.is_constant():
                 return False
         return True
 
     def is_positive(self):
-        return (not self.is_zero()) and all(v >= 0 for v in self.coefficients.values())
+        return (not self.is_zero()) and all(0 <= v for v in self.coefficients.values())
 
     def is_negative(self):
         return (not self.is_zero()) and all(v <= 0 for v in self.coefficients.values())
@@ -990,14 +988,14 @@ class Root(VectorMixin, NumberMixin):
         if self.is_zero():
             return False
         values = self.coefficients.values()
-        if any(v < 0 for v in values) and any(v > 0 for v in values):
+        if any(v < 0 for v in values) and any(0 < v for v in values):
             return False
         return True
 
     def set_variables_to_zero(self, variables):
         new = Root(self.graph)
         for i, v in self.coefficients.items():
-            if type(v) == Multinumber:
+            if type(v) == Polynomial:
                 v = v.set_variables_to_zero(variables)
             if v != 0:
                 new.coefficients[i] = v
@@ -1006,7 +1004,7 @@ class Root(VectorMixin, NumberMixin):
     def set_variable(self, variable, value):
         new = Root(self.graph)
         for i, v in self.coefficients.items():
-            if type(v) == Multinumber:
+            if type(v) == Polynomial:
                 v = v.set_variable(variable, value)
             if v != 0:
                 new += Root(self.graph, i, v)
@@ -1090,7 +1088,7 @@ class RootTransform:
         if self._weak_descents is None:
             self._weak_descents = {
                 i for i in self.sigma
-                if not any(f > 0 for f in self.sigma[i].coefficients.values())
+                if not any(0 < f for f in self.sigma[i].coefficients.values())
             }
         return self._weak_descents
 
@@ -1279,7 +1277,7 @@ class CoxeterWord:
     def to_involution_word(self):
         new = CoxeterWord(self.graph)
         for i in self.word:
-            alpha = -Root(self.graph, self.graph.star(i))
+            alpha = Root(self.graph, self.graph.star(i))
             if new.left_action[i] not in [alpha, -alpha]:
                 new.extend_left(self.graph.star(i))
             new.extend_right(i)
@@ -1360,13 +1358,13 @@ class CoxeterWord:
 class ConstraintsManager:
     def __init__(self):
         self.pivots = []
-        # list of linear Multinumbers which must be <= 0
+        # list of linear Polynomials which must be <= 0
         self.nonpositive_constraints = []
-        # list of linear Multinumbers which must be == 0
+        # list of linear Polynomials which must be == 0
         self.zero_constraints = []
         # list of Roots which must be != 0
         self.nonzero_constraints = []
-        # list of quadratic Multinumbers which must be == 0
+        # list of quadratic Polynomials which must be == 0
         self.quadratic_constraints = []
 
     def __eq__(self, other):
@@ -1393,8 +1391,8 @@ class ConstraintsManager:
                 self.add_zero_constraint(v)
             return
 
-        if type(c) != Multinumber:
-            c = Multinumber(c)
+        if type(c) != Polynomial:
+            c = Polynomial(c)
 
         if c.is_linear() and c not in self.zero_constraints:
             self.zero_constraints.append(c)
@@ -1407,8 +1405,8 @@ class ConstraintsManager:
                 self.add_nonpositive_constraint(v)
             return
 
-        if type(c) != Multinumber:
-            c = Multinumber(c)
+        if type(c) != Polynomial:
+            c = Polynomial(c)
 
         if c not in self.nonpositive_constraints + self.zero_constraints:
             if -c in self.nonpositive_constraints:
@@ -1432,7 +1430,7 @@ class ConstraintsManager:
                 continue
 
             var = Monomial({variables[0]: 1})
-            substitution = Multinumber(var) - row / row[var]
+            substitution = Polynomial(var) - row / row[var]
             assert substitution[var] == 0
 
             #if other:
@@ -1442,7 +1440,7 @@ class ConstraintsManager:
                 prev_var, prev_subst = self.pivots[i]
                 c = prev_subst[var]
                 if c != 0:
-                    prev_subst -= c*Multinumber(var)
+                    prev_subst -= c*Polynomial(var)
                     prev_subst += c*substitution
                     assert prev_subst[var] == 0
                     self.pivots[i] = (prev_var, prev_subst)
@@ -1471,7 +1469,7 @@ class ConstraintsManager:
         for constraint in old_constraints:
             c = constraint[var]
             if c != 0:
-                constraint -= c*Multinumber(var)
+                constraint -= c*Polynomial(var)
                 constraint += c*substitution
             new_constraints.append(constraint)
         return new_constraints
@@ -1485,14 +1483,14 @@ class ConstraintsManager:
             f for f in self.nonpositive_constraints
             if not (f <= 0)
         ]
-        if len(self.nonpositive_constraints) > 10:
-            self.nonpositive_constraints = [
-                f for f in self.nonpositive_constraints
-                if not any(f <= g and f != g for g in self.nonpositive_constraints)
-            ]
+        # if 10 < len(self.nonpositive_constraints):
+        #     self.nonpositive_constraints = [
+        #         f for f in self.nonpositive_constraints
+        #         if not any(f <= g and f != g for g in self.nonpositive_constraints)
+        #     ]
         self.nonzero_constraints = [
             r for r in self.nonzero_constraints
-            if not any(v < 0 or v > 0 for v in r.coefficients.values())
+            if not any(v < 0 or 0 < v for v in r.coefficients.values())
         ]
         self.quadratic_constraints = [
             f for f in self.quadratic_constraints if not (f == 0)
@@ -1531,9 +1529,9 @@ class ConstraintsManager:
             return s
 
     def is_valid(self):
-        if any(f > 0 for _, f in self.pivots) or \
-           any(f > 0 for f in self.nonpositive_constraints) or \
-           any(f > 0 or f < 0 for f in self.zero_constraints + self.quadratic_constraints) or \
+        if any(0 < f for _, f in self.pivots) or \
+           any(0 < f for f in self.nonpositive_constraints) or \
+           any(0 < f or f < 0 for f in self.zero_constraints + self.quadratic_constraints) or \
            any(r == 0 for r in self.nonzero_constraints):
             return False
         return True
@@ -1788,7 +1786,7 @@ class BraidResolver:
             # add child with new weak descent i
             child = self.copy()
             child.clear_constraints()
-            child.sigma[i] = sum([-Multinumber({j: 1})*Root(g, j) for j in g.generators])
+            child.sigma[i] = sum([-Polynomial({j: 1})*Root(g, j) for j in g.generators])
             for j in child.sigma:
                 child.constraints.add_zero_constraint(
                     child.sigma[i].eval_bilinear(child.sigma[j]) - g.eval_bilinear(i, j)
@@ -1825,7 +1823,7 @@ class BraidResolver:
         """
         if not self.word_s.right_descents.isdisjoint(self.word_t.right_descents):
             return False
-        if any(self.graph.get_order(u, v) > self.graph.get_order(self.s, self.t)
+        if any(self.graph.get_order(self.s, self.t) < self.graph.get_order(u, v)
            for u in self.word_s.right_descents
            for v in self.word_t.right_descents):
                 return False
@@ -1863,7 +1861,7 @@ class BraidResolver:
         # next, reduce by inequalities
         zeros = set()
         for f in self.constraints.nonpositive_constraints:
-            if f >= 0:
+            if 0 <= f:
                 zeros.update(f.get_variables())
         if zeros:
             self.set_variables_to_zero(zeros)
@@ -2002,7 +2000,7 @@ class ResolverQueue:
         for u, v in relations:
             # find largest common initial prefix of u and v
             i = len(u)
-            while i > 0 and u[:i] != v[:i]:
+            while 0 < i and u[:i] != v[:i]:
                 i -= 1
             start_word = u[:i]
             atoms = self.generate_atoms(relations, start_word)
@@ -2064,7 +2062,7 @@ class ResolverQueue:
 
     def go(self):
         t1 = time.time()
-        while len(self) > 0:
+        while 0 < len(self):
             self.next()
         t2 = time.time()
 
