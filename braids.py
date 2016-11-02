@@ -11,6 +11,12 @@ class VectorMixin:
     def is_zero(self):
         return len(self.coefficients) == 0
 
+    def __setitem__(self, index, value):
+        if value != 0:
+            self.coefficients[index] = value
+        else:
+            del self.coefficients[index]
+
     def __getitem__(self, index):
         return self.coefficients.get(index, 0)
 
@@ -23,21 +29,7 @@ class VectorMixin:
     def __len__(self):
         return len(self.coefficients)
 
-    @classmethod
-    def prepare(cls, other, strict):
-        """
-        Covert input `other` to object of same type as `cls` and return.
-        (By default, no conversion is even attempted, but we expect this method to be overriden.)
-        When the boolean `strict` is True and conversion is not possible, raise assertion error.
-        """
-        if strict:
-            assert type(other) == cls
-        return other
-
     def __eq__(self, other):
-        other = self.prepare(other, False)
-        if type(other) != type(self):
-            return False
         return len(other - self) == 0
 
     @classmethod
@@ -132,7 +124,7 @@ class RationalNumber(NumberMixin):
             self.numerator = p
             self.denominator = q
         else:
-            raise Exception('Invalid input types to RationalNumber: %s' % str((type(p), type(q))))
+            raise Exception('Invalid input types to RationalNumber: %s' % (type(p), type(q)))
 
     @classmethod
     def reduce(cls, p, q):
@@ -143,23 +135,19 @@ class RationalNumber(NumberMixin):
         return p//d, q//d
 
     @classmethod
-    def prepare(cls, other):
-        if not type(other) == RationalNumber:
-            other = RationalNumber(other)
-        return other
+    def to_rational_number(cls, other):
+        if type(other) == RationalNumber:
+            return other
+        else:
+            return RationalNumber(other)
 
     @classmethod
     def is_rational(cls, other):
-        if type(other) in [int, RationalNumber]:
-            return True
-        if type(other) == QuadraticNumber and other.is_rational():
-            return True
-        return False
+        return type(other) in [int, RationalNumber] or \
+           (type(other) == QuadraticNumber and other.is_rational())
 
     def __eq__(self, other):
-        other = self.prepare(other)
-        if type(other) != RationalNumber:
-            return False
+        other = self.to_rational_number(other)
         return self.numerator == other.numerator and self.denominator == other.denominator
 
     def __lt__(self, other):
@@ -168,17 +156,19 @@ class RationalNumber(NumberMixin):
     def __add__(self, other):
         if type(other) in [QuadraticNumber, Polynomial]:
             return other + self
-        other = self.prepare(other)
-        n = self.numerator*other.denominator + other.numerator*self.denominator
-        p, q = self.reduce(n, self.denominator*other.denominator)
-        return RationalNumber(p, q)
+        else:
+            other = self.to_rational_number(other)
+            n = self.numerator*other.denominator + other.numerator*self.denominator
+            p, q = self.reduce(n, self.denominator*other.denominator)
+            return RationalNumber(p, q)
 
     def __mul__(self, other):
         if type(other) in [Root, QuadraticNumber, Polynomial]:
             return other * self
-        other = self.prepare(other)
-        p, q = self.reduce(self.numerator*other.numerator, self.denominator*other.denominator)
-        return RationalNumber(p, q)
+        else:
+            other = self.to_rational_number(other)
+            p, q = self.reduce(self.numerator*other.numerator, self.denominator*other.denominator)
+            return RationalNumber(p, q)
 
     def __truediv__(self, other):
         if type(other) == QuadraticNumber:
@@ -192,8 +182,11 @@ class RationalNumber(NumberMixin):
         return other * RationalNumber(1, self)
 
     def __pow__(self, exponent):
-        if exponent == 0:
-            return self/self
+        if exponent == 0 and self != 0:
+            return RationalNumber(1)
+        elif exponent == 0 and self == 0:
+            raise Exception('Cannot compute indeterminate power 0^0')
+
         x = super(RationalNumber, self).__pow__(abs(exponent))
         if exponent < 0:
             return RationalNumber(1, x)
@@ -214,11 +207,13 @@ PRIME_FACTORIZATION_CACHE = {}
 
 class PrimeFactorization:
     def __init__(self, i=0):
-        assert type(i) == int
-        self.factorization = PrimeFactorization.get_prime_factorization(i)
-        if i < 0:
-            self.factorization[-1] = 1
-        self.n = i
+        if type(i) == int:
+            self.factorization = PrimeFactorization.get_prime_factorization(i)
+            if i < 0:
+                self.factorization[-1] = 1
+            self.n = i
+        else:
+            raise Exception('Invalid input type to PrimeFactorization: %s' % type(i))
 
     def __getitem__(self, p):
         return self.factorization.get(p, 0)
@@ -233,14 +228,16 @@ class PrimeFactorization:
         return self.n
 
     def __mul__(self, other):
-        assert type(other) == PrimeFactorization
-        ans = PrimeFactorization()
-        ans.n = self.n * other.n
-        factors = set(self.factorization.keys()).union(set(other.factorization.keys()))
-        ans.factorization = {p: self[p] + other[p] for p in factors}
-        if ans[-1] != 0 and ans[-1] % 2 == 0:
-            del ans.factorization[-1]
-        return ans
+        if type(other) == PrimeFactorization:
+            ans = PrimeFactorization()
+            ans.n = self.n * other.n
+            factors = set(self.factorization.keys()).union(set(other.factorization.keys()))
+            ans.factorization = {p: self[p] + other[p] for p in factors}
+            if ans[-1] != 0 and ans[-1] % 2 == 0:
+                del ans.factorization[-1]
+            return ans
+        else:
+            raise Exception('Cannot multiply PrimeFactorization with %s' % type(other))
 
     def __repr__(self):
         return repr(self.factorization)
@@ -261,6 +258,7 @@ class PrimeFactorization:
 
     @classmethod
     def get_divisor_exponent(cls, n, p):
+        """Return maximum positive integer e such that p^e divides n."""
         if n % p != 0:
             return 0
         if abs(n) == abs(p):
@@ -272,57 +270,65 @@ class PrimeFactorization:
     def get_prime_factorization(cls, i):
         if i in PRIME_FACTORIZATION_CACHE:
             return PRIME_FACTORIZATION_CACHE[i]
-        i_input = i
-        factorization = {}
-        N = range(2, abs(i)+1)
-        while N:
-            p = N[0]
-            e = cls.get_divisor_exponent(i, p)
-            if e != 0:
-                factorization[p] = e
-                i = i//p**e
-            N = [a for a in N[1:] if a <= i and a % p != 0]
-        PRIME_FACTORIZATION_CACHE[i_input] = factorization
-        return factorization
+        else:
+            i_input = i
+            factorization = {}
+            N = range(2, abs(i)+1)
+            while N:
+                p = N[0]
+                e = cls.get_divisor_exponent(i, p)
+                if e != 0:
+                    factorization[p] = e
+                    i = i//p**e
+                N = [a for a in N[1:] if a <= i and a % p != 0]
+            PRIME_FACTORIZATION_CACHE[i_input] = factorization
+            return factorization
 
 
 class QuadraticNumber(VectorMixin, NumberMixin):
     def __init__(self, i=0):
         if type(i) == int:
             i = RationalNumber(i)
-        assert type(i) == RationalNumber
-        self.coefficients = {}
-        if i != 0:
-            self.coefficients[PrimeFactorization(1)] = i
+        if type(i) == RationalNumber:
+            self.coefficients = {}
+            if i != 0:
+                self.coefficients[PrimeFactorization(1)] = i
+        else:
+            raise Exception('Invalid input type to QuadraticNumber: %s' % type(i))
+
+    @classmethod
+    def to_quadratic_number(cls, other):
+        if type(other) == QuadraticNumber:
+            return other
+        else:
+            return QuadraticNumber(other)
 
     @classmethod
     def sqrt(cls, i):
+        """TODO: clean up this method."""
         if type(i) == QuadraticNumber and i.is_rational():
             i = i.get_rational_part()
         if type(i) == RationalNumber:
-            denominator = i.denominator
+            denom = i.denominator
             i = i.numerator * i.denominator
         else:
-            denominator = 1
-        if not type(i) == int:
-            if type(i) == QuadraticNumber:
-                q = i / (3 + cls.sqrt(5))
-                if q.is_rational():
-                    ans = cls.sqrt(q) * (cls.sqrt(2) + cls.sqrt(10))/2
-                    assert ans * ans == i
-                    return ans
-                q = i / (7 + 3*cls.sqrt(5))
-                if q.is_rational():
-                    ans = cls.sqrt(q) * (3*cls.sqrt(2) + cls.sqrt(10))/2
-                    assert ans * ans == i
-                    return ans
-            raise Exception('Cannot compute square root of `%s`' % i)
+            denom = 1
 
-        pf = PrimeFactorization(i)
-        square_free = pf.get_square_free_part()
-        ans = QuadraticNumber()
-        ans.coefficients[square_free] = RationalNumber(pf.get_truncated_square_root(), denominator)
-        return ans
+        if type(i) == int:
+            pf = PrimeFactorization(i)
+            square_free = pf.get_square_free_part()
+            ans = QuadraticNumber()
+            ans.coefficients[square_free] = RationalNumber(pf.get_truncated_square_root(), denom)
+            return ans
+        elif type(i) == QuadraticNumber:
+            q = i / (3 + cls.sqrt(5))
+            if q.is_rational():
+                return cls.sqrt(q) * (cls.sqrt(2) + cls.sqrt(10))/2
+            q = i / (7 + 3*cls.sqrt(5))
+            if q.is_rational():
+                return cls.sqrt(q) * (3*cls.sqrt(2) + cls.sqrt(10))/2
+        else:
+            raise Exception('Cannot compute square root of `%s`' % i)
 
     def is_rational(self):
         return all(pf.n == 1 for pf in self.coefficients)
@@ -331,17 +337,13 @@ class QuadraticNumber(VectorMixin, NumberMixin):
         return all(0 < pf.n for pf in self.coefficients)
 
     def to_float(self):
-        assert self.is_real()
-        ans = 0.0
-        for pf, coeff in self.coefficients.items():
-            ans += np.sqrt(pf.n) * coeff.numerator / coeff.denominator
-        return ans
-
-    @classmethod
-    def prepare(cls, other, strict):
-        if type(other) in [int, RationalNumber]:
-            other = QuadraticNumber(other)
-        return super(QuadraticNumber, cls).prepare(other, strict)
+        if self.is_real():
+            ans = 0.0
+            for pf, coeff in self.coefficients.items():
+                ans += np.sqrt(pf.n) * coeff.numerator / coeff.denominator
+            return ans
+        else:
+            raise Exception('Cannot convert non-real QuadraticNumber to float.')
 
     def decompose(self):
         positive_part, negative_part = QuadraticNumber(), QuadraticNumber()
@@ -350,47 +352,47 @@ class QuadraticNumber(VectorMixin, NumberMixin):
         return positive_part, negative_part
 
     def __lt__(self, other):
-        other = self.prepare(other, False)
-        if type(other) != QuadraticNumber:
-            return False
+        other = self.to_quadratic_number(other)
         diff = other - self
+
         if diff.is_rational():
             return 0 < diff[PrimeFactorization(1)]
-        elif diff.is_real():
-            if all(0 < c for c in diff.coefficients.values()):
-                return True
-            elif all(c < 0 for c in diff.coefficients.values()):
-                return False
-            else:
-                positive_part, negative_part = diff.decompose()
-                assert max(len(positive_part), len(negative_part)) < 3
-                return negative_part**2 < positive_part**2
-        else:
+        elif not diff.is_real():
             raise Exception('Cannot compare quadratic numbers have non-real difference.')
+        elif all(0 < c for c in diff.coefficients.values()):
+            return True
+        elif all(c < 0 for c in diff.coefficients.values()):
+            return False
+
+        positive_part, negative_part = diff.decompose()
+        if max(len(positive_part), len(negative_part)) > 3:
+            raise Exception('Cannot determine inequality %s < %s.' % (negative_part, positive_part))
+        else:
+            return negative_part**2 < positive_part**2
 
     def __add__(self, other):
         if type(other) in [Polynomial]:
             return other + self
-        other = self.prepare(other, True)
-        keys = set(self.coefficients.keys()).union(set(other.coefficients.keys()))
-        new = QuadraticNumber()
-        new.coefficients = {i: self[i] + other[i] for i in keys if (self[i] + other[i]) != 0}
-        return new
+        else:
+            other = self.to_quadratic_number(other)
+            keys = set(self.coefficients.keys()).union(set(other.coefficients.keys()))
+            new = QuadraticNumber()
+            new.coefficients = {i: self[i] + other[i] for i in keys if (self[i] + other[i]) != 0}
+            return new
 
     def __mul__(self, other):
         if type(other) in [Root, Polynomial]:
             return other * self
-        other = self.prepare(other, True)
-        new = QuadraticNumber()
-        for factors_1, coeff_1 in other.coefficients.items():
-            summand = QuadraticNumber()
-            for factors_2, coeff_2 in self.coefficients.items():
-                factors = factors_1*factors_2
-                square_free = factors.get_square_free_part()
-                coeff = coeff_1 * coeff_2 * factors.get_truncated_square_root()
-                summand.coefficients[square_free] = coeff
-            new += summand
-        return new
+        else:
+            other = self.to_quadratic_number(other)
+            new = QuadraticNumber()
+            for factors_1, coeff_1 in other:
+                for factors_2, coeff_2 in self:
+                    factors = factors_1*factors_2
+                    square_free = factors.get_square_free_part()
+                    coeff = coeff_1 * coeff_2 * factors.get_truncated_square_root()
+                    new[square_free] += coeff
+            return new
 
     def get_rational_part(self):
         return self[PrimeFactorization(1)]
@@ -434,30 +436,29 @@ class QuadraticNumber(VectorMixin, NumberMixin):
 
     @classmethod
     def get_index_repr(cls, index):
-        if index.n == 1:
-            return ''
-        else:
-            return 'sqrt(' + str(index.n) + ')'
+        return (index.n != 1) * ('sqrt(' + str(index.n) + ')')
 
 
 class Monomial:
     def __init__(self, exponents=None):
-        if type(exponents) == str:
-            exponents = Monomial.string_to_index(exponents)
-        if type(exponents) == int:
-            exponents = {exponents: 1}
-
-        if exponents:
-            if type(exponents) != dict or not all(type(i) == int for i in exponents):
-                raise Exception('Invalid input to Monomial.')
-            self.exponents = exponents.copy()
-        else:
+        if exponents is None:
             self.exponents = {}
+        elif type(exponents) == str:
+            e = Monomial.string_to_index(exponents)
+            self.exponents = {e: 1}
+        elif type(exponents) == int:
+            self.exponents = {exponents: 1}
+        elif type(exponents) != dict or not all(type(i) == int for i in exponents):
+            raise Exception('Invalid input `%s` to Monomial.' % exponents)
+        else:
+            self.exponents = exponents
 
     @classmethod
     def string_to_index(cls, s):
-        assert s.isalpha() and len(s) == 1
-        return ord(s)
+        if s.isalpha() and len(s) == 1:
+            return ord(s)
+        else:
+            raise Exception('Invalid input to Monomial.string_to_index: `%s`' % s)
 
     @classmethod
     def index_to_string(cls, n):
@@ -472,7 +473,7 @@ class Monomial:
         if type(other) != Monomial:
             return other == 1 and len(self.exponents) == 0
         else:
-            return (self * other**-1) == 1
+            return self.exponents == other.exponents
 
     def __lt__(self, other):
         return repr(self) < repr(other)
@@ -481,17 +482,20 @@ class Monomial:
         return hash(tuple(sorted(self.exponents.items())))
 
     def __mul__(self, other):
-        assert type(other) == Monomial
-        keys = set(self.exponents.keys()).union(other.exponents.keys())
-        exponents = {i: self[i] + other[i] for i in keys if self[i] + other[i] != 0}
-        return Monomial(exponents)
+        if type(other) == Monomial:
+            keys = set(self.exponents.keys()).union(other.exponents.keys())
+            exponents = {i: self[i] + other[i] for i in keys if self[i] + other[i] != 0}
+            return Monomial(exponents)
+        else:
+            raise Exception('Cannot multiply Monomial with `%s`.' % type(other))
 
     def __pow__(self, other):
-        assert type(other) == int
         if other == 0:
             return Monomial()
-        else:
+        elif type(other) == int:
             return Monomial({i: self[i]*other for i in self.exponents})
+        else:
+            raise Exception('Cannot exponentiate Monomial by `%s`.' % type(other))
 
     def __getitem__(self, i):
         return self.exponents.get(i, 0)
@@ -510,22 +514,21 @@ class Monomial:
 
 class Polynomial(VectorMixin, NumberMixin):
     def __init__(self, i=None):
-        self.coefficients = {}
-        if i is not None:
-            if (type(i) == str and len(i) == 1 and i.isalpha()) or type(i) == dict:
-                self.coefficients[Monomial(i)] = 1
-            elif type(i) == Monomial:
-                self.coefficients[i] = 1
-            elif type(i) in [int, RationalNumber]:
-                if i != 0:
-                    self.coefficients[Monomial()] = QuadraticNumber(i)
-            elif type(i) == QuadraticNumber:
-                if i != 0:
-                    self.coefficients[Monomial()] = i
-            else:
-                raise Exception('Invalid input type `%s` for Polynomial' % str(type(i)))
+        if i is None or i == 0:
+            self.coefficients = {}
+        elif (type(i) == str and len(i) == 1 and i.isalpha()) or type(i) == dict:
+            self.coefficients = {Monomial(i): 1}
+        elif type(i) == Monomial:
+            self.coefficients = {i: 1}
+        elif type(i) in [int, RationalNumber]:
+            self.coefficients = {Monomial(): QuadraticNumber(i)}
+        elif type(i) == QuadraticNumber:
+            self.coefficients = {Monomial(): i}
+        else:
+            raise Exception('Invalid input type `%s` for Polynomial' % type(i))
 
     def get_variables(self):
+        """Return set of integers indexing the indeterminates that appear in this polynomial."""
         return set(i for monomial in self.coefficients for i in monomial.exponents)
 
     def is_factorable(self):
@@ -544,6 +547,7 @@ class Polynomial(VectorMixin, NumberMixin):
         return True
 
     def get_factors(self):
+        """TODO: improve this method."""
         if len(self.get_variables()) != 1:
             raise Exception('Cannot factor `%s`' % str(self))
 
@@ -581,11 +585,10 @@ class Polynomial(VectorMixin, NumberMixin):
 
     def is_linear(self):
         for monomial in self.coefficients:
-            if 1 < len(monomial.exponents):
+            if len(monomial.exponents) > 1:
                 return False
-            for i, e in monomial.exponents.items():
-                if e != 1:
-                    return False
+            if any(e != 1 for i, e in monomial.exponents.items()):
+                return False
         return True
 
     def is_constant(self):
@@ -629,7 +632,7 @@ class Polynomial(VectorMixin, NumberMixin):
     def prepare(cls, other, strict):
         if type(other) in [int, RationalNumber, QuadraticNumber, Monomial]:
             other = Polynomial(other)
-        return super(Polynomial, cls).prepare(other, strict)
+        return other
 
     def __lt__(self, other):
         diff = other - self
