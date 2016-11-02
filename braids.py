@@ -1032,7 +1032,7 @@ class Root(VectorMixin, NumberMixin):
 
     def set_variable(self, variable, value):
         new = Root(self.graph)
-        for i, v in self.coefficients.items():
+        for i, v in self:
             if type(v) == Polynomial:
                 v = v.set_variable(variable, value)
             if v != 0:
@@ -1042,7 +1042,7 @@ class Root(VectorMixin, NumberMixin):
     def __add__(self, other):
         if other == 0:
             return self
-        if type(other) == Root and self.graph == other.graph:
+        elif type(other) == Root and self.graph == other.graph:
             indices = set(self.coefficients.keys()).union(set(other.coefficients.keys()))
             new = Root(self.graph)
             new.coefficients = {i: self[i] + other[i] for i in indices if (self[i] + other[i]) != 0}
@@ -1063,18 +1063,19 @@ class Root(VectorMixin, NumberMixin):
 
 class RootTransform:
     def __init__(self, coxeter_graph, sigma={}):
-        assert all(i in coxeter_graph.generators for i in sigma)
-        assert all(type(r) == Root and r.graph == coxeter_graph for r in sigma.values())
-        self.graph = coxeter_graph
-        self.sigma = sigma.copy()
-        self._strong_descents = None
-        self._semistrong_descents = None
-        self._weak_descents = None
+        if all(i in coxeter_graph.generators for i in sigma) and \
+           all(type(r) == Root and r.graph == coxeter_graph for r in sigma.values()):
+            self.graph = coxeter_graph
+            self.sigma = sigma.copy()
+            self._strong_descents = None
+            self._semistrong_descents = None
+            self._weak_descents = None
+        else:
+            raise Exception('Invalid inputs (%s, %s) to RootTransform.' % (coxeter_graph, sigma))
 
     def __eq__(self, other):
-        if not isinstance(other, RootTransform):
-            return False
-        return other.graph == self.graph and other.sigma == self.sigma
+        return isinstance(other, RootTransform) and \
+            other.graph == self.graph and other.sigma == self.sigma
 
     def __getitem__(self, i):
         return self.sigma[i]
@@ -1092,9 +1093,13 @@ class RootTransform:
         return other
 
     def __setitem__(self, i, value):
-        assert i in self.graph.generators and type(value) == Root and value.graph == self.graph
-        self.sigma[i] = value
-        self._unset_cached_properties()
+        if i in self.graph.generators and type(value) == Root and value.graph == self.graph:
+            self.sigma[i] = value
+            self._unset_cached_properties()
+        else:
+            raise Exception(
+                'Invalid inputs (%s, %s) to %s.__setitem__.' % (i, value, self.__name__)
+            )
 
     @property
     def strong_descents(self):
@@ -1129,20 +1134,24 @@ class RootTransform:
         return cls(coxeter_graph, sigma)
 
     def __mul__(self, j):
-        assert j in self.graph.generators
-        new = {}
-        for i in self.sigma:
-            root = Root(self.graph, i).reflect(j)
-            for k, v in root.coefficients.items():
-                new[i] = new.get(i, 0) + self.sigma[k] * v
-        return self.__class__(self.graph, new)
+        if j not in self.graph.generators:
+            raise Exception('Cannot multiply %s by %s.' % (self.__name__, j))
+        else:
+            new = {}
+            for i in self.sigma:
+                root = Root(self.graph, i).reflect(j)
+                for k, v in root:
+                    new[i] = new.get(i, 0) + self.sigma[k] * v
+            return self.__class__(self.graph, new)
 
     def __rmul__(self, j):
-        assert j in self.graph.generators
-        new = {}
-        for i in self.sigma:
-            new[i] = self.sigma[i].reflect(j)
-        return self.__class__(self.graph, new)
+        if j not in self.graph.generators:
+            raise Exception('Cannot right multiply %s by %s.' % (self.__name__, j))
+        else:
+            new = {}
+            for i in self.sigma:
+                new[i] = self.sigma[i].reflect(j)
+            return self.__class__(self.graph, new)
 
     def to_coxeter_transform(self):
         return CoxeterTransform(self.graph, self.sigma)
