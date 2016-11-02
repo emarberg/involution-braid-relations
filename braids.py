@@ -14,7 +14,7 @@ class VectorMixin:
     def __setitem__(self, index, value):
         if value != 0:
             self.coefficients[index] = value
-        else:
+        elif index in self.coefficients:
             del self.coefficients[index]
 
     def __getitem__(self, index):
@@ -720,46 +720,55 @@ class CoxeterGraph:
         * is defined to be the identity map.
         """
         self.generators = sorted({t[0] for t in triples}.union({t[1] for t in triples}))
+
+        # construct dictionary with orders m_ij of products of simple generators
         self.orders = {}
         for i, j, m in triples:
             if i != j and m != 2:
                 # check that m=m_ij is a positive int or infinity
-                assert (type(m) == int and 3 <= m) or m == np.infty
+                valid_order = (type(m) == int and 3 <= m) or m == np.infty
                 # check that triples does not contain inconsistent entries
-                assert self.orders.get((i, j), m) == m
-                self.orders[(i, j)] = m
-                self.orders[(j, i)] = m
+                if valid_order and self.orders.get((i, j), m) == m:
+                    self.orders[(i, j)] = m
+                    self.orders[(j, i)] = m
+                else:
+                    raise Exception('Invalid input `triples = %s` to CoxeterGraph.' % triples)
+
+        # construct dictionary with images of the *-involution 'star'
         self._star = {}
         if star:
             for i, j in star:
-                assert self._star.get(i, j) == j
-                assert self._star.get(j, i) == i
-                self._star[i] = j
-                self._star[j] = i
+                if self._star.get(i, j) == j and self._star.get(j, i) == i:
+                    self._star[i] = j
+                    self._star[j] = i
+                else:
+                    raise Exception('Invalid input `star = %s` to CoxeterGraph.' % star)
+
+        # validate that input `star` encodes automorphism
         for i in self.generators:
             for j in self.generators:
-                assert self.get_order(i, j) == self.get_order(self.star(i), self.star(j))
+                if self.get_order(i, j) != self.get_order(self.star(i), self.star(j)):
+                    raise Exception('Invalid input `star = %s` to CoxeterGraph.' % star)
 
     def __eq__(self, other):
-        if type(other) != CoxeterGraph:
-            return False
-        if self.generators != other.generators:
-            return False
-        for i in self.generators:
-            if self.star(i) != other.star(i):
-                return False
-            for j in self.generators:
-                if self.get_order(i, j) != other.get_order(i, j):
-                    return False
-        return True
+        return \
+            type(other) == CoxeterGraph and \
+            self.generators == other.generators and \
+            all(self.star(i) == other.star(i) for i in self.generators) and \
+            all(self.get_order(i, j) == other.get_order(i, j)
+                for i in self.generators
+                for j in self.generators)
 
     def star(self, i):
         return self._star.get(i, i)
 
     def get_braid(self, i, j):
-        m = self.get_order(i, j)
         gens = [i, j]
-        return tuple(gens[t % 2] for t in range(m))
+        m = self.get_order(i, j)
+        if m == np.infty:
+            raise Exception('Error in CoxeterGraph.get_braid: order m_ij must be finite.')
+        else:
+            return tuple(gens[t % 2] for t in range(m))
 
     def get_order(self, i, j):
         """Return order of s_i*s_j in W."""
@@ -796,7 +805,9 @@ class CoxeterGraph:
             elif m == np.infty:
                 return QuadraticNumber(-1)
         else:
-            return -np.cos(np.pi / self.get_order(i, j))
+            raise Exception('Error in CoxeterGraph.eval_bilinear: '
+                            'currently, m_ij must be 1, 2, ..., 6 or 12 or infinity.')
+            #  return -np.cos(np.pi / self.get_order(i, j))
 
     def is_simply_laced(self):
         return set(self.orders.values()).issubset({1, 2, 3})
@@ -839,6 +850,12 @@ class CoxeterGraph:
 
     @staticmethod
     def B(n):
+        """
+        Dynkin diagram labeling is:
+
+            0==1--2--...--(n-1)
+
+        """
         assert 2 <= n
         triples = [(i, i+1, 3) for i in range(1, n-1)] + [(0, 1, 4)]
         return CoxeterGraph(triples)
@@ -855,6 +872,14 @@ class CoxeterGraph:
 
     @staticmethod
     def D(n, star=None):
+        """
+        Dynkin diagram labeling is:
+
+               0
+               |
+            1--2--3--...--(n-1)
+
+        """
         assert 4 <= n
         triples = [(i, i+1, 3) for i in range(1, n-1)] + [(0, 2, 3)]
         return CoxeterGraph(triples, star)
@@ -877,7 +902,7 @@ class CoxeterGraph:
 
                   3
                   |
-            1--2--4--5--6--7--8
+            1--2--4--5--...--n
 
         """
         assert n in [6, 7, 8]
@@ -929,6 +954,13 @@ class CoxeterGraph:
 
     @staticmethod
     def H(n):
+        """
+        Dynkin diagram labeling is:
+
+            1==2--...--n
+
+        where edge == has label 5.
+        """
         assert n in [3, 4]
         if n == 3:
             triples = [(1, 2, 5), (2, 3, 3)]
@@ -940,10 +972,12 @@ class CoxeterGraph:
 class Root(VectorMixin, NumberMixin):
     def __init__(self, coxeter_graph, index=None, coeff=1):
         self.graph = coxeter_graph
-        self.coefficients = {}
-        if index is not None and coeff != 0:
-            assert index in coxeter_graph.generators
-            self.coefficients[index] = coeff
+        if index is None or coeff == 0:
+            self.coefficients = {}
+        elif index in coxeter_graph.generators:
+            self.coefficients = {index: coeff}
+        else:
+            raise Exception('Invalid `index = %s` in constuctor for Root.' % index)
 
     def __eq__(self, other):
         if other == 0 or type(other) == Root:
@@ -952,42 +986,44 @@ class Root(VectorMixin, NumberMixin):
             return False
 
     def eval_bilinear(self, other):
-        if type(other) != Root:
+        if type(other) == int:
             other = Root(self.graph, other)
-        ans = 0
-        for i, u in self.coefficients.items():
-            for j, v in other.coefficients.items():
-                ans += u * v * self.graph.eval_bilinear(i, j)
-        return ans
+
+        if type(other) == Root and other.graph == self.graph:
+            ans = 0
+            for i, u in self:
+                for j, v in other:
+                    ans += u * v * self.graph.eval_bilinear(i, j)
+            return ans
+        else:
+            raise Exception('Cannot evaluate bilinear form with input `other = %s`.' % other)
 
     def reflect(self, index):
-        assert index in self.graph.generators
-        v = 2 * self.eval_bilinear(index)
-        return self - Root(self.graph, index, v)
+        if index in self.graph.generators:
+            v = 2 * self.eval_bilinear(index)
+            return self - Root(self.graph, index, v)
+        else:
+            raise Exception('Cannot reflect by root alpha_i with `i = %s`.' % index)
 
     def is_constant(self):
-        for i, v in self.coefficients.items():
-            if type(v) == Polynomial and not v.is_constant():
-                return False
-        return True
+        return not any(type(v) == Polynomial and not v.is_constant() for i, v in self)
 
     def is_positive(self):
-        return (not self.is_zero()) and all(0 <= v for v in self.coefficients.values())
+        return (not self.is_zero()) and all(0 <= v for _, v in self)
 
     def is_negative(self):
-        return (not self.is_zero()) and all(v <= 0 for v in self.coefficients.values())
+        return (not self.is_zero()) and all(v <= 0 for _, v in self)
 
     def is_valid(self):
         if self.is_zero():
             return False
-        values = self.coefficients.values()
-        if any(v < 0 for v in values) and any(0 < v for v in values):
+        if any(v < 0 for _, v in self) and any(0 < v for _, v in self):
             return False
         return True
 
     def set_variables_to_zero(self, variables):
         new = Root(self.graph)
-        for i, v in self.coefficients.items():
+        for i, v in self:
             if type(v) == Polynomial:
                 v = v.set_variables_to_zero(variables)
             if v != 0:
@@ -1000,17 +1036,19 @@ class Root(VectorMixin, NumberMixin):
             if type(v) == Polynomial:
                 v = v.set_variable(variable, value)
             if v != 0:
-                new += Root(self.graph, i, v)
+                new.coefficients[i] = v
         return new
 
     def __add__(self, other):
         if other == 0:
             return self
-        assert type(other) == Root and self.graph == other.graph
-        indices = set(self.coefficients.keys()).union(set(other.coefficients.keys()))
-        new = Root(self.graph)
-        new.coefficients = {i: self[i] + other[i] for i in indices if (self[i] + other[i]) != 0}
-        return new
+        if type(other) == Root and self.graph == other.graph:
+            indices = set(self.coefficients.keys()).union(set(other.coefficients.keys()))
+            new = Root(self.graph)
+            new.coefficients = {i: self[i] + other[i] for i in indices if (self[i] + other[i]) != 0}
+            return new
+        else:
+            raise Exception('Cannot add `%s` to Root.' % other)
 
     def __mul__(self, other):
         new = Root(self.graph)
