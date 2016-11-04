@@ -1450,13 +1450,13 @@ class ConstraintsManager:
     def __init__(self):
         self.pivots = []
         # list of linear Polynomials which must be <= 0
-        self.nonpositive_constraints = []
+        self.nonpositive_constraints = set()
         # list of linear Polynomials which must be == 0
-        self.zero_constraints = []
+        self.zero_constraints = set()
         # list of Roots which must be != 0
-        self.nonzero_constraints = []
+        self.nonzero_constraints = set()
         # list of quadratic Polynomials which must be == 0
-        self.quadratic_constraints = []
+        self.quadratic_constraints = set()
 
     def __eq__(self, other):
         return \
@@ -1482,10 +1482,10 @@ class ConstraintsManager:
                 self.add_zero_constraint(v)
         else:
             c = Polynomial.to_polynomial(c)
-            if c.is_linear() and c not in self.zero_constraints:
-                self.zero_constraints.append(c)
-            elif not c.is_linear() and c not in self.quadratic_constraints:
-                self.quadratic_constraints.append(c)
+            if c.is_linear():
+                self.zero_constraints.add(c)
+            else:
+                self.quadratic_constraints.add(c)
 
     def add_nonpositive_constraint(self, c):
         if type(c) == Root:
@@ -1496,20 +1496,19 @@ class ConstraintsManager:
         if -c in self.nonpositive_constraints:
             self.add_zero_constraint(c)
         elif not any(c <= f for f in self.nonpositive_constraints):
-            self.nonpositive_constraints.append(c)
+            self.nonpositive_constraints.add(c)
 
     def add_nonzero_constraint(self, root):
-        if root not in self.nonzero_constraints:
-            self.nonzero_constraints.append(root)
+        self.nonzero_constraints.add(root)
 
     def row_reduce_zero_constraints(self):
-        degenerate_constraints = []
+        degenerate_constraints = set()
         while self.zero_constraints:
             row = self.zero_constraints.pop()
             variables = row.get_variables()
             if not variables:
                 if row != 0:
-                    degenerate_constraints.append(row)
+                    degenerate_constraints.add(row)
                 continue
 
             var = Monomial({variables.pop(): 1})
@@ -1521,6 +1520,8 @@ class ConstraintsManager:
                 c = prev_subst[var]
                 if c != 0:
                     new_subst = prev_subst + c*substitution
+                    # note that since new_subst was assigned to newly created in previous line,
+                    # the following deletion does not affect any other existing polynomial.
                     new_subst[var] = 0
                     self.pivots[i] = (prev_var, new_subst)
 
@@ -1530,14 +1531,14 @@ class ConstraintsManager:
         self.zero_constraints = degenerate_constraints
 
     def row_reduce_by_pivot(self, var, substitution):
-        self.zero_constraints = [
+        self.zero_constraints = {
             c for c in self.reduced_row_generator(var, substitution, self.zero_constraints)
             if c != 0
-        ]
-        self.nonpositive_constraints = [
+        }
+        self.nonpositive_constraints = {
             c for c in self.reduced_row_generator(var, substitution, self.nonpositive_constraints)
             if not (c <= 0)
-        ]
+        }
 
     @classmethod
     def reduced_row_generator(cls, var, substitution, old_constraints):
@@ -1545,32 +1546,34 @@ class ConstraintsManager:
             c = constraint[var]
             if c != 0:
                 new_constraint = constraint + c*substitution
+                # note that since new_subst was assigned to newly created in previous line,
+                # the following deletion does not affect any other existing polynomial.
                 new_constraint[var] = 0
                 yield new_constraint
             else:
                 yield constraint
 
     def remove_vacuous_constraints(self):
-        self.zero_constraints = [
+        self.zero_constraints = {
             f for f in self.zero_constraints
             if not (f == 0)
-        ]
-        self.nonpositive_constraints = [
+        }
+        self.nonpositive_constraints = {
             f for f in self.nonpositive_constraints
             if not (f <= 0) and not any(f <= g and f != g for g in self.nonpositive_constraints)
-        ]
+        }
         # if 10 < len(self.nonpositive_constraints):
         # self.nonpositive_constraints = [
         #     f for f in self.nonpositive_constraints
         #     if not any(f <= g and f != g for g in self.nonpositive_constraints)
         # ]
-        self.nonzero_constraints = [
+        self.nonzero_constraints = {
             r for r in self.nonzero_constraints
             if not any(v < 0 or 0 < v for v in r.coefficients.values())
-        ]
-        self.quadratic_constraints = [
+        }
+        self.quadratic_constraints = {
             f for f in self.quadratic_constraints if not (f == 0)
-        ]
+        }
 
     def __repr__(self):
         s = '\nconstraints:\n'
@@ -1607,7 +1610,8 @@ class ConstraintsManager:
     def is_valid(self):
         if any(0 < f for _, f in self.pivots) or \
            any(0 < f for f in self.nonpositive_constraints) or \
-           any(0 < f or f < 0 for f in self.zero_constraints + self.quadratic_constraints) or \
+           any(0 < f or f < 0 for f in self.zero_constraints) or \
+           any(0 < f or f < 0 for f in self.quadratic_constraints) or \
            any(r == 0 for r in self.nonzero_constraints):
             return False
         return True
@@ -1694,7 +1698,8 @@ class BraidResolver:
 
     def is_quadratic_constraint_factorable(self):
         if self.constraints.quadratic_constraints:
-            return self.constraints.quadratic_constraints[0].is_factorable()
+            c = next(iter(self.constraints.quadratic_constraints))
+            return c.is_factorable()
         else:
             return False
 
@@ -1766,7 +1771,8 @@ class BraidResolver:
 
     def _get_children_from_quadratic_constraint(self):
         children = []
-        for factor in self.constraints.quadratic_constraints[0].get_factors():
+        constraint = next(iter(self.constraints.quadratic_constraints))
+        for factor in constraint.get_factors():
             child = self.copy()
             child.constraints.add_zero_constraint(factor)
             children.append(child)
@@ -1942,27 +1948,27 @@ class BraidResolver:
             for i in self.sigma:
                 self.sigma[i] = self.sigma[i].set_variable(var, substitution)
 
-            self.constraints.nonzero_constraints = [
+            self.constraints.nonzero_constraints = {
                 r.set_variable(var, substitution) for r in self.constraints.nonzero_constraints
-            ]
-            self.constraints.quadratic_constraints = [
+            }
+            self.constraints.quadratic_constraints = {
                 f.set_variable(var, substitution) for f in self.constraints.quadratic_constraints
-            ]
+            }
         self.constraints.pivots = []
 
     def set_variables_to_zero(self, variables):
-        self.constraints.nonpositive_constraints = [
+        self.constraints.nonpositive_constraints = {
             f.set_variables_to_zero(variables) for f in self.constraints.nonpositive_constraints
-        ]
-        self.constraints.zero_constraints = [
+        }
+        self.constraints.zero_constraints = {
             f.set_variables_to_zero(variables) for f in self.constraints.zero_constraints
-        ]
-        self.constraints.nonzero_constraints = [
+        }
+        self.constraints.nonzero_constraints = {
             r.set_variables_to_zero(variables) for r in self.constraints.nonzero_constraints
-        ]
-        self.constraints.quadratic_constraints = [
+        }
+        self.constraints.quadratic_constraints = {
             f.set_variables_to_zero(variables) for f in self.constraints.quadratic_constraints
-        ]
+        }
         for i in self.sigma:
             self.sigma[i] = self.sigma[i].set_variables_to_zero(variables)
 
@@ -2050,7 +2056,6 @@ class ResolverQueue:
             to_add.difference_update({None})
             to_add.difference_update(generated)
             generated.update(to_add)
-            print('................................... %s' % len(generated))
             next_add = set()
             for x in to_add:
                 for word_a, word_b in relations:
@@ -2083,32 +2088,39 @@ class ResolverQueue:
         redundant = []
         necessary = []
         for i in range(len(final)):
-            tag = '%s/%s.' % (i+1, len(final))
+            tag = '     * Relation %s/%s:' % (i+1, len(final))
             u, v = final[i]
             initial = [(a, b) for a, b in final[:i] if (a, b) not in redundant]
             complement = [(a, b) for a, b in final[:i] + final[i+1:] if (a, b) not in redundant]
             t0 = time.time()
             if self.are_connected(initial, u, v):
                 redundant.append((u, v))
-                template = "    %s (redundant), computation took %s seconds"
+                template = "%s (redundant), computation took %s seconds"
                 self._print(template % (tag, time.time() - t0))
             elif not self.are_connected(complement, u, v):
                 necessary.append((u, v))
-                template = "    %s (necessary): %s <---> %s, computation took %s seconds"
+                template = "%s (independent) %s <---> %s, computation took %s seconds"
                 self._print(template % (tag, u, v, time.time() - t0))
             else:
-                template = "    %s (possible), computation took %s seconds"
+                template = "%s (not redundant or independent), computation took %s seconds"
                 self._print(template % (tag, time.time() - t0))
 
         self._print("\n  2. Get smallest set of relations which generate all the others.")
         rest = [x for x in final if x not in necessary and x not in redundant]
         for i in range(len(rest)+1):
-            self._print("     .")
             for current in itertools.combinations(rest, i):
                 candidate = necessary + list(current)
+
+                self._print("     * Trying combination of relations:")
+                for rel in candidate:
+                    self._print("         %s <---> %s" % rel)
+
                 complement = [x for x in rest if x not in current]
                 if all(self.are_connected(candidate, u, v) for u, v in complement):
+                    self._print("       Works!")
                     return self.minify_relation(candidate)
+                else:
+                    self._print("       Does not span.")
         assert False
 
     def _print_verbose(self, string):
@@ -2150,6 +2162,12 @@ class ResolverQueue:
         self._print('Duration: %s seconds' % (t2-t1))
 
         final = sorted(self.final, key=lambda x: (len(x[0]), x))
+        print('')
+        self._print('-----------------------')
+        self._print('Twisted Coxeter system:')
+        self._print('-----------------------')
+        self._print(self.graph)
+
         self._print('')
         self._print('---------------------')
         self._print('Sufficient relations:')
@@ -2164,9 +2182,10 @@ class ResolverQueue:
         self._print('')
         self._print('Duration: %s seconds' % (time.time()-t2))
 
-        print('')
-        print('-----------------------------')
-        print('Minimal sufficient relations:')
-        print('-----------------------------')
+        self._print('')
+        self._print('-----------------------------')
+        self._print('Minimal sufficient relations:')
+        self._print('-----------------------------')
+
         for u, v in self.minimal:
             print('%s <---> %s' % (u, v))
