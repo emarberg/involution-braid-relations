@@ -49,9 +49,9 @@ class VectorMixin:
                 s += ' + ' + alpha
             elif v == -1:
                 s += ' - ' + alpha
-            elif 0 < v and type(v) == RationalNumber:
+            elif 0 < v and type(v) in [int, RationalNumber]:
                 s += ' + ' + str(v) + '*' + alpha
-            elif v < 0 and type(v) == RationalNumber:
+            elif v < 0 and type(v) in [int, RationalNumber]:
                 s += ' - ' + str(-v) + '*' + alpha
             else:
                 s += ' + (' + str(v) + ')*' + alpha
@@ -124,7 +124,7 @@ class RationalNumber(NumberMixin):
             self.numerator = p
             self.denominator = q
         else:
-            raise Exception('Invalid input types to RationalNumber: %s' % (type(p), type(q)))
+            raise Exception('Invalid input types to RationalNumber: %s' % str((type(p), type(q))))
 
     @classmethod
     def reduce(cls, p, q):
@@ -141,17 +141,32 @@ class RationalNumber(NumberMixin):
         else:
             return RationalNumber(other)
 
-    @classmethod
-    def is_rational(cls, other):
-        return type(other) in [int, RationalNumber] or \
-           (type(other) == QuadraticNumber and other.is_rational())
+    def is_integer(self):
+        return self.denominator == 1
+
+    def __hash__(self):
+        if self.is_integer():
+            return hash(self.numerator)
+        else:
+            return hash((self.numerator, self.denominator))
 
     def __eq__(self, other):
-        other = self.to_rational_number(other)
-        return self.numerator == other.numerator and self.denominator == other.denominator
+        if type(other) == QuadraticNumber:
+            return QuadraticNumber.to_quadratic_number(self) == other
+        if type(other) == Polynomial:
+            return Polynomial.to_polynomial(self) == other
+        else:
+            other = self.to_rational_number(other)
+            return self.numerator == other.numerator and self.denominator == other.denominator
 
     def __lt__(self, other):
-        return (self - other).numerator < 0
+        if type(other) == QuadraticNumber:
+            return QuadraticNumber.to_quadratic_number(self) < other
+        elif type(other) == Polynomial:
+            return Polynomial.to_polynomial(self) < other
+        else:
+            other = self.to_rational_number(other)
+            return (self - other).numerator < 0
 
     def __add__(self, other):
         if type(other) in [QuadraticNumber, Polynomial]:
@@ -333,6 +348,12 @@ class QuadraticNumber(VectorMixin, NumberMixin):
     def is_rational(self):
         return all(pf.n == 1 for pf in self.coefficients)
 
+    def __hash__(self):
+        if self.is_rational():
+            return hash(self.get_rational_part())
+        else:
+            return hash(tuple(sorted(self.coefficients.items())))
+
     def is_real(self):
         return all(0 < pf.n for pf in self.coefficients)
 
@@ -352,6 +373,9 @@ class QuadraticNumber(VectorMixin, NumberMixin):
         return positive_part, negative_part
 
     def __lt__(self, other):
+        if type(other) == Polynomial:
+            return Polynomial.to_polynomial(self) < other
+
         other = self.to_quadratic_number(other)
         diff = other - self
 
@@ -597,6 +621,16 @@ class Polynomial(VectorMixin, NumberMixin):
     def get_constant_part(self):
         return self[Monomial()]
 
+    def __hash__(self):
+        if self.is_constant():
+            return hash(self.get_constant_part())
+        else:
+            def key(dict_items):
+                index, coeff = dict_items
+                return (index, hash(coeff))
+
+            return hash(tuple(sorted(self.coefficients.items(), key=key)))
+
     def set_variable(self, variable, value):
         if type(variable) == int:
             pass
@@ -686,18 +720,19 @@ class Polynomial(VectorMixin, NumberMixin):
             return '0'
         s = ''
         for monomial, coeff in sorted(self.coefficients.items()):
+            coeff_is_rational = type(coeff) in [RationalNumber, int]
             if coeff == 1:
                 s += ' + ' + str(monomial)
             elif coeff == -1:
                 s += ' - ' + str(monomial)
             elif monomial == 1:
-                if RationalNumber.is_rational(coeff) and coeff < 0:
+                if coeff_is_rational and coeff < 0:
                     s += ' - ' + str(-coeff)
                 else:
                     s += ' + ' + str(coeff)
-            elif RationalNumber.is_rational(coeff) and coeff < 0:
+            elif coeff_is_rational and coeff < 0:
                 s += ' - ' + str(-coeff) + str(monomial)
-            elif RationalNumber.is_rational(coeff):
+            elif coeff_is_rational:
                 s += ' + ' + str(coeff) + str(monomial)
             else:
                 s += ' + (' + str(coeff) + ')' + str(monomial)
@@ -758,6 +793,12 @@ class CoxeterGraph:
             all(self.get_order(i, j) == other.get_order(i, j)
                 for i in self.generators
                 for j in self.generators)
+
+    def __hash__(self):
+        gens = tuple(self.generators)
+        orders = tuple(tuple(self.get_order(i, j) for j in gens) for i in gens)
+        star = tuple(self.star(i) for i in self.generators)
+        return hash((gens, orders, star))
 
     def star(self, i):
         return self._star.get(i, i)
@@ -1056,6 +1097,9 @@ class Root(VectorMixin, NumberMixin):
             new.coefficients = {i: other*self[i] for i in self.coefficients}
         return new
 
+    def __hash__(self):
+        return hash((self.graph,) + tuple(self[i] for i in self.graph.generators))
+
     @classmethod
     def get_index_repr(cls, index):
         return 'alpha_' + str(index)
@@ -1079,6 +1123,9 @@ class RootTransform:
 
     def __getitem__(self, i):
         return self.sigma[i]
+
+    def __hash__(self):
+        return hash((self.graph,) + tuple(sorted(self.sigma.items())))
 
     def _unset_cached_properties(self):
         self._unconditional_descents = None
@@ -1256,9 +1303,6 @@ class CoxeterTransform(RootTransform):
                 self._minimal_reduced_word = (self * i).minimal_reduced_word + (i,)
         return self._minimal_reduced_word
 
-    def __hash__(self):
-        return hash(self.minimal_reduced_word)
-
     def get_inverse(self):
         return self.from_word(self.graph, reverse_tuple(self.minimal_reduced_word))
 
@@ -1313,9 +1357,10 @@ class CoxeterWord:
         return reverse_tuple(self.right_action.minimal_reduced_word)
 
     def __eq__(self, other):
-        if type(other) != CoxeterWord:
-            return False
-        return self.graph == other.graph and self.word == other.word
+        return type(other) == CoxeterWord and self.graph == other.graph and self.word == other.word
+
+    def __hash__(self):
+        return hash((self.graph, self.word))
 
     def __len__(self):
         return len(self.word)
@@ -1447,13 +1492,11 @@ class ConstraintsManager:
             for v in c.coefficients.values():
                 self.add_nonpositive_constraint(v)
             return
-        else:
-            c = Polynomial.to_polynomial(c)
-            if c not in self.nonpositive_constraints + self.zero_constraints:
-                if -c in self.nonpositive_constraints:
-                    self.add_zero_constraint(c)
-                else:
-                    self.nonpositive_constraints.append(c)
+        c = Polynomial.to_polynomial(c)
+        if -c in self.nonpositive_constraints:
+            self.add_zero_constraint(c)
+        elif not any(c <= f for f in self.nonpositive_constraints):
+            self.nonpositive_constraints.append(c)
 
     def add_nonzero_constraint(self, root):
         if root not in self.nonzero_constraints:
@@ -1514,13 +1557,13 @@ class ConstraintsManager:
         ]
         self.nonpositive_constraints = [
             f for f in self.nonpositive_constraints
-            if not (f <= 0)
+            if not (f <= 0) and not any(f <= g and f != g for g in self.nonpositive_constraints)
         ]
         # if 10 < len(self.nonpositive_constraints):
-        #     self.nonpositive_constraints = [
-        #         f for f in self.nonpositive_constraints
-        #         if not any(f <= g and f != g for g in self.nonpositive_constraints)
-        #     ]
+        # self.nonpositive_constraints = [
+        #     f for f in self.nonpositive_constraints
+        #     if not any(f <= g and f != g for g in self.nonpositive_constraints)
+        # ]
         self.nonzero_constraints = [
             r for r in self.nonzero_constraints
             if not any(v < 0 or 0 < v for v in r.coefficients.values())
@@ -1603,7 +1646,7 @@ class BraidResolver:
         s += 'sigma = %s' % self.sigma
         s += '\n'
         s += '     unconditional descents: %s\n' % list(self.get_unconditional_descents())
-        s += 'strong conditional descents: %s\n' % list(self.get_strong_conditional_descents())
+        s += 'strong conditional descents: %s\n' % str(self.get_strong_conditional_descents())
         s += '  weak conditional descents: %s\n' % list(self.get_weak_conditional_descents())
         s += str(self.constraints)
         s += '***************\n'
@@ -1634,7 +1677,14 @@ class BraidResolver:
         return self.sigma.weak_conditional_descents.difference(descents_to_avoid)
 
     def get_strong_conditional_descents(self):
-        return self.sigma.strong_conditional_descents
+        for i in self.sigma:
+            root = Root(self.graph)
+            for j, f in self.sigma[i]:
+                if f <= 0 or any(f <= g for g in self.constraints.nonpositive_constraints):
+                    root += Root(self.graph, j, f)
+            if root != 0:
+                return i, root
+        return None
 
     def get_unconditional_descents(self):
         descents_to_avoid = self.word_s.left_descents.union(self.word_t.left_descents)
@@ -1682,7 +1732,8 @@ class BraidResolver:
             children, iterations = self._get_children_from_unconditional_descents()
             return children, 'unconditional descent, depth=%s' % iterations
         elif strong:
-            children = self._get_children_from_strong_conditional_descents(strong)
+            i, root = strong
+            children = self._get_children_from_strong_conditional_descents(i, root)
             return children, 'strong conditional descent'
         elif weak:
             children = self._get_children_from_weak_conditional_descents(weak)
@@ -1730,10 +1781,11 @@ class BraidResolver:
             children.append(self._branch_from_descent(i, False, descent=False))
         return children
 
-    def _get_children_from_strong_conditional_descents(self, descents):
-        i = list(descents)[0]
-        constraints = [(j, f) for (j, f) in self.sigma[i].coefficients.items() if f <= 0]
-        nonzero_root = sum(Root(self.graph, j, f) for (j, f) in constraints)
+    def _get_children_from_strong_conditional_descents(self, i, nonzero_root):
+        constraints = [(j, f) for (j, f) in nonzero_root]
+        # i = list(descents)[0]
+        # constraints = [(j, f) for (j, f) in self.sigma[i].coefficients.items() if f <= 0]
+        # nonzero_root = sum(Root(self.graph, j, f) for (j, f) in constraints)
 
         child_a = self._branch_from_descent(i, True)
         child_a.constraints.add_nonzero_constraint(nonzero_root)
@@ -1989,25 +2041,29 @@ class ResolverQueue:
             y = y.multiply_up(word_b)
         return y
 
-    def generate_atoms(self, relations, start_word):
+    def get_inverse_atoms(self, relations, start_word):
         start = CoxeterTransform.from_word(self.graph, reverse_tuple(start_word))
         relations = {(reverse_tuple(a), reverse_tuple(b)) for a, b in relations}
         generated = set()
         to_add = {start}
         while to_add:
+            to_add.difference_update({None})
+            to_add.difference_update(generated)
             generated.update(to_add)
+            print('................................... %s' % len(generated))
             next_add = set()
             for x in to_add:
                 for word_a, word_b in relations:
                     y = self._toggle_atom(x, word_a, word_b)
                     z = self._toggle_atom(x, word_b, word_a)
-                    next_add.update({i for i in {y, z} if i is not None and i not in generated})
+                    next_add.update({y, z})
             to_add = next_add
-        return {x.get_inverse() for x in generated}
+        return generated
 
     def are_connected(self, relations, start_word, target_word):
-        target = CoxeterTransform.from_word(self.graph, target_word)
-        return target in self.generate_atoms(relations, start_word)
+        target = CoxeterTransform.from_word(self.graph, reverse_tuple(target_word))
+        #  target_word = reverse_tuple(target.minimal_reduced_word)
+        return target in self.get_inverse_atoms(relations, start_word)
 
     def minify_relation(self, relations):
         minified = []
@@ -2017,25 +2073,35 @@ class ResolverQueue:
             while 0 < i and u[:i] != v[:i]:
                 i -= 1
             start_word = u[:i]
-            atoms = self.generate_atoms(relations, start_word)
-            w = min(reverse_tuple(a.get_inverse().minimal_reduced_word) for a in atoms)
+            atoms = self.get_inverse_atoms(relations, start_word)
+            w = min(reverse_tuple(a.minimal_reduced_word) for a in atoms)
             minified += [(w + u[i:], w + v[i:])]
         return minified
 
     def minimize_relations(self, final):
         self._print("  1. Get relations which cannot be generated by all others combined.")
+        redundant = []
         necessary = []
         for i in range(len(final)):
+            tag = '%s/%s.' % (i+1, len(final))
             u, v = final[i]
-            rest = final[:i] + final[i+1:]
-            if not self.are_connected(rest, u, v):
+            initial = [(a, b) for a, b in final[:i] if (a, b) not in redundant]
+            complement = [(a, b) for a, b in final[:i] + final[i+1:] if (a, b) not in redundant]
+            t0 = time.time()
+            if self.are_connected(initial, u, v):
+                redundant.append((u, v))
+                template = "    %s (redundant), computation took %s seconds"
+                self._print(template % (tag, time.time() - t0))
+            elif not self.are_connected(complement, u, v):
                 necessary.append((u, v))
-                self._print("     +")
+                template = "    %s (necessary): %s <---> %s, computation took %s seconds"
+                self._print(template % (tag, u, v, time.time() - t0))
             else:
-                self._print("     -")
+                template = "    %s (possible), computation took %s seconds"
+                self._print(template % (tag, time.time() - t0))
 
-        self._print("  2. Get smallest set of relations which generate all the others.")
-        rest = [x for x in final if x not in necessary]
+        self._print("\n  2. Get smallest set of relations which generate all the others.")
+        rest = [x for x in final if x not in necessary and x not in redundant]
         for i in range(len(rest)+1):
             self._print("     .")
             for current in itertools.combinations(rest, i):
