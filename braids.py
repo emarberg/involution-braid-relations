@@ -2031,7 +2031,7 @@ class ResolverQueue:
         return len(self.queue)
 
     def _update(self, children):
-        added = []
+        added = False
         for child in children:
             if child in self.queue:
                 continue
@@ -2040,7 +2040,7 @@ class ResolverQueue:
                 self._add_final(child)
             else:
                 self._insert(child)
-                added.append(child)
+                added = True
         if not added:
             self._print_verbose('\n(no states added)\n')
 
@@ -2050,21 +2050,25 @@ class ResolverQueue:
             i += 1
         self.queue.insert(i, child)
 
-    def get_progress(self):
+    def _root_multiplicities(self):
         d = {}
         for state in self.queue:
             l = len(state)
             d[l] = d.get(l, 0) + 1
+        if not d:
+            return '0'
+        else:
+            return ' '.join([str(ell) + '^' + str(mul) for ell, mul in sorted(d.items())])
+
+    def _word_multiplicities(self):
         e = {}
         for state in self.queue:
             l = len(state.word_s)
             e[l] = e.get(l, 0) + 1
-        if not d:
+        if not e:
             return '0'
         else:
-            d_str = ' '.join([str(ell) + '^' + str(mul) for ell, mul in sorted(d.items())])
-            e_str = ' '.join([str(ell) + '^' + str(mul) for ell, mul in sorted(e.items())])
-            return d_str + ' = ' + e_str
+            return ' '.join([str(ell) + '^' + str(mul) for ell, mul in sorted(e.items())])
 
     def _add_final(self, child):
         u = tuple(child.word_s.word)
@@ -2082,19 +2086,6 @@ class ResolverQueue:
     def are_atoms_connected(self, relations, start_word, target_word):
         target = CoxeterTransform.from_word(self.graph, reverse_tuple(target_word))
         return target in self.get_inverse_atoms(relations, start_word)
-
-    def finalize_relation(self, relations):
-        finalized = []
-        for u, v in relations:
-            # find largest common initial prefix of u and v
-            i = len(u)
-            while 0 < i and u[:i] != v[:i]:
-                i -= 1
-            start_word = u[:i]
-            inverse_atoms = self.get_inverse_atoms(relations, start_word)
-            w = min(reverse_tuple(a.minimal_reduced_word) for a in inverse_atoms)
-            finalized += [(w + u[i:], w + v[i:])]
-        return finalized
 
     def minimize_relations(self, final):
         necessary, redundant = self._get_necessary_relations(final)
@@ -2133,10 +2124,23 @@ class ResolverQueue:
                 complement = [x for x in rest if x not in current]
                 if all(self.are_atoms_connected(candidate, u, v) for u, v in complement):
                     self._print("       Works!")
-                    return self.finalize_relation(candidate)
+                    return self._finalize_relations(candidate)
                 else:
                     self._print("       Does not span.")
         raise Exception('Error in `ResolverQueue._finalize_necessary_relations`: returning None.')
+
+    def _finalize_relations(self, relations):
+        finalized = []
+        for u, v in relations:
+            # find largest common initial prefix of u and v
+            i = len(u)
+            while 0 < i and u[:i] != v[:i]:
+                i -= 1
+            start_word = u[:i]
+            inverse_atoms = self.get_inverse_atoms(relations, start_word)
+            w = min(reverse_tuple(a.minimal_reduced_word) for a in inverse_atoms)
+            finalized += [(w + u[i:], w + v[i:])]
+        return finalized
 
     def _print_verbose(self, string):
         self._print(string, self.VERBOSE_LEVEL_HIGH)
@@ -2164,8 +2168,10 @@ class ResolverQueue:
             self._print_verbose('Child states:')
             self._print_verbose('-------------')
             self._update(children)
-            self._print('States in queue: %s = %s' % (len(self), self.get_progress()))
-            self._print('Final states: %s' % len(self.final))
+            self._print('States in queue                    : %s' % len(self))
+            self._print('Multiplicities (by non-blank roots): %s' % self._root_multiplicities())
+            self._print('Multiplicities (by word length)    : %s' % self._word_multiplicities())
+            self._print('Final states                       : %s' % len(self.final))
 
     def go(self):
         t1 = time.time()
