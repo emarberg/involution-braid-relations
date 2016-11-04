@@ -551,75 +551,13 @@ class Polynomial(VectorMixin, NumberMixin):
         else:
             raise Exception('Invalid input type `%s` for Polynomial' % type(i))
 
-    def get_variables(self):
-        """Return set of integers indexing the indeterminates that appear in this polynomial."""
-        return set(i for monomial in self.coefficients for i in monomial.exponents)
+    def __lt__(self, other):
+        diff = other - self
+        return 0 < diff.get_constant_part() and all(0 < c for c in diff.coefficients.values())
 
-    def is_factorable(self):
-        if len(self.get_variables()) != 1:
-            return False
-
-        x = list(self.get_variables())[0]
-        a = self[{x: 2}]
-        b = self[{x: 1}]
-        c = self[{}]
-
-        if self != a*Polynomial({x: 2}) + b*Polynomial({x: 1}) + c*Polynomial({}):
-            return False
-        if a == 0 and b == 0:
-            return False
-        return True
-
-    def get_factors(self):
-        """TODO: improve this method."""
-        if len(self.get_variables()) != 1:
-            raise Exception('Cannot factor `%s`' % str(self))
-
-        x = list(self.get_variables())[0]
-        a = self[{x: 2}]
-        b = self[{x: 1}]
-        c = self[{}]
-        x = Polynomial({x: 1})
-
-        if self != a*x**2 + b*x + c:
-            raise Exception('Cannot factor `%s`' % str(self))
-        # print(a, b, c, c == 0, x - b/a)
-        if a != 0:
-            b /= a
-            c /= a
-        # print(a, b, c, c == 0, x - b/a)
-
-        if a == 0 and b == 0:
-            raise Exception('Constant polynomial has no roots.')
-        elif a == 0:
-            assert self == x + c/b
-            return [x + c/b]
-        elif c == 0:
-            assert self == a * x * (x + b)
-            return [x, x + b]
-        else:
-            r = (-b + QuadraticNumber.sqrt(b**2 - 4*c)) / 2
-            s = (-b - QuadraticNumber.sqrt(b**2 - 4*c)) / 2
-            if r == s:
-                assert self == a * (x - r) * (x - r)
-                return [x - r]
-            else:
-                assert self == a * (x - r) * (x - s)
-                return [x - r, x - s]
-
-    def is_linear(self):
-        for monomial in self.coefficients:
-            if len(monomial.exponents) > 1:
-                return False
-            if any(e != 1 for i, e in monomial.exponents.items()):
-                return False
-        return True
-
-    def is_constant(self):
-        return list(self.coefficients.keys()) in [[], [Monomial()]]
-
-    def get_constant_part(self):
-        return self[Monomial()]
+    def __le__(self, other):
+        diff = other - self
+        return all(0 < c for c in diff.coefficients.values())
 
     def __hash__(self):
         if self.is_constant():
@@ -630,51 +568,6 @@ class Polynomial(VectorMixin, NumberMixin):
                 return (index, hash(coeff))
 
             return hash(tuple(sorted(self.coefficients.items(), key=key)))
-
-    def set_variable(self, variable, value):
-        if type(variable) == int:
-            pass
-        elif type(variable) == str:
-            variable = Monomial.string_to_index(variable)
-        elif type(variable) == Monomial and list(variable.exponents.values()) == [1]:
-            variable = list(variable.exponents.keys())[0]
-        else:
-            raise Exception('Invalid input `%s` to Polynomial.set_variable.' % variable)
-
-        new = Polynomial()
-        for monomial, coeff in self:
-            e = monomial[variable]
-            if e != 0 and value != 0:
-                exponents = {i: e for i, e in monomial.exponents.items() if i != variable}
-                new += Polynomial(exponents) * coeff * (value**e)
-            elif e < 0 and value == 0:
-                raise Exception('Division by zero when setting variable in `%s`' % str(self))
-            elif e == 0:
-                new[monomial] += coeff
-        return new
-
-    def set_variables_to_zero(self, variables):
-        """Input `variables` should be set of integers."""
-        new = Polynomial()
-        for i, v in self:
-            if set(i.exponents.keys()).isdisjoint(set(variables)):
-                new[i] = v
-        return new
-
-    @classmethod
-    def to_polynomial(cls, other):
-        if type(other) == Polynomial:
-            return other
-        else:
-            return Polynomial(other)
-
-    def __lt__(self, other):
-        diff = other - self
-        return 0 < diff.get_constant_part() and all(0 < c for c in diff.coefficients.values())
-
-    def __le__(self, other):
-        diff = other - self
-        return all(0 < c for c in diff.coefficients.values())
 
     def __add__(self, other):
         other = self.to_polynomial(other)
@@ -741,6 +634,113 @@ class Polynomial(VectorMixin, NumberMixin):
         elif s.startswith(' + '):
             s = s[3:]
         return s
+
+    def get_variables(self):
+        """Return set of integers indexing the indeterminates that appear in this polynomial."""
+        return set(i for monomial in self.coefficients for i in monomial.exponents)
+
+    def is_factorable(self):
+        if len(self.get_variables()) != 1:
+            return False
+
+        x = next(iter(self.get_variables()))
+        a = self[{x: 2}]
+        b = self[{x: 1}]
+        c = self[{}]
+
+        if self != a*Polynomial({x: 2}) + b*Polynomial({x: 1}) + c*Polynomial({}):
+            return False
+        if a == 0 and b == 0:
+            return False
+        return True
+
+    def get_factors(self):
+        """TODO: improve this method."""
+        if len(self.get_variables()) != 1:
+            raise Exception('Cannot factor `%s`' % str(self))
+
+        x = next(iter(self.get_variables()))
+        a = self[{x: 2}]
+        b = self[{x: 1}]
+        c = self[{}]
+        x = Polynomial({x: 1})
+
+        if self != a*x**2 + b*x + c:
+            raise Exception('Cannot factor `%s`' % str(self))
+        # print(a, b, c, c == 0, x - b/a)
+        if a != 0:
+            b /= a
+            c /= a
+        # print(a, b, c, c == 0, x - b/a)
+
+        if a == 0 and b == 0:
+            raise Exception('Constant polynomial has no roots.')
+        elif a == 0:
+            assert self == x + c/b
+            return [x + c/b]
+        elif c == 0:
+            assert self == a * x * (x + b)
+            return [x, x + b]
+        else:
+            r = (-b + QuadraticNumber.sqrt(b**2 - 4*c)) / 2
+            s = (-b - QuadraticNumber.sqrt(b**2 - 4*c)) / 2
+            if r == s:
+                assert self == a * (x - r) * (x - r)
+                return [x - r]
+            else:
+                assert self == a * (x - r) * (x - s)
+                return [x - r, x - s]
+
+    def is_linear(self):
+        for monomial in self.coefficients:
+            if len(monomial.exponents) > 1:
+                return False
+            if any(e != 1 for i, e in monomial.exponents.items()):
+                return False
+        return True
+
+    def is_constant(self):
+        return list(self.coefficients.keys()) in [[], [Monomial()]]
+
+    def get_constant_part(self):
+        return self[Monomial()]
+
+    def set_variable(self, variable, value):
+        if type(variable) == int:
+            pass
+        elif type(variable) == str:
+            variable = Monomial.string_to_index(variable)
+        elif type(variable) == Monomial and list(variable.exponents.values()) == [1]:
+            variable = next(iter(variable.exponents.keys()))
+        else:
+            raise Exception('Invalid input `%s` to Polynomial.set_variable.' % variable)
+
+        new = Polynomial()
+        for monomial, coeff in self:
+            e = monomial[variable]
+            if e != 0 and value != 0:
+                exponents = {i: e for i, e in monomial.exponents.items() if i != variable}
+                new += Polynomial(exponents) * coeff * (value**e)
+            elif e < 0 and value == 0:
+                raise Exception('Division by zero when setting variable in `%s`' % str(self))
+            elif e == 0:
+                new[monomial] += coeff
+        return new
+
+    def set_variables_to_zero(self, variables):
+        """Input `variables` should be set of integers."""
+        new = Polynomial()
+        for i, v in self:
+            if set(i.exponents.keys()).isdisjoint(set(variables)):
+                new[i] = v
+        return new
+
+    @classmethod
+    def to_polynomial(cls, other):
+        if type(other) == Polynomial:
+            return other
+        else:
+            return Polynomial(other)
 
 
 class CoxeterGraph:
@@ -1331,6 +1331,35 @@ class CoxeterTransform(RootTransform):
             return (self * word[0]).multiply_down(word[1:])
         else:
             return self
+
+    def toggle_right_segment(self, from_segment, to_segment):
+        y = self.multiply_down(reverse_tuple(from_segment))
+        if y is not None:
+            y = y.multiply_up(to_segment)
+        return y
+
+    def span_by_right_relations(self, relations):
+        """
+        Given set `relations` consisting of pairs (a, b) where a and b are tuples of
+        simple generators, and CoxeterTransform `start`, returns equivalence class of
+        CoxeterTransforms containing `start` spanned by the relations defined by setting x ~ y
+        when x has a reduced word ending with a, y has a reduced word ending with b, and
+        xa = yb, for some (a, b) in `relations`.
+        """
+        generated = set()
+        to_add = {self}
+        while to_add:
+            to_add.difference_update({None})
+            to_add.difference_update(generated)
+            generated.update(to_add)
+            next_add = set()
+            for x in to_add:
+                for word_a, word_b in relations:
+                    y = x.toggle_right_segment(word_a, word_b)
+                    z = x.toggle_right_segment(word_b, word_a)
+                    next_add.update({y, z})
+            to_add = next_add
+        return generated
 
 
 class CoxeterWord:
@@ -2041,87 +2070,69 @@ class ResolverQueue:
         else:
             self.final.add((v, u))
 
-    def _toggle_atom(self, x, word_a, word_b):
-        y = x.multiply_down(reverse_tuple(word_a))
-        if y is not None:
-            y = y.multiply_up(word_b)
-        return y
-
     def get_inverse_atoms(self, relations, start_word):
         start = CoxeterTransform.from_word(self.graph, reverse_tuple(start_word))
         relations = {(reverse_tuple(a), reverse_tuple(b)) for a, b in relations}
-        generated = set()
-        to_add = {start}
-        while to_add:
-            to_add.difference_update({None})
-            to_add.difference_update(generated)
-            generated.update(to_add)
-            next_add = set()
-            for x in to_add:
-                for word_a, word_b in relations:
-                    y = self._toggle_atom(x, word_a, word_b)
-                    z = self._toggle_atom(x, word_b, word_a)
-                    next_add.update({y, z})
-            to_add = next_add
-        return generated
+        return start.span_by_right_relations(relations)
 
-    def are_connected(self, relations, start_word, target_word):
+    def are_atoms_connected(self, relations, start_word, target_word):
         target = CoxeterTransform.from_word(self.graph, reverse_tuple(target_word))
-        #  target_word = reverse_tuple(target.minimal_reduced_word)
         return target in self.get_inverse_atoms(relations, start_word)
 
-    def minify_relation(self, relations):
-        minified = []
+    def finalize_relation(self, relations):
+        finalized = []
         for u, v in relations:
             # find largest common initial prefix of u and v
             i = len(u)
             while 0 < i and u[:i] != v[:i]:
                 i -= 1
             start_word = u[:i]
-            atoms = self.get_inverse_atoms(relations, start_word)
-            w = min(reverse_tuple(a.minimal_reduced_word) for a in atoms)
-            minified += [(w + u[i:], w + v[i:])]
-        return minified
+            inverse_atoms = self.get_inverse_atoms(relations, start_word)
+            w = min(reverse_tuple(a.minimal_reduced_word) for a in inverse_atoms)
+            finalized += [(w + u[i:], w + v[i:])]
+        return finalized
 
     def minimize_relations(self, final):
+        necessary, redundant = self._get_necessary_relations(final)
+        return self._finalize_necessary_relations(final, necessary, redundant)
+
+    def _get_necessary_relations(self, final):
         self._print("  1. Get relations which cannot be generated by all others combined.")
-        redundant = []
-        necessary = []
+        necessary, redundant = [], []
         for i in range(len(final)):
+            t0 = time.time()
             tag = '     * Relation %s/%s:' % (i+1, len(final))
             u, v = final[i]
             initial = [(a, b) for a, b in final[:i] if (a, b) not in redundant]
-            complement = [(a, b) for a, b in final[:i] + final[i+1:] if (a, b) not in redundant]
-            t0 = time.time()
-            if self.are_connected(initial, u, v):
+            complement = [(a, b) for a, b in (final[:i] + final[i+1:]) if (a, b) not in redundant]
+            if self.are_atoms_connected(initial, u, v):
                 redundant.append((u, v))
-                template = "%s (redundant), computation took %s seconds"
-                self._print(template % (tag, time.time() - t0))
-            elif not self.are_connected(complement, u, v):
+                label = "redundant"
+            elif not self.are_atoms_connected(complement, u, v):
                 necessary.append((u, v))
-                template = "%s (independent) %s <---> %s, computation took %s seconds"
-                self._print(template % (tag, u, v, time.time() - t0))
+                label = "independent"
             else:
-                template = "%s (not redundant or independent), computation took %s seconds"
-                self._print(template % (tag, time.time() - t0))
+                label = "not redundant or independent"
+            t1 = time.time()
+            self._print("%s (%s), computation took %s seconds" % (tag, label, t1 - t0))
+        return necessary, redundant
 
+    def _finalize_necessary_relations(self, final, necessary, redundant):
         self._print("\n  2. Get smallest set of relations which generate all the others.")
         rest = [x for x in final if x not in necessary and x not in redundant]
         for i in range(len(rest)+1):
             for current in itertools.combinations(rest, i):
                 candidate = necessary + list(current)
-
                 self._print("     * Trying combination of relations:")
                 for rel in candidate:
                     self._print("         %s <---> %s" % rel)
-
                 complement = [x for x in rest if x not in current]
-                if all(self.are_connected(candidate, u, v) for u, v in complement):
+                if all(self.are_atoms_connected(candidate, u, v) for u, v in complement):
                     self._print("       Works!")
-                    return self.minify_relation(candidate)
+                    return self.finalize_relation(candidate)
                 else:
                     self._print("       Does not span.")
-        assert False
+        raise Exception('Error in `ResolverQueue._finalize_necessary_relations`: returning None.')
 
     def _print_verbose(self, string):
         self._print(string, self.VERBOSE_LEVEL_HIGH)
@@ -2162,7 +2173,7 @@ class ResolverQueue:
         self._print('Duration: %s seconds' % (t2-t1))
 
         final = sorted(self.final, key=lambda x: (len(x[0]), x))
-        print('')
+        self._print('')
         self._print('-----------------------')
         self._print('Twisted Coxeter system:')
         self._print('-----------------------')
@@ -2182,10 +2193,9 @@ class ResolverQueue:
         self._print('')
         self._print('Duration: %s seconds' % (time.time()-t2))
 
-        self._print('')
-        self._print('-----------------------------')
-        self._print('Minimal sufficient relations:')
-        self._print('-----------------------------')
-
+        print('')
+        print('-----------------------------')
+        print('Minimal sufficient relations:')
+        print('-----------------------------')
         for u, v in self.minimal:
             print('%s <---> %s' % (u, v))
