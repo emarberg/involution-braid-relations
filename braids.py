@@ -1646,7 +1646,7 @@ class ConstraintsManager:
         return True
 
 
-class BraidResolver:
+class BraidSolver:
     def __init__(self, coxeter_graph, s, t):
         if s in coxeter_graph.generators and t in coxeter_graph.generators:
             self.graph = coxeter_graph
@@ -1657,11 +1657,11 @@ class BraidResolver:
             self.word_t = CoxeterWord(coxeter_graph)
             self.constraints = ConstraintsManager()
         else:
-            raise Exception('Invalid inputs `s = %s`, `t = %s` in BraidResolver.' % (s, t))
+            raise Exception('Invalid inputs `s = %s`, `t = %s` in BraidSolver.' % (s, t))
 
     def __eq__(self, other):
         return \
-            BraidResolver == type(other) and \
+            BraidSolver == type(other) and \
             self.graph == other.graph and \
             self.sigma == other.sigma and \
             self.word_s.left_action == other.word_s.left_action and \
@@ -1673,7 +1673,7 @@ class BraidResolver:
 
     def __repr__(self):
         s = '\n'
-        s += 'Resolver State:\n'
+        s += 'Solver State:\n'
         s += '***************\n'
         s += 's = %s, word_s = %s\n' % (self.s, self.word_s)
         s += 't = %s, word_t = %s\n' % (self.t, self.word_t)
@@ -1688,7 +1688,7 @@ class BraidResolver:
         return s
 
     def copy(self):
-        other = BraidResolver(self.graph, self.s, self.t)
+        other = BraidSolver(self.graph, self.s, self.t)
         other.sigma = self.sigma.copy()
         other.word_s = self.word_s.copy()
         other.word_t = self.word_t.copy()
@@ -1794,13 +1794,13 @@ class BraidResolver:
         alpha = Root(self.graph, self.graph.star(self.s))
         beta = Root(self.graph, self.graph.star(self.t))
 
-        fixer = BraidResolver(self.graph, self.s, self.t)
+        fixer = BraidSolver(self.graph, self.s, self.t)
         fixer.sigma = RootTransform(self.graph, {self.s: alpha, self.t: beta})
         for i in range(self.get_semiorder(is_fixer=True)):
             fixer.word_s.extend_left(gens[i % 2])
             fixer.word_t.extend_left(gens[(i+1) % 2])
 
-        transposer = BraidResolver(self.graph, self.s, self.t)
+        transposer = BraidSolver(self.graph, self.s, self.t)
         transposer.sigma = RootTransform(self.graph, {self.s: beta, self.t: alpha})
         for i in range(self.get_semiorder(is_fixer=False)):
             transposer.word_s.extend_left(gens[i % 2])
@@ -2006,7 +2006,7 @@ class BraidResolver:
             self.sigma[i] = self.sigma[i].set_variables_to_zero(variables)
 
 
-class ResolverQueue:
+class SolverQueue:
 
     VERBOSE_LEVEL_NONE = 0
     VERBOSE_LEVEL_MEDIUM = 1
@@ -2016,13 +2016,13 @@ class ResolverQueue:
         self.graph = coxeter_graph
         if not s or not t:
             self.queue = [
-                BraidResolver(coxeter_graph, s, t)
+                BraidSolver(coxeter_graph, s, t)
                 for s in coxeter_graph.generators
                 for t in coxeter_graph.generators
                 if s < t
             ]
         else:
-            self.queue = [BraidResolver(coxeter_graph, s, t)]
+            self.queue = [BraidSolver(coxeter_graph, s, t)]
         self.final = set()
         self.minimal = None
         self.verbose_level = verbose_level
@@ -2127,7 +2127,7 @@ class ResolverQueue:
                     return self._finalize_relations(candidate)
                 else:
                     self._print("       Does not span.")
-        raise Exception('Error in `ResolverQueue._finalize_necessary_relations`: returning None.')
+        raise Exception('Error in `SolverQueue._finalize_necessary_relations`: returning None.')
 
     def _finalize_relations(self, relations):
         finalized = []
