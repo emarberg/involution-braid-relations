@@ -1648,14 +1648,16 @@ class ConstraintsManager:
 
 class BraidResolver:
     def __init__(self, coxeter_graph, s, t):
-        assert s in coxeter_graph.generators and t in coxeter_graph.generators
-        self.graph = coxeter_graph
-        self.s = s
-        self.t = t
-        self.sigma = RootTransform(coxeter_graph)
-        self.word_s = CoxeterWord(coxeter_graph)
-        self.word_t = CoxeterWord(coxeter_graph)
-        self.constraints = ConstraintsManager()
+        if s in coxeter_graph.generators and t in coxeter_graph.generators:
+            self.graph = coxeter_graph
+            self.s = s
+            self.t = t
+            self.sigma = RootTransform(coxeter_graph)
+            self.word_s = CoxeterWord(coxeter_graph)
+            self.word_t = CoxeterWord(coxeter_graph)
+            self.constraints = ConstraintsManager()
+        else:
+            raise Exception('Invalid inputs `s = %s`, `t = %s` in BraidResolver.' % (s, t))
 
     def __eq__(self, other):
         return \
@@ -1678,8 +1680,8 @@ class BraidResolver:
         s += '\n'
         s += 'sigma = %s' % self.sigma
         s += '\n'
-        s += '     unconditional descents: %s\n' % list(self.get_unconditional_descents())
-        s += 'strong conditional descents: %s\n' % str(self.get_strong_conditional_descents())
+        s += '      unconditional descent: %s\n' % str(self.get_unconditional_descent())
+        s += ' strong conditional descent: %s\n' % str(self.get_strong_conditional_descent())
         s += '  weak conditional descents: %s\n' % list(self.get_weak_conditional_descents())
         s += str(self.constraints)
         s += '***************\n'
@@ -1705,11 +1707,16 @@ class BraidResolver:
         else:
             return m//2
 
-    def get_weak_conditional_descents(self):
+    def get_unconditional_descent(self):
         descents_to_avoid = self.word_s.left_descents.union(self.word_t.left_descents)
-        return self.sigma.weak_conditional_descents.difference(descents_to_avoid)
+        unconditional = \
+            list(self.sigma.unconditional_descents.intersection(descents_to_avoid)) + \
+            list(self.sigma.unconditional_descents.difference(descents_to_avoid))
+        if unconditional:
+            return unconditional[0]
+        return None
 
-    def get_strong_conditional_descents(self):
+    def get_strong_conditional_descent(self):
         for i in self.sigma:
             root = Root(self.graph)
             for j, f in self.sigma[i]:
@@ -1719,11 +1726,9 @@ class BraidResolver:
                 return i, root
         return None
 
-    def get_unconditional_descents(self):
+    def get_weak_conditional_descents(self):
         descents_to_avoid = self.word_s.left_descents.union(self.word_t.left_descents)
-        unconditional = self.sigma.unconditional_descents
-        return list(unconditional.intersection(descents_to_avoid)) + \
-            list(unconditional.difference(descents_to_avoid))
+        return self.sigma.weak_conditional_descents.difference(descents_to_avoid)
 
     def is_quadratic_constraint_factorable(self):
         if self.constraints.quadratic_constraints:
@@ -1753,31 +1758,36 @@ class BraidResolver:
 
     def _get_children(self):
         children = []
-        quadratic = self.is_quadratic_constraint_factorable()
-        unconditional = self.get_unconditional_descents()
-        strong = self.get_strong_conditional_descents()
-        weak = self.get_weak_conditional_descents()
 
         if len(self.sigma) == 0:
             return self._get_children_first_iteration(), 'first iteration'
-        elif quadratic:
+
+        if self.is_quadratic_constraint_factorable():
             return self._get_children_from_quadratic_constraint(), 'reducing quadratic constraint'
-        elif unconditional:
+
+        unconditional = self.get_unconditional_descent()
+        if unconditional:
             children, iterations = self._get_children_from_unconditional_descents()
             return children, 'unconditional descent, depth=%s' % iterations
-        elif strong:
+
+        strong = self.get_strong_conditional_descent()
+        if strong:
             i, root = strong
             children = self._get_children_from_strong_conditional_descents(i, root)
             return children, 'strong conditional descent'
-        elif weak:
+
+        weak = self.get_weak_conditional_descents()
+        if weak:
             children = self._get_children_from_weak_conditional_descents(weak)
             return children, 'weak conditional descents'
-        elif self.sigma.is_constant() and not self.sigma.is_complete():
+
+        if self.sigma.is_constant() and not self.sigma.is_complete():
             return self._get_children_from_new_descent(), 'new descent'
-        elif self.sigma.is_constant() and not self.sigma.is_identity():
+
+        if self.sigma.is_constant() and not self.sigma.is_identity():
             return [], 'empty'
-        else:
-            raise Exception('Bad case: %s' % self)
+
+        raise Exception('Bad case: %s' % self)
 
     def _get_children_first_iteration(self):
         gens = [self.s, self.t]
@@ -1807,46 +1817,17 @@ class BraidResolver:
             children.append(child)
         return children
 
-    def _get_children_from_weak_conditional_descents(self, descents):
-        children = []
-        for i in descents:
-            children.append(self._branch_from_descent(i, True))
-            children.append(self._branch_from_descent(i, False))
-            children.append(self._branch_from_descent(i, True, descent=False))
-            children.append(self._branch_from_descent(i, False, descent=False))
-        return children
-
-    def _get_children_from_strong_conditional_descents(self, i, nonzero_root):
-        constraints = [(j, f) for (j, f) in nonzero_root]
-        # i = list(descents)[0]
-        # constraints = [(j, f) for (j, f) in self.sigma[i].coefficients.items() if f <= 0]
-        # nonzero_root = sum(Root(self.graph, j, f) for (j, f) in constraints)
-
-        child_a = self._branch_from_descent(i, True)
-        child_a.constraints.add_nonzero_constraint(nonzero_root)
-
-        child_b = self._branch_from_descent(i, False)
-        child_b.constraints.add_nonzero_constraint(nonzero_root)
-
-        child_c = self.copy()
-        for _, f in constraints:
-            child_c.constraints.add_zero_constraint(f)
-
-        return [child_a, child_b, child_c]
-
     def _get_children_from_unconditional_descents(self):
-        children = []
-        current = [self]
-        iterations = 0
+        children, current, iterations = [], [self], 0
         while current:
             new = []
             for state in current:
                 state.reduce()
                 if not state.is_valid():
                     continue
-                descents = state.get_unconditional_descents()
-                if descents:
-                    new += state._get_children_from_next_unconditional_descent(descents.pop())
+                descent = state.get_unconditional_descent()
+                if descent:
+                    new += state._get_children_from_next_unconditional_descent(descent)
                 else:
                     children.append(state)
             current = new
@@ -1861,6 +1842,29 @@ class BraidResolver:
         else:
             children.append(self._branch_from_descent(i, True))
             children.append(self._branch_from_descent(i, False))
+        return children
+
+    def _get_children_from_strong_conditional_descents(self, i, nonzero_root):
+        constraints = [(j, f) for (j, f) in nonzero_root]
+
+        child_a = self._branch_from_descent(i, True)
+        child_a.constraints.add_nonzero_constraint(nonzero_root)
+
+        child_b = self._branch_from_descent(i, False)
+        child_b.constraints.add_nonzero_constraint(nonzero_root)
+
+        child_c = self.copy()
+        for _, f in constraints:
+            child_c.constraints.add_zero_constraint(f)
+
+        return [child_a, child_b, child_c]
+
+    def _get_children_from_weak_conditional_descents(self, descents):
+        children = []
+        for i in descents:
+            children.append(self._branch_from_descent(i, True))
+            children.append(self._branch_from_descent(i, False))
+            children.append(self._branch_from_descent(i, descent=False))
         return children
 
     def _branch_from_descent(self, i, translate=True, descent=True):
