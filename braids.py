@@ -208,7 +208,7 @@ class RationalNumber(NumberMixin):
         if exponent == 0 and self != 0:
             return RationalNumber(1)
         elif exponent == 0 and self == 0:
-            raise Exception('Cannot compute indeterminate power 0^0')
+            raise Exception('Cannot compute indeterminate power 0**0')
         elif type(exponent) != int:
             raise Exception('Cannot exponentiate RationalNumber by `%s`' % type(exponent))
 

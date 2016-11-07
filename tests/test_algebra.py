@@ -42,32 +42,115 @@ class TestRationalNumbers:
         else:
             assert False
 
-    def test_to_rational_number(self):
-        RationalNumber(1, 2)
-
-    def test_is_integer(self):
-        RationalNumber(1, 2)
-
     def test_hash(self):
-        RationalNumber(1, 2)
+        """Test that hashes for RationalNumbers which are integers match the hashes of the ints."""
+        N = 100
+        for p in range(-N, N):
+            for q in range(-N, N):
+                try:
+                    x = RationalNumber(p, q)
+                except:
+                    assert q == 0
+                else:
+                    if p % q == 0:
+                        assert hash(x) == hash(p//q)
+                        assert x.is_integer()
 
-    def test_comparisons(self):
-        RationalNumber(1, 2)
+        assert len({1, RationalNumber(1, 1)}) == 1
 
     def test_addition(self):
-        RationalNumber(1, 2)
+        """Simple tests for addition and substraction of RationalNumbers."""
+        a = RationalNumber(3, 7)
+        b = -a
+        c = RationalNumber(4, 9)
+
+        assert a + 0 == 0 + a == a
+        assert a + b == b + a == 0 == RationalNumber()
+        assert a + 1 == 1 + a == RationalNumber(10, 7)
+        assert a - 2 == -2 + a == RationalNumber(-11, 7)
+        assert a + c == c + a == RationalNumber(3*9 + 4*7, 7*9)
+        assert a - c == -c + a == RationalNumber(3*9 - 4*7, 7*9)
+
+        # cannot add RationalNumber and float
+        try:
+            a + 1.2
+        except:
+            pass
+        else:
+            assert False
 
     def test_multiplication(self):
-        RationalNumber(1, 2)
+        """Simple tests for multiplication and division of RationalNumbers."""
+        a = RationalNumber(3, 7)
+        b = -a
+        c = RationalNumber(4, 9)
 
-    def test_division(self):
-        RationalNumber(1, 2)
+        assert a * 1 == 1 * a == a
+        assert a * b == b * a == RationalNumber(-9, 49)
+        assert a * -2 == -2 * a == RationalNumber(-6, 7)
+        assert a / 2 == RationalNumber(3, 14)
+        assert a / c == RationalNumber(27, 28)
+        assert c / a == RationalNumber(28, 27)
+        assert a * c == c * a == RationalNumber(4, 21)
+
+        # cannot multiply RationalNumber and float
+        try:
+            a * -3.8
+        except:
+            pass
+        else:
+            assert False
+
+    @pytest.mark.parametrize("zero", [
+        0,
+        0.0,
+        RationalNumber(0, 1),
+        QuadraticNumber(0),
+        Polynomial(),
+    ])
+    def test_division_errors(self, zero):
+        """Test error handling for attempted division of RationalNumber by zero."""
+        a = RationalNumber(3, 7)
+        try:
+            a / zero
+        except:
+            pass
+        else:
+            assert False
 
     def test_power(self):
-        RationalNumber(1, 2)
+        """Simple tests for exponentiation of RationalNumbers."""
+        q = RationalNumber(3, 2)**4
+        assert q.numerator == 81 and q.denominator == 16
+
+        q = RationalNumber(3, 2)**-4
+        assert q.numerator == 16 and q.denominator == 81
+
+        q = RationalNumber(3, 2)**0
+        assert q.numerator == 1 and q.denominator == 1
+
+        # cannot compute 0**0
+        try:
+            RationalNumber(0, 1)**0
+        except:
+            pass
+        else:
+            assert False
+
+        # cannot compute RationlNumber**RationalNumber, even if exponent is integer
+        try:
+            RationalNumber(5, 2)**RationalNumber(6, 2)
+        except:
+            pass
+        else:
+            assert False
 
     def test_repr(self):
-        RationalNumber(1, 2)
+        """Simple tests for conversion of RationalNumbers to str."""
+        assert str(RationalNumber(1, 2)) == '1/2'
+        assert str(RationalNumber(-1, 2)) == '-1/2'
+        assert str(RationalNumber(2, 1)) == '2'
+        assert str(RationalNumber(2, -1)) == '-2'
 
 
 class TestPrimeFactorization:
