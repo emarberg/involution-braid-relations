@@ -1,2 +1,7 @@
 *.pyc
 .DS_Store
+coverage.xml
+htmlcov
+pytest_results.xml
+,tox/
+.coverage
