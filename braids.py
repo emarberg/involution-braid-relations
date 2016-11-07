@@ -113,12 +113,13 @@ class NumberMixin:
 
 class RationalNumber(NumberMixin):
     def __init__(self, p=0, q=1):
-        if type(p) == RationalNumber:
-            q = q * p.denominator
-            p = p.numerator
-        if type(q) == RationalNumber:
-            p = p * q.denominator
-            q = q.numerator
+        if type(p) == type(q) == RationalNumber:
+            p, q = (p.numerator * q.denominator, q.numerator * p.denominator)
+        elif type(p) == int and type(q) == RationalNumber:
+            p, q = (p * q.denominator, q.numerator)
+        elif type(q) == int and type(p) == RationalNumber:
+            p, q = (p.numerator, q * p.denominator)
+
         if type(p) == int and type(q) == int and q != 0:
             p, q = self.reduce(p, q)
             self.numerator = p
