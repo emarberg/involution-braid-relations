@@ -1,0 +1,7 @@
+-r base.txt
+
+tox==2.1.1
+pytest==2.7.1
+mock==1.0.1
+coverage==4.0.3
+flake8==2.5.4
