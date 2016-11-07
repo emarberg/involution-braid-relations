@@ -135,13 +135,6 @@ class RationalNumber(NumberMixin):
         d = np.math.gcd(p, q)
         return p//d, q//d
 
-    @classmethod
-    def to_rational_number(cls, other):
-        if type(other) == RationalNumber:
-            return other
-        else:
-            return RationalNumber(other)
-
     def is_integer(self):
         return self.denominator == 1
 
@@ -152,47 +145,61 @@ class RationalNumber(NumberMixin):
             return hash((self.numerator, self.denominator))
 
     def __eq__(self, other):
-        if type(other) == QuadraticNumber:
-            return QuadraticNumber.to_quadratic_number(self) == other
-        if type(other) == Polynomial:
-            return Polynomial.to_polynomial(self) == other
-        else:
-            other = self.to_rational_number(other)
+        if type(other) == int:
+            return self.numerator == other and self.denominator == 1
+        elif type(other) == RationalNumber:
             return self.numerator == other.numerator and self.denominator == other.denominator
+        elif type(other) == QuadraticNumber:
+            return QuadraticNumber(self) == other
+        elif type(other) == Polynomial:
+            return Polynomial(self) == other
+        else:
+            raise Exception('Cannot compare RationalNumber and `%s`' % type(other))
 
     def __lt__(self, other):
-        if type(other) == QuadraticNumber:
-            return QuadraticNumber.to_quadratic_number(self) < other
+        if type(other) == int:
+            return self.numerator < other * self.denominator
+        elif type(other) == RationalNumber:
+            return self.numerator*other.denominator < other.numerator*self.denominator
+        elif type(other) == QuadraticNumber:
+            return QuadraticNumber(self) < other
         elif type(other) == Polynomial:
-            return Polynomial.to_polynomial(self) < other
+            return Polynomial(self) < other
         else:
-            other = self.to_rational_number(other)
-            return (self - other).numerator < 0
+            raise Exception('Cannot compare RationalNumber and `%s`' % type(other))
 
     def __add__(self, other):
         if type(other) in [QuadraticNumber, Polynomial]:
             return other + self
+        elif type(other) == int:
+            p, q = self.numerator + other*self.denominator, self.denominator
+        elif type(other) == RationalNumber:
+            p = self.numerator*other.denominator + other.numerator*self.denominator
+            q = self.denominator*other.denominator
         else:
-            other = self.to_rational_number(other)
-            n = self.numerator*other.denominator + other.numerator*self.denominator
-            p, q = self.reduce(n, self.denominator*other.denominator)
-            return RationalNumber(p, q)
+            raise Exception('Cannot add RationalNumber and `%s`' % type(other))
+        return RationalNumber(p, q)
 
     def __mul__(self, other):
         if type(other) in [Root, QuadraticNumber, Polynomial]:
             return other * self
+        elif type(other) == int:
+            p, q = self.numerator*other, self.denominator
+        elif type(other) == RationalNumber:
+            p, q = self.numerator*other.numerator, self.denominator*other.denominator
         else:
-            other = self.to_rational_number(other)
-            p, q = self.reduce(self.numerator*other.numerator, self.denominator*other.denominator)
-            return RationalNumber(p, q)
+            raise Exception('Cannot multiply RationalNumber by `%s`' % type(other))
+        return RationalNumber(p, q)
 
     def __truediv__(self, other):
         if type(other) == QuadraticNumber:
             return QuadraticNumber(self) / other
         elif type(other) == Polynomial and other.is_constant():
             return self / other.get_constant_part()
-        else:
+        elif type(other) in [int, RationalNumber]:
             return RationalNumber(self, other)
+        else:
+            raise Exception('Cannot divide RationalNumber by `%s`' % type(other))
 
     def __rtruediv__(self, other):
         return other * RationalNumber(1, self)
@@ -202,6 +209,8 @@ class RationalNumber(NumberMixin):
             return RationalNumber(1)
         elif exponent == 0 and self == 0:
             raise Exception('Cannot compute indeterminate power 0^0')
+        elif type(exponent) != int:
+            raise Exception('Cannot exponentiate RationalNumber by `%s`' % type(exponent))
 
         x = super(RationalNumber, self).__pow__(abs(exponent))
         if exponent < 0:
@@ -313,13 +322,6 @@ class QuadraticNumber(VectorMixin, NumberMixin):
             raise Exception('Invalid input type to QuadraticNumber: %s' % type(i))
 
     @classmethod
-    def to_quadratic_number(cls, other):
-        if type(other) == QuadraticNumber:
-            return other
-        else:
-            return QuadraticNumber(other)
-
-    @classmethod
     def sqrt(cls, i):
         """TODO: clean up this method."""
         if type(i) == QuadraticNumber and i.is_rational():
@@ -365,7 +367,7 @@ class QuadraticNumber(VectorMixin, NumberMixin):
                 ans += np.sqrt(pf.n) * coeff.numerator / coeff.denominator
             return ans
         else:
-            raise Exception('Cannot convert non-real QuadraticNumber to float.')
+            raise Exception('Cannot convert non-real QuadraticNumber to float')
 
     def decompose(self):
         positive_part, negative_part = QuadraticNumber(), QuadraticNumber()
@@ -375,15 +377,17 @@ class QuadraticNumber(VectorMixin, NumberMixin):
 
     def __lt__(self, other):
         if type(other) == Polynomial:
-            return Polynomial.to_polynomial(self) < other
+            return Polynomial(self) < other
+        elif type(other) in [int, RationalNumber]:
+            other = QuadraticNumber(other)
+        elif type(other) != QuadraticNumber:
+            raise Exception('Cannot compare QuadraticNumber and `%s`' % type(other))
 
-        other = self.to_quadratic_number(other)
         diff = other - self
-
         if diff.is_rational():
             return 0 < diff[PrimeFactorization(1)]
         elif not diff.is_real():
-            raise Exception('Cannot compare quadratic numbers have non-real difference.')
+            raise Exception('Cannot compare quadratic numbers have non-real difference')
         elif all(0 < c for c in diff.coefficients.values()):
             return True
         elif all(c < 0 for c in diff.coefficients.values()):
@@ -391,33 +395,37 @@ class QuadraticNumber(VectorMixin, NumberMixin):
 
         positive_part, negative_part = diff.decompose()
         if max(len(positive_part), len(negative_part)) > 3:
-            raise Exception('Cannot determine inequality %s < %s.' % (negative_part, positive_part))
+            raise Exception('Cannot determine inequality %s < %s' % (negative_part, positive_part))
         else:
             return negative_part**2 < positive_part**2
 
     def __add__(self, other):
-        if type(other) in [Polynomial]:
+        if type(other) == Polynomial:
             return other + self
-        else:
-            other = self.to_quadratic_number(other)
-            keys = set(self.coefficients.keys()).union(set(other.coefficients.keys()))
-            new = QuadraticNumber()
-            new.coefficients = {i: self[i] + other[i] for i in keys if (self[i] + other[i]) != 0}
-            return new
+        elif type(other) in [int, RationalNumber]:
+            other = QuadraticNumber(other)
+        elif type(other) != QuadraticNumber:
+            raise Exception('Cannot add QuadraticNumber and `%s`' % type(other))
+        keys = set(self.coefficients.keys()).union(set(other.coefficients.keys()))
+        new = QuadraticNumber()
+        new.coefficients = {i: self[i] + other[i] for i in keys if (self[i] + other[i]) != 0}
+        return new
 
     def __mul__(self, other):
         if type(other) in [Root, Polynomial]:
             return other * self
-        else:
-            other = self.to_quadratic_number(other)
-            new = QuadraticNumber()
-            for factors_1, coeff_1 in other:
-                for factors_2, coeff_2 in self:
-                    factors = factors_1*factors_2
-                    square_free = factors.get_square_free_part()
-                    coeff = coeff_1 * coeff_2 * factors.get_truncated_square_root()
-                    new[square_free] += coeff
-            return new
+        elif type(other) in [int, RationalNumber]:
+            other = QuadraticNumber(other)
+        elif type(other) != QuadraticNumber:
+            raise Exception('Cannot multiply QuadraticNumber and `%s`' % type(other))
+        new = QuadraticNumber()
+        for factors_1, coeff_1 in other:
+            for factors_2, coeff_2 in self:
+                factors = factors_1*factors_2
+                square_free = factors.get_square_free_part()
+                coeff = coeff_1 * coeff_2 * factors.get_truncated_square_root()
+                new[square_free] += coeff
+        return new
 
     def get_rational_part(self):
         return self[PrimeFactorization(1)]
@@ -474,7 +482,7 @@ class Monomial:
         elif type(exponents) == int:
             self.exponents = {exponents: 1}
         elif type(exponents) != dict or not all(type(i) == int for i in exponents):
-            raise Exception('Invalid input `%s` to Monomial.' % exponents)
+            raise Exception('Invalid input `%s` to Monomial' % exponents)
         else:
             self.exponents = exponents
 
@@ -512,7 +520,7 @@ class Monomial:
             exponents = {i: self[i] + other[i] for i in keys if self[i] + other[i] != 0}
             return Monomial(exponents)
         else:
-            raise Exception('Cannot multiply Monomial with `%s`.' % type(other))
+            raise Exception('Cannot multiply Monomial with `%s`' % type(other))
 
     def __pow__(self, other):
         if other == 0:
@@ -520,7 +528,7 @@ class Monomial:
         elif type(other) == int:
             return Monomial({i: self[i]*other for i in self.exponents})
         else:
-            raise Exception('Cannot exponentiate Monomial by `%s`.' % type(other))
+            raise Exception('Cannot exponentiate Monomial by `%s`' % type(other))
 
     def __getitem__(self, i):
         return self.exponents.get(i, 0)
@@ -571,7 +579,10 @@ class Polynomial(VectorMixin, NumberMixin):
             return hash(tuple(sorted(self.coefficients.items(), key=key)))
 
     def __add__(self, other):
-        other = self.to_polynomial(other)
+        if type(other) in [int, RationalNumber, QuadraticNumber]:
+            other = Polynomial(other)
+        elif type(other) != Polynomial:
+            raise Exception('Cannot add Polynomial and `%s`' % type(other))
         new = Polynomial()
         keys = set(self.coefficients.keys()).union(other.coefficients.keys())
         new.coefficients = {i: self[i] + other[i] for i in keys if self[i] + other[i] != 0}
@@ -580,26 +591,31 @@ class Polynomial(VectorMixin, NumberMixin):
     def __mul__(self, other):
         if type(other) == Root:
             return other * self
-        else:
-            other = self.to_polynomial(other)
-            new = Polynomial()
-            for monomial_1, coeff_1 in other:
-                for monomial_2, coeff_2 in self:
-                    new[monomial_1*monomial_2] += coeff_1 * coeff_2
-            return new
+        elif type(other) in [int, RationalNumber, QuadraticNumber]:
+            other = Polynomial(other)
+        elif type(other) != Polynomial:
+            raise Exception('Cannot multiply Polynomial and `%s`' % type(other))
+        new = Polynomial()
+        for monomial_1, coeff_1 in other:
+            for monomial_2, coeff_2 in self:
+                new[monomial_1*monomial_2] += coeff_1 * coeff_2
+        return new
 
     def __truediv__(self, other):
         if type(other) == Polynomial and other.is_constant():
             other = other[1]
 
-        if not (type(other) in [int, RationalNumber, QuadraticNumber] and other != 0):
-            raise Exception('Cannot divide Polynomial by `%s`' % str(other))
-        else:
-            other = QuadraticNumber.to_quadratic_number(other)
-            new = Polynomial()
-            for i, v in self:
-                new[i] = v/other
-            return new
+        if type(other) not in [int, RationalNumber, QuadraticNumber]:
+            raise Exception('Cannot divide Polynomial by `%s`' % type(other))
+        elif other == 0:
+            raise Exception('Cannot divide Polynomial by 0')
+        elif type(other) in [int, RationalNumber]:
+            other = QuadraticNumber(other)
+
+        new = Polynomial()
+        for i, v in self:
+            new[i] = v/other
+        return new
 
     def __getitem__(self, i):
         if i == 1:
@@ -675,7 +691,7 @@ class Polynomial(VectorMixin, NumberMixin):
         # print(a, b, c, c == 0, x - b/a)
 
         if a == 0 and b == 0:
-            raise Exception('Constant polynomial has no roots.')
+            raise Exception('Constant polynomial has no roots')
         elif a == 0:
             assert self == x + c/b
             return [x + c/b]
@@ -714,7 +730,7 @@ class Polynomial(VectorMixin, NumberMixin):
         elif type(variable) == Monomial and list(variable.exponents.values()) == [1]:
             variable = next(iter(variable.exponents.keys()))
         else:
-            raise Exception('Invalid input `%s` to Polynomial.set_variable.' % variable)
+            raise Exception('Invalid input `%s` to Polynomial.set_variable' % variable)
 
         new = Polynomial()
         for monomial, coeff in self:
@@ -735,13 +751,6 @@ class Polynomial(VectorMixin, NumberMixin):
             if set(i.exponents.keys()).isdisjoint(set(variables)):
                 new[i] = v
         return new
-
-    @classmethod
-    def to_polynomial(cls, other):
-        if type(other) == Polynomial:
-            return other
-        else:
-            return Polynomial(other)
 
 
 class CoxeterGraph:
@@ -768,7 +777,7 @@ class CoxeterGraph:
                     self.orders[(i, j)] = m
                     self.orders[(j, i)] = m
                 else:
-                    raise Exception('Invalid input `triples = %s` to CoxeterGraph.' % triples)
+                    raise Exception('Invalid input `triples = %s` to CoxeterGraph' % triples)
 
         # construct dictionary with images of the *-involution 'star'
         self._star = {}
@@ -778,13 +787,13 @@ class CoxeterGraph:
                     self._star[i] = j
                     self._star[j] = i
                 else:
-                    raise Exception('Invalid input `star = %s` to CoxeterGraph.' % star)
+                    raise Exception('Invalid input `star = %s` to CoxeterGraph' % star)
 
         # validate that input `star` encodes automorphism
         for i in self.generators:
             for j in self.generators:
                 if self.get_order(i, j) != self.get_order(self.star(i), self.star(j)):
-                    raise Exception('Invalid input `star = %s` to CoxeterGraph.' % star)
+                    raise Exception('Invalid input `star = %s` to CoxeterGraph' % star)
 
     def __eq__(self, other):
         return \
@@ -808,7 +817,7 @@ class CoxeterGraph:
         gens = [i, j]
         m = self.get_order(i, j)
         if m == np.infty:
-            raise Exception('Error in CoxeterGraph.get_braid: order m_ij must be finite.')
+            raise Exception('Error in CoxeterGraph.get_braid: order m_ij must be finite')
         else:
             return tuple(gens[t % 2] for t in range(m))
 
@@ -848,7 +857,7 @@ class CoxeterGraph:
                 return QuadraticNumber(-1)
         else:
             raise Exception('Error in CoxeterGraph.eval_bilinear: '
-                            'currently, m_ij must be 1, 2, ..., 6 or 12 or infinity.')
+                            'currently, m_ij must be 1, 2, ..., 6 or 12 or infinity')
             #  return -np.cos(np.pi / self.get_order(i, j))
 
     def is_simply_laced(self):
@@ -1019,7 +1028,7 @@ class Root(VectorMixin, NumberMixin):
         elif index in coxeter_graph.generators:
             self.coefficients = {index: coeff}
         else:
-            raise Exception('Invalid `index = %s` in constuctor for Root.' % index)
+            raise Exception('Invalid `index = %s` in constuctor for Root' % index)
 
     def __eq__(self, other):
         if other == 0 or type(other) == Root:
@@ -1038,14 +1047,14 @@ class Root(VectorMixin, NumberMixin):
                     ans += u * v * self.graph.eval_bilinear(i, j)
             return ans
         else:
-            raise Exception('Cannot evaluate bilinear form with input `other = %s`.' % other)
+            raise Exception('Cannot evaluate bilinear form with input `other = %s`' % other)
 
     def reflect(self, index):
         if index in self.graph.generators:
             v = 2 * self.eval_bilinear(index)
             return self - Root(self.graph, index, v)
         else:
-            raise Exception('Cannot reflect by root alpha_i with `i = %s`.' % index)
+            raise Exception('Cannot reflect by root alpha_i with `i = %s`' % index)
 
     def is_constant(self):
         return not any(type(v) == Polynomial and not v.is_constant() for i, v in self)
@@ -1090,7 +1099,7 @@ class Root(VectorMixin, NumberMixin):
             new.coefficients = {i: self[i] + other[i] for i in indices if (self[i] + other[i]) != 0}
             return new
         else:
-            raise Exception('Cannot add `%s` to Root.' % other)
+            raise Exception('Cannot add `%s` to Root' % other)
 
     def __mul__(self, other):
         new = Root(self.graph)
@@ -1116,7 +1125,7 @@ class RootTransform:
             self._strong_conditional_descents = None
             self._weak_conditional_descents = None
         else:
-            raise Exception('Invalid inputs (%s, %s) to RootTransform.' % (coxeter_graph, sigma))
+            raise Exception('Invalid inputs (%s, %s) to RootTransform' % (coxeter_graph, sigma))
 
     def __eq__(self, other):
         return isinstance(other, RootTransform) and \
@@ -1146,7 +1155,7 @@ class RootTransform:
             self._unset_cached_properties()
         else:
             raise Exception(
-                'Invalid inputs (%s, %s) to %s.__setitem__.' % (i, value, self.__name__)
+                'Invalid inputs (%s, %s) to %s.__setitem__' % (i, value, self.__name__)
             )
 
     @property
@@ -1190,7 +1199,7 @@ class RootTransform:
                     new[i] = new.get(i, 0) + self.sigma[k] * v
             return self.__class__(self.graph, new)
         else:
-            raise Exception('Cannot multiply %s by %s.' % (self.__name__, j))
+            raise Exception('Cannot multiply %s by %s' % (self.__name__, j))
 
     def __rmul__(self, j):
         if j in self.graph.generators:
@@ -1199,7 +1208,7 @@ class RootTransform:
                 new[i] = self.sigma[i].reflect(j)
             return self.__class__(self.graph, new)
         else:
-            raise Exception('Cannot right multiply %s by %s.' % (self.__name__, j))
+            raise Exception('Cannot right multiply %s by %s' % (self.__name__, j))
 
     def to_coxeter_transform(self):
         return CoxeterTransform(self.graph, self.sigma)
@@ -1245,7 +1254,7 @@ class CoxeterTransform(RootTransform):
             if keys_valid and roots_valid and nonvariable:
                 self.sigma = sigma.copy()
             else:
-                raise Exception('Invalid input `sigma = %s` to CoxeterTransform.' % sigma)
+                raise Exception('Invalid input `sigma = %s` to CoxeterTransform' % sigma)
         else:
             self.sigma = {i: Root(coxeter_graph, i) for i in coxeter_graph.generators}
         self.graph = coxeter_graph
@@ -1274,9 +1283,9 @@ class CoxeterTransform(RootTransform):
 
     def __setitem__(self, i, value):
         if not (value.is_constant() and type(value) == Root and value.graph == self.graph):
-            raise Exception('Invalid value `%s` in CoxeterTransform.__setitem__.' % value)
+            raise Exception('Invalid value `%s` in CoxeterTransform.__setitem__' % value)
         elif i not in self.graph.generators:
-            raise Exception('Invalid index `%s` in CoxeterTransform.__setitem__.' % i)
+            raise Exception('Invalid index `%s` in CoxeterTransform.__setitem__' % i)
         else:
             self.sigma[i] = value
             self._unset_cached_properties()
@@ -1506,27 +1515,35 @@ class ConstraintsManager:
         other.quadratic_constraints = self.quadratic_constraints.copy()
         return other
 
-    def add_zero_constraint(self, c):
-        if type(c) == Root:
-            for v in c.coefficients.values():
+    def add_zero_constraint(self, constraint):
+        if type(constraint) == Root:
+            for v in constraint.coefficients.values():
                 self.add_zero_constraint(v)
-        else:
-            c = Polynomial.to_polynomial(c)
-            if c.is_linear():
-                self.zero_constraints.add(c)
-            else:
-                self.quadratic_constraints.add(c)
+            return
+        elif type(constraint) in [int, RationalNumber, QuadraticNumber]:
+            constraint = Polynomial(constraint)
+        elif type(constraint) != Polynomial:
+            raise Exception('Constraint cannot be of type `%s`' % type(constraint))
 
-    def add_nonpositive_constraint(self, c):
-        if type(c) == Root:
-            for v in c.coefficients.values():
+        if constraint.is_linear():
+            self.zero_constraints.add(constraint)
+        else:
+            self.quadratic_constraints.add(constraint)
+
+    def add_nonpositive_constraint(self, constraint):
+        if type(constraint) == Root:
+            for v in constraint.coefficients.values():
                 self.add_nonpositive_constraint(v)
             return
-        c = Polynomial.to_polynomial(c)
-        if -c in self.nonpositive_constraints:
-            self.add_zero_constraint(c)
-        elif not any(c <= f for f in self.nonpositive_constraints):
-            self.nonpositive_constraints.add(c)
+        elif type(constraint) in [int, RationalNumber, QuadraticNumber]:
+            constraint = Polynomial(constraint)
+        elif type(constraint) != Polynomial:
+            raise Exception('Constraint cannot be of type `%s`' % type(constraint))
+
+        if -constraint in self.nonpositive_constraints:
+            self.add_zero_constraint(constraint)
+        elif not any(constraint <= f for f in self.nonpositive_constraints):
+            self.nonpositive_constraints.add(constraint)
 
     def add_nonzero_constraint(self, root):
         self.nonzero_constraints.add(root)
@@ -1658,7 +1675,7 @@ class BraidSolver:
             self.word_t = CoxeterWord(coxeter_graph)
             self.constraints = ConstraintsManager()
         else:
-            raise Exception('Invalid inputs `s = %s`, `t = %s` in BraidSolver.' % (s, t))
+            raise Exception('Invalid inputs `s = %s`, `t = %s` in BraidSolver' % (s, t))
 
     def __eq__(self, other):
         return \
@@ -2128,7 +2145,7 @@ class SolverQueue:
                     return self._finalize_relations(candidate)
                 else:
                     self._print("       Does not span.")
-        raise Exception('Error in `SolverQueue._finalize_necessary_relations`: returning None.')
+        raise Exception('Error in `SolverQueue._finalize_necessary_relations`: returning None')
 
     def _finalize_relations(self, relations):
         finalized = []
@@ -2152,7 +2169,7 @@ class SolverQueue:
 
     def next(self):
         if len(self) == 0:
-            self._print('Queue is empty.')
+            self._print('Queue is empty')
         else:
             self._print_verbose('')
             self._print_verbose('-----------')
@@ -2169,10 +2186,10 @@ class SolverQueue:
             self._print_verbose('Child states:')
             self._print_verbose('-------------')
             self._update(children)
-            self._print('States in queue                    : %s' % len(self))
-            self._print('Multiplicities (by non-blank roots): %s' % self._root_multiplicities())
-            self._print('Multiplicities (by word length)    : %s' % self._word_multiplicities())
-            self._print('Final states                       : %s' % len(self.final))
+            self._print('States in queue                  : %s' % len(self))
+            self._print('Multiplicities by non-blank roots: %s' % self._root_multiplicities())
+            self._print('Multiplicities by word length    : %s' % self._word_multiplicities())
+            self._print('Final states                     : %s' % len(self.final))
 
     def go(self):
         t1 = time.time()
@@ -2198,7 +2215,7 @@ class SolverQueue:
             self._print('%s <---> %s' % (u, v))
 
         self._print('')
-        self._print('Finding minimal relations.')
+        self._print('Finding minimal relations')
         self._print('')
         self.minimal = self.minimize_relations(final)
         self._print('')
