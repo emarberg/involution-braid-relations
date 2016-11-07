@@ -3,5 +3,5 @@
 coverage.xml
 htmlcov
 pytest_results.xml
-,tox/
+.tox/
 .coverage
