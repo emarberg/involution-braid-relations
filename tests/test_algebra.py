@@ -1,4 +1,3 @@
-import mock
 import pytest
 
 from ..braids import RationalNumber, QuadraticNumber, Polynomial
@@ -33,7 +32,7 @@ class TestRationalNumbers:
         (RationalNumber(7, 8), RationalNumber(0, -100))
     ])
     def test_constructor_errors(self, p, q):
-        """Test error handling of invalid arguments passed to QuadraticNumber constructor."""
+        """Test error handling of invalid arguments passed to RationalNumber constructor."""
         try:
             # denominator must be nonzero
             RationalNumber(p, q)
@@ -59,7 +58,7 @@ class TestRationalNumbers:
         assert len({1, RationalNumber(1, 1)}) == 1
 
     def test_addition(self):
-        """Simple tests for addition and substraction of RationalNumbers."""
+        """Tests for addition and substraction of RationalNumbers."""
         a = RationalNumber(3, 7)
         b = -a
         c = RationalNumber(4, 9)
@@ -80,7 +79,7 @@ class TestRationalNumbers:
             assert False
 
     def test_multiplication(self):
-        """Simple tests for multiplication and division of RationalNumbers."""
+        """Tests for multiplication and division of RationalNumbers."""
         a = RationalNumber(3, 7)
         b = -a
         c = RationalNumber(4, 9)
@@ -88,10 +87,12 @@ class TestRationalNumbers:
         assert a * 1 == 1 * a == a
         assert a * b == b * a == RationalNumber(-9, 49)
         assert a * -2 == -2 * a == RationalNumber(-6, 7)
+        assert a * c == c * a == RationalNumber(4, 21)
+
         assert a / 2 == RationalNumber(3, 14)
+        assert 2 / a == RationalNumber(14, 3)
         assert a / c == RationalNumber(27, 28)
         assert c / a == RationalNumber(28, 27)
-        assert a * c == c * a == RationalNumber(4, 21)
 
         # cannot multiply RationalNumber and float
         try:
@@ -119,7 +120,7 @@ class TestRationalNumbers:
             assert False
 
     def test_power(self):
-        """Simple tests for exponentiation of RationalNumbers."""
+        """Tests for exponentiation of RationalNumbers."""
         q = RationalNumber(3, 2)**4
         assert q.numerator == 81 and q.denominator == 16
 
@@ -145,28 +146,103 @@ class TestRationalNumbers:
         else:
             assert False
 
-    def test_repr(self):
-        """Simple tests for conversion of RationalNumbers to str."""
-        assert str(RationalNumber(1, 2)) == '1/2'
-        assert str(RationalNumber(-1, 2)) == '-1/2'
-        assert str(RationalNumber(2, 1)) == '2'
-        assert str(RationalNumber(2, -1)) == '-2'
-
 
 class TestPrimeFactorization:
-    pass
+
+    def test_constructor(self):
+        pass
+
+    def test_multiplication(self):
+        pass
+
+    def test_get_square_free_part(self):
+        pass
+
+    def get_truncated_square_root(self):
+        pass
+
+    def test_get_divisor_exponent(self):
+        pass
+
+    def test_get_prime_factorization(self):
+        pass
 
 
 class TestQuadraticNumbers:
-    pass
+
+    def test_constructor(self):
+        """Test constructor for QuadraticNumber with a variety of valid inputs."""
+        pass
+
+    def test_constructor_errors(self):
+        """Test error handling of invalid arguments passed to QuadraticNumber constructor."""
+        pass
+
+    def test_hash(self):
+        """Test that hashes for QuadraticNumbers are consistent."""
+        pass
+
+    def test_addition(self):
+        """Tests for addition and substraction of QuadraticNumbers."""
+        pass
+
+    def test_multiplication(self):
+        """Tests for multiplication and division of QuadraticNumbers."""
+        pass
+
+    def test_division_errors(self):
+        """Test error handling for attempted division of QuadraticNumbers by zero."""
+        pass
+
+    def test_power(self):
+        """Tests for exponentiation of QuadraticNumbers."""
+        pass
 
 
 class TestMonomial:
-    pass
+
+    def test_constructor(self):
+        pass
+
+    def test_eq(self):
+        pass
+
+    def test_multiplication(self):
+        pass
+
+    def test_power(self):
+        pass
 
 
 class TestPolynomial:
-    pass
+
+    def test_constructor(self):
+        """Test constructor for Polynomial with a variety of valid inputs."""
+        pass
+
+    def test_constructor_errors(self):
+        """Test error handling of invalid arguments passed to Polynomial constructor."""
+        pass
+
+    def test_hash(self):
+        """Test that hashes for Polynomials are consistent."""
+        pass
+
+    def test_addition(self):
+        """Tests for addition and substraction of Polynomials."""
+        pass
+
+    def test_multiplication(self):
+        """Tests for multiplication and division of Polynomials."""
+        pass
+
+    def test_division_errors(self):
+        """Test error handling for attempted division of Polynomials by zero."""
+        pass
+
+    def test_power(self):
+        """Tests for exponentiation of Polynomials."""
+        pass
 
 
 class TestComparisons:
