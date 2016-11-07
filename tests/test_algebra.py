@@ -6,37 +6,21 @@ from ..braids import RationalNumber, QuadraticNumber, Polynomial
 
 class TestRationalNumbers:
 
-    def test_constructor(self):
+    @pytest.mark.parametrize("p, q, numerator, denominator", [
+        (1, 2, 1, 2),
+        (-1, 2, -1, 2),
+        (1, -2, -1, 2),
+        (48, 96, 1, 2),
+        (-48, -96, 1, 2),
+        (RationalNumber(1, 2), 3, 1, 6),
+        (RationalNumber(2, 3), RationalNumber(4, 7), 7, 6),
+        (-1, RationalNumber(15, 6), -2, 5),
+        (-4 * 9 * 5 * 7, -2 * 3 * 25 * 49, 2 * 3, 5 * 7)
+    ])
+    def test_constructor(self, p, q, numerator, denominator):
         """Test constructor for RationalNumber with a variety of valid inputs."""
-        q = RationalNumber()
-        assert q.numerator == 0 and q.denominator == 1
-
-        q = RationalNumber(12)
-        assert q.numerator == 12 and q.denominator == 1
-
-        q = RationalNumber(1, 2)
-        assert q.numerator == 1 and q.denominator == 2
-
-        q = RationalNumber(-1, 2)
-        assert q.numerator == -1 and q.denominator == 2
-
-        q = RationalNumber(1, -2)
-        assert q.numerator == -1 and q.denominator == 2
-
-        q = RationalNumber(48, 96)
-        assert q.numerator == 1 and q.denominator == 2
-
-        q = RationalNumber(RationalNumber(1, 2), 3)
-        assert q.numerator == 1 and q.denominator == 6
-
-        q = RationalNumber(RationalNumber(2, 3), RationalNumber(4, 7))
-        assert q.numerator == 7 and q.denominator == 6
-
-        q = RationalNumber(-1, RationalNumber(15, 6))
-        assert q.numerator == -2 and q.denominator == 5
-
-        q = RationalNumber(-4 * 9 * 5 * 7, -2 * 3 * 25 * 49)
-        assert q.numerator == 2 * 3 and q.denominator == 5 * 7
+        x = RationalNumber(p, q)
+        assert x.numerator == numerator and x.denominator == denominator
 
     @pytest.mark.parametrize("p, q", [
         (1, 0),
@@ -45,6 +29,8 @@ class TestRationalNumbers:
         (Polynomial(), 1),
         (RationalNumber(1, 2), None),
         (None, RationalNumber(1, 2)),
+        (1, RationalNumber(0, 1)),
+        (RationalNumber(7, 8), RationalNumber(0, -100))
     ])
     def test_constructor_errors(self, p, q):
         """Test error handling of invalid arguments passed to QuadraticNumber constructor."""
