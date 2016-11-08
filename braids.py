@@ -231,14 +231,12 @@ PRIME_FACTORIZATION_CACHE = {}
 
 
 class PrimeFactorization:
-    def __init__(self, i=0):
-        if type(i) == int:
+    def __init__(self, i=1):
+        if type(i) == int and i != 0:
             self.factorization = PrimeFactorization.get_prime_factorization(i)
-            if i < 0:
-                self.factorization[-1] = 1
             self.n = i
         else:
-            raise Exception('Invalid input type to PrimeFactorization: %s' % type(i))
+            raise Exception('Invalid input to PrimeFactorization: %s' % type(i))
 
     def __getitem__(self, p):
         return self.factorization.get(p, 0)
@@ -294,7 +292,7 @@ class PrimeFactorization:
     @classmethod
     def get_prime_factorization(cls, i):
         if i in PRIME_FACTORIZATION_CACHE:
-            return PRIME_FACTORIZATION_CACHE[i]
+            return PRIME_FACTORIZATION_CACHE[i].copy()
         else:
             i_input = i
             factorization = {}
@@ -305,9 +303,11 @@ class PrimeFactorization:
                 if e != 0:
                     factorization[p] = e
                     i = i//p**e
-                N = [a for a in N[1:] if a <= i and a % p != 0]
+                N = [a for a in N[1:] if a <= abs(i) and a % p != 0]
+            if i_input < 0:
+                factorization[-1] = 1
             PRIME_FACTORIZATION_CACHE[i_input] = factorization
-            return factorization
+            return factorization.copy()
 
 
 class QuadraticNumber(VectorMixin, NumberMixin):
@@ -332,6 +332,8 @@ class QuadraticNumber(VectorMixin, NumberMixin):
         else:
             denom = 1
 
+        if i == 0:
+            return QuadraticNumber()
         if type(i) == int:
             pf = PrimeFactorization(i)
             square_free = pf.get_square_free_part()

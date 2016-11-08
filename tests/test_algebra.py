@@ -1,6 +1,6 @@
 import pytest
 
-from ..braids import RationalNumber, QuadraticNumber, Polynomial
+from ..braids import RationalNumber, QuadraticNumber, Polynomial, PrimeFactorization
 
 
 class TestRationalNumbers:
@@ -149,8 +149,33 @@ class TestRationalNumbers:
 
 class TestPrimeFactorization:
 
-    def test_constructor(self):
-        pass
+    @pytest.mark.parametrize("i, expected", [
+        (1, {}),
+        (-1, {-1: 1}),
+        (2*3*5*7, {2: 1, 3: 1, 5: 1, 7: 1}),
+        (8*27*125*343, {2: 3, 3: 3, 5: 3, 7: 3}),
+        (-3, {-1: 1, 3: 1}),
+        (-2*3*5*7, {-1: 1, 2: 1, 3: 1, 5: 1, 7: 1}),
+        (-8*27*125*343, {-1: 1, 2: 3, 3: 3, 5: 3, 7: 3}),
+    ])
+    def test_constructor(self, i, expected):
+        pf = PrimeFactorization(i)
+        assert pf.factorization == expected
+
+    @pytest.mark.parametrize("i", [
+        0,
+        0.0,
+        QuadraticNumber(),
+        RationalNumber()
+    ])
+    def test_constructor_errors(self, i):
+        """Test error handling of invalid arguments passed to QuadraticNumber constructor."""
+        try:
+            PrimeFactorization(i)
+        except Exception as e:
+            assert str(e).startswith('Invalid input to PrimeFactorization: ')
+        else:
+            assert False
 
     def test_multiplication(self):
         pass
@@ -170,13 +195,71 @@ class TestPrimeFactorization:
 
 class TestQuadraticNumbers:
 
-    def test_constructor(self):
+    @pytest.mark.parametrize("i, expected", [
+        (0, {}),
+        (1, {PrimeFactorization(1): 1}),
+        (-1, {PrimeFactorization(1): -1}),
+        (RationalNumber(7, 8), {PrimeFactorization(1): RationalNumber(7, 8)}),
+        (RationalNumber(0), {})
+    ])
+    def test_constructor(self, i, expected):
         """Test constructor for QuadraticNumber with a variety of valid inputs."""
-        pass
+        n = QuadraticNumber(i)
+        assert n.coefficients == expected
 
-    def test_constructor_errors(self):
+    @pytest.mark.parametrize("i", [
+        (0.0),
+        (QuadraticNumber()),
+        (Polynomial())
+    ])
+    def test_constructor_errors(self, i):
         """Test error handling of invalid arguments passed to QuadraticNumber constructor."""
-        pass
+        try:
+            QuadraticNumber(i)
+        except Exception as e:
+            assert str(e).startswith('Invalid input type to QuadraticNumber: ')
+        else:
+            assert False
+
+    IRRATIONAL_SQUARE_1 = 3 + QuadraticNumber.sqrt(5)
+    IRRATIONAL_SQUARE_2 = 7 + 3*QuadraticNumber.sqrt(5)
+
+    @pytest.mark.parametrize("i, expected", [
+        (0, {}),
+        (RationalNumber(), {}),
+        (QuadraticNumber(), {}),
+        (1, {PrimeFactorization(1): 1}),
+        (-4, {PrimeFactorization(-1): 2}),
+        (8*27, {PrimeFactorization(6): 6}),
+        (125, {PrimeFactorization(5): 5}),
+        (RationalNumber(7, 8), {PrimeFactorization(14): RationalNumber(1, 4)}),
+        (RationalNumber(-4, 3), {PrimeFactorization(-3): RationalNumber(2, 3)}),
+        (RationalNumber(125), {PrimeFactorization(5): 5}),
+        (QuadraticNumber(125), {PrimeFactorization(5): 5}),
+        (QuadraticNumber(RationalNumber(125)), {PrimeFactorization(5): 5}),
+        (QuadraticNumber(RationalNumber(7, 8)), {PrimeFactorization(14): RationalNumber(1, 4)}),
+        (QuadraticNumber(RationalNumber(-4, 3)), {PrimeFactorization(-3): RationalNumber(2, 3)}),
+        (IRRATIONAL_SQUARE_1, {
+            PrimeFactorization(2): RationalNumber(1, 2),
+            PrimeFactorization(10): RationalNumber(1, 2)
+        }),
+        (5 * IRRATIONAL_SQUARE_1 / 7, {
+            PrimeFactorization(70): RationalNumber(1, 14),
+            PrimeFactorization(14): RationalNumber(5, 14)
+        }),
+        (IRRATIONAL_SQUARE_2, {
+            PrimeFactorization(2): RationalNumber(3, 2),
+            PrimeFactorization(10): RationalNumber(1, 2)
+        }),
+        (RationalNumber(-4, 3) * IRRATIONAL_SQUARE_2, {
+            PrimeFactorization(-6): RationalNumber(1),
+            PrimeFactorization(-30): RationalNumber(1, 3)
+        }),
+    ])
+    def test_sqrt(self, i, expected):
+        """Test QuadraticNumber.sqrt with a variety of valid inputs."""
+        n = QuadraticNumber.sqrt(i)
+        assert n.coefficients == expected
 
     def test_hash(self):
         """Test that hashes for QuadraticNumbers are consistent."""
