@@ -56,13 +56,13 @@ class VectorMixin:
             else:
                 s += ' + (' + str(v) + ')*' + alpha
         if s == '':
-            return '0'
+            s = '0'
         elif s.startswith(' - '):
-            return '-' + s[3:]
+            s = '-' + s[3:]
         elif s.startswith(' + '):
-            return s[3:]
-        else:
-            return s
+            s = s[3:]
+
+        return '(' + s + ')'
 
 
 class NumberMixin:
@@ -70,7 +70,7 @@ class NumberMixin:
         raise NotImplementedError
 
     def __le__(self, other):
-        return self == other or self < other
+        raise NotImplementedError
 
     def __gt__(self, other):
         return -self < -other
@@ -168,6 +168,12 @@ class RationalNumber(NumberMixin):
             return Polynomial(self) < other
         else:
             raise Exception('Cannot compare RationalNumber and `%s`' % type(other))
+
+    def __le__(self, other):
+        if type(other) == Polynomial:
+            return Polynomial(self) <= other
+        else:
+            return self == other or self < other
 
     def __add__(self, other):
         if type(other) in [QuadraticNumber, Polynomial]:
@@ -322,51 +328,17 @@ class QuadraticNumber(VectorMixin, NumberMixin):
         else:
             raise Exception('Invalid input type to QuadraticNumber: %s' % type(i))
 
-    @classmethod
-    def sqrt(cls, i):
-        """TODO: clean up this method."""
-        if type(i) == QuadraticNumber and i.is_rational():
-            i = i.get_rational_part()
-        if type(i) == RationalNumber:
-            denom = i.denominator
-            i = i.numerator * i.denominator
+    def __repr__(self):
+        if self.is_rational():
+            return str(self.get_rational_part())
         else:
-            denom = 1
-
-        if i == 0 and type(i) in [int, QuadraticNumber]:
-            return QuadraticNumber()
-        elif type(i) == int:
-            pf = PrimeFactorization(i)
-            square_free = pf.get_square_free_part()
-            ans = QuadraticNumber()
-            ans.coefficients[square_free] = RationalNumber(pf.get_truncated_square_root(), denom)
-            return ans
-        elif type(i) == QuadraticNumber:
-            q = i / (3 + cls.sqrt(5))
-            if q.is_rational():
-                return cls.sqrt(q) * (cls.sqrt(2) + cls.sqrt(10))/2
-            q = i / (7 + 3*cls.sqrt(5))
-            if q.is_rational():
-                return cls.sqrt(q) * (3*cls.sqrt(2) + cls.sqrt(10))/2
-        raise Exception('Cannot compute square root of `%s`' % i)
-
-    def is_rational(self):
-        return all(pf.n == 1 for pf in self.coefficients)
+            return super(QuadraticNumber, self).__repr__()
 
     def __hash__(self):
         if self.is_rational():
             return hash(self.get_rational_part())
         else:
             return hash(tuple(sorted(self.coefficients.items())))
-
-    def is_real(self):
-        return all(0 < pf.n for pf in self.coefficients)
-
-    def decompose(self):
-        positive_part, negative_part = QuadraticNumber(), QuadraticNumber()
-        positive_part.coefficients = {i: v for i, v in self.coefficients.items() if 0 < v}
-        negative_part.coefficients = {i: -v for i, v in self.coefficients.items() if v < 0}
-        return positive_part, negative_part
 
     def __lt__(self, other):
         if type(other) == Polynomial:
@@ -380,17 +352,22 @@ class QuadraticNumber(VectorMixin, NumberMixin):
         if diff.is_rational():
             return 0 < diff[PrimeFactorization(1)]
         elif not diff.is_real():
-            raise Exception('Cannot compare quadratic numbers have non-real difference')
+            raise Exception('Cannot compare quadratic numbers with non-real difference')
         elif all(0 < c for c in diff.coefficients.values()):
             return True
         elif all(c < 0 for c in diff.coefficients.values()):
             return False
-
         positive_part, negative_part = diff.decompose()
         if max(len(positive_part), len(negative_part)) > 3:
             raise Exception('Cannot determine inequality %s < %s' % (negative_part, positive_part))
         else:
             return negative_part**2 < positive_part**2
+
+    def __le__(self, other):
+        if type(other) == Polynomial:
+            return Polynomial(self) <= other
+        else:
+            return self == other or self < other
 
     def __add__(self, other):
         if type(other) == Polynomial:
@@ -430,6 +407,63 @@ class QuadraticNumber(VectorMixin, NumberMixin):
                 return 1 / super(QuadraticNumber, self).__pow__(-exponent)
         return super(QuadraticNumber, self).__pow__(exponent)
 
+    def __truediv__(self, other):
+        if not (type(other) in [int, RationalNumber, QuadraticNumber] and other != 0):
+            raise Exception('Cannot divide Quadratic number by `%s`' % str(other))
+        if self == 0:
+            return QuadraticNumber(0)
+        elif type(other) in [int, RationalNumber]:
+            return self * RationalNumber(1, other)
+        elif other.is_rational():
+            return self / other.get_rational_part()
+        else:
+            conjugate = other.conjugate()
+            return (self * conjugate) / (other * conjugate)
+
+    def __rtruediv__(self, other):
+        conjugate = self.conjugate()
+        return (other * conjugate) / (self * conjugate)
+
+    @classmethod
+    def sqrt(cls, i):
+        """TODO: clean up this method."""
+        if type(i) == QuadraticNumber and i.is_rational():
+            i = i.get_rational_part()
+        if type(i) == RationalNumber:
+            denom = i.denominator
+            i = i.numerator * i.denominator
+        else:
+            denom = 1
+
+        if i == 0 and type(i) in [int, QuadraticNumber]:
+            return QuadraticNumber()
+        elif type(i) == int:
+            pf = PrimeFactorization(i)
+            square_free = pf.get_square_free_part()
+            ans = QuadraticNumber()
+            ans.coefficients[square_free] = RationalNumber(pf.get_truncated_square_root(), denom)
+            return ans
+        elif type(i) == QuadraticNumber:
+            q = i / (3 + cls.sqrt(5))
+            if q.is_rational():
+                return cls.sqrt(q) * (cls.sqrt(2) + cls.sqrt(10))/2
+            q = i / (7 + 3*cls.sqrt(5))
+            if q.is_rational():
+                return cls.sqrt(q) * (3*cls.sqrt(2) + cls.sqrt(10))/2
+        raise Exception('Cannot compute square root of `%s`' % i)
+
+    def is_rational(self):
+        return all(pf.n == 1 for pf in self.coefficients)
+
+    def is_real(self):
+        return all(0 < pf.n for pf in self.coefficients)
+
+    def decompose(self):
+        positive_part, negative_part = QuadraticNumber(), QuadraticNumber()
+        positive_part.coefficients = {i: v for i, v in self.coefficients.items() if 0 < v}
+        negative_part.coefficients = {i: -v for i, v in self.coefficients.items() if v < 0}
+        return positive_part, negative_part
+
     def get_rational_part(self):
         return self[PrimeFactorization(1)]
 
@@ -452,23 +486,6 @@ class QuadraticNumber(VectorMixin, NumberMixin):
             term.coefficients = coefficients
             ans *= (a + term)
         return ans
-
-    def __truediv__(self, other):
-        if not (type(other) in [int, RationalNumber, QuadraticNumber] and other != 0):
-            raise Exception('Cannot divide Quadratic number by `%s`' % str(other))
-        if self == 0:
-            return QuadraticNumber(0)
-        elif type(other) in [int, RationalNumber]:
-            return self * RationalNumber(1, other)
-        elif other.is_rational():
-            return self / other.get_rational_part()
-        else:
-            conjugate = other.conjugate()
-            return (self * conjugate) / (other * conjugate)
-
-    def __rtruediv__(self, other):
-        conjugate = self.conjugate()
-        return (other * conjugate) / (self * conjugate)
 
     @classmethod
     def get_index_repr(cls, index):
@@ -634,6 +651,8 @@ class Polynomial(VectorMixin, NumberMixin):
             return '0'
         s = ''
         for monomial, coeff in sorted(self.coefficients.items()):
+            if type(coeff) == QuadraticNumber and coeff.is_rational():
+                coeff = coeff.get_rational_part()
             coeff_is_rational = type(coeff) in [RationalNumber, int]
             if coeff == 1:
                 s += ' + ' + str(monomial)
@@ -649,7 +668,7 @@ class Polynomial(VectorMixin, NumberMixin):
             elif coeff_is_rational:
                 s += ' + ' + str(coeff) + str(monomial)
             else:
-                s += ' + (' + str(coeff) + ')' + str(monomial)
+                s += ' + ' + str(coeff) + '' + str(monomial)
         if s.startswith(' - '):
             s = '-' + s[3:]
         elif s.startswith(' + '):

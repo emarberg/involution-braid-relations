@@ -43,6 +43,18 @@ class TestRationalNumbers:
 
         assert len({1, RationalNumber(1, 1)}) == 1
 
+    @pytest.mark.parametrize("a, b, expected", [
+    ])
+    def test_le(self, a, b, expected):
+        """Test <= operator for RationalNumbers."""
+        assert (a <= b) == (-b <= -a) == expected
+
+    @pytest.mark.parametrize("a, b, expected", [
+    ])
+    def test_lt(self, a, b, expected):
+        """Test <= operator for RationalNumbers."""
+        assert (a < b) == (-b < -a) == expected
+
     @pytest.mark.parametrize("a, b, c", [
         (RationalNumber(3, 7), 0, RationalNumber(3, 7)),
         (RationalNumber(3, 7), 1, RationalNumber(10, 7)),
@@ -161,7 +173,7 @@ class TestRationalNumbers:
         else:
             assert False
 
-    def test_pow_errors(self):
+    def test_power_errors(self):
         # cannot compute 0**0
         try:
             RationalNumber(0, 1)**0
@@ -288,9 +300,9 @@ class TestQuadraticNumbers:
         assert str(QuadraticNumber()) == '0'
         assert str(QuadraticNumber(1)) == '1'
         assert str(QuadraticNumber(RationalNumber(-5, 7))) == '-5/7'
-        assert str(QuadraticNumber.sqrt((RationalNumber(-25, 3)))) == '5/3*sqrt(-3)'
-        assert str(-QuadraticNumber.sqrt((RationalNumber(-3)))) == '-sqrt(-3)'
-        assert str(-3 * QuadraticNumber.sqrt((RationalNumber(-25, 3)))) == '-5*sqrt(-3)'
+        assert str(QuadraticNumber.sqrt((RationalNumber(-25, 3)))) == '(5/3*sqrt(-3))'
+        assert str(-QuadraticNumber.sqrt((RationalNumber(-3)))) == '(-sqrt(-3))'
+        assert str(-3 * QuadraticNumber.sqrt((RationalNumber(-25, 3)))) == '(-5*sqrt(-3))'
 
     IRRATIONAL_SQUARE_1 = 3 + QuadraticNumber.sqrt(5)
     IRRATIONAL_SQUARE_2 = 7 + 3*QuadraticNumber.sqrt(5)
@@ -333,6 +345,18 @@ class TestQuadraticNumbers:
         hash(QuadraticNumber(RationalNumber(700))) == hash(700)
 
         hash(QuadraticNumber.sqrt(2))
+
+    @pytest.mark.parametrize("a, b, expected", [
+    ])
+    def test_le(self, a, b, expected):
+        """Test <= operator for QuadraticNumbers."""
+        assert (a <= b) == (-b <= -a) == expected
+
+    @pytest.mark.parametrize("a, b, expected", [
+    ])
+    def test_lt(self, a, b, expected):
+        """Test <= operator for QuadraticNumbers."""
+        assert (a < b) == (-b < -a) == expected
 
     @pytest.mark.parametrize("a, b, expected", [
         (QuadraticNumber(0), 0, {}),
@@ -459,7 +483,7 @@ class TestQuadraticNumbers:
         QuadraticNumber(1),
         RationalNumber(1)
     ])
-    def test_pow_errors(self, i):
+    def test_power_errors(self, i):
         """Test error handling for invalid exponentiation of Monomials."""
         try:
             QuadraticNumber(12) ** i
@@ -485,7 +509,7 @@ class TestQuadraticNumbers:
         (None, QuadraticNumber(7)),
     ])
     def test_operator_errors(self, a, b):
-        """Tests for error handling of invalid operations involving RationalNumbers."""
+        """Tests for error handling of invalid operations involving QuadraticNumbers."""
         try:
             a + b
         except:
@@ -611,7 +635,7 @@ class TestMonomial:
         QuadraticNumber(1),
         RationalNumber(1)
     ])
-    def test_pow_errors(self, i):
+    def test_power_errors(self, i):
         """Test error handling for invalid exponentiation of Monomials."""
         try:
             Monomial('x') ** i
@@ -623,17 +647,91 @@ class TestMonomial:
 
 class TestPolynomial:
 
-    def test_constructor(self):
+    @pytest.mark.parametrize("i, expected", [
+        (None, {}),
+        (0, {}),
+        ('x', {Monomial('x'): 1}),
+        ({0: 1, 1: 2}, {Monomial({0: 1, 1: 2}): 1}),
+        (Monomial('x'), {Monomial('x'): 1}),
+        (-3, {Monomial(): -3}),
+        (RationalNumber(3, 7), {Monomial(): RationalNumber(3, 7)}),
+        (QuadraticNumber.sqrt(3)/7, {Monomial(): QuadraticNumber.sqrt(3)/7}),
+    ])
+    def test_constructor(self, i, expected):
         """Test constructor for Polynomial with a variety of valid inputs."""
-        pass
+        assert Polynomial(i).coefficients == expected
 
-    def test_constructor_errors(self):
-        """Test error handling of invalid arguments passed to Polynomial constructor."""
-        pass
+    @pytest.mark.parametrize("a, b, expected", [
+        (0, Polynomial('x'), True),
+        (1, Polynomial('x'), False),
+        (0, 2*Polynomial('x'), True),
+        (RationalNumber(3, 5), Polynomial('x'), False),
+        (QuadraticNumber.sqrt(3), Polynomial('x'), False),
+        (0, Polynomial('x') * Polynomial('y'), True),
+        (Polynomial('x'), Polynomial('x')**2 + 2*Polynomial('x'), True),
+        (0, Polynomial('x') - 1, False),
+        (0, Polynomial('x')**2 - 2*Polynomial('x') + 1, False),
+        (-2*Polynomial('x'), Polynomial('x')**2 - 2*Polynomial('x') + 1, True),
+        (Polynomial('x') + Polynomial('x')**2, 2*Polynomial('x') + 3*Polynomial('x')**2, True),
+    ])
+    def test_le(self, a, b, expected):
+        """Test <= operator for Polynomials."""
+        assert (a <= b) == (-b <= -a) == expected
+
+        q = RationalNumber(127, 128)
+        assert (q*a <= q*b) == (-q*b <= -q*a) == expected
+
+        r = 1 + QuadraticNumber.sqrt(127)
+        assert (r*a <= r*b) == (-r*b <= -r*a) == expected
+
+        if (r-q)*b >= 0:
+            assert (q*a <= r*b) == (-r*b <= -q*a) == expected
+
+    @pytest.mark.parametrize("a, b, expected", [
+        (0, Polynomial('x'), False),
+        (0, 2*Polynomial('x'), False),
+        (1, Polynomial('x'), False),
+        (RationalNumber(3, 5), Polynomial('x'), False),
+        (QuadraticNumber.sqrt(3), Polynomial('x'), False),
+        (0, Polynomial('x') * Polynomial('y'), False),
+        (Polynomial('x'), Polynomial('x')**2 + 2*Polynomial('x'), False),
+        (0, Polynomial('x') + 1, True),
+        (-2*Polynomial('x') - 3, Polynomial('x') - 1, True),
+        (-2*Polynomial('x'), Polynomial('x')**2 - 2*Polynomial('x') + 1, True)
+    ])
+    def test_lt(self, a, b, expected):
+        """Test < operator for Polynomials."""
+        assert (a < b) == (-b < -a) == expected
+
+        q = RationalNumber(127, 128)
+        assert (q*a < q*b) == (-q*b < -q*a) == expected
+
+        r = 1 + QuadraticNumber.sqrt(127)
+        assert (r*a < r*b) == (-r*b < -r*a) == expected
+
+        if (r-q)*b > 0:
+            assert (q*a < r*b) == (-r*b < -q*a) == expected
 
     def test_hash(self):
         """Test that hashes for Polynomials are consistent."""
-        pass
+        assert hash(Polynomial(0)) == hash(0)
+        assert hash(Polynomial(RationalNumber(7, 8))) == hash(RationalNumber(7, 8))
+        assert hash(Polynomial(QuadraticNumber.sqrt(7))) == hash(QuadraticNumber.sqrt(7))
+
+        x = Polynomial('x')
+        assert hash(4*x) == hash(RationalNumber(4)*x) == hash(QuadraticNumber(4)*x)
+        assert hash(4*x/3) == hash(RationalNumber(4, 3)*x) \
+                           == hash(QuadraticNumber(RationalNumber(4, 3))*x)
+
+    def test_getitem(self):
+        """Test [] operator for Polynomials."""
+        x = Polynomial('x')
+        f = 3*x**3 + 2*x - 7
+
+        assert f[1] == -7
+        assert f['x'] == 2
+        assert f[{ord('x'): 3}] == 3
+        assert f[Monomial('x')] == 2
 
     def test_addition(self):
         """Tests for addition and substraction of Polynomials."""
@@ -643,14 +741,91 @@ class TestPolynomial:
         """Tests for multiplication and division of Polynomials."""
         pass
 
-    def test_division_errors(self):
-        """Test error handling for attempted division of Polynomials by zero."""
-        pass
-
     def test_power(self):
         """Tests for exponentiation of Polynomials."""
         pass
 
+    def test_constructor_errors(self):
+        """Test error handling of invalid arguments passed to Polynomial constructor."""
+        pass
+
+    def test_addition_errors(self):
+        """Test error handling for invalid addition of Polynomials by zero."""
+        pass
+
+    def test_multiplication_errors(self):
+        """Test error handling for invalid multiplication of Polynomials."""
+        pass
+
+    @pytest.mark.parametrize("divisor", [
+        0,
+        0.0,
+        RationalNumber(0),
+        QuadraticNumber(0),
+        Polynomial(0),
+        Polynomial('x')
+    ])
+    def test_division_errors(self, divisor):
+        """Test error handling for attempted division of Polynomials by zero."""
+        try:
+            Polynomial('x') / divisor
+        except:
+            pass
+        else:
+            assert False
+
+    @pytest.mark.parametrize("a, b", [
+        (Polynomial(3), 1.2),
+        (1.2, Polynomial(3)),
+        (Polynomial(7), None),
+        (None, Polynomial(7)),
+    ])
+    def test_operator_errors(self, a, b):
+        """Tests for error handling of invalid operations involving Polynomials."""
+        try:
+            a + b
+        except:
+            pass
+        else:
+            assert False
+
+        try:
+            a - b
+        except:
+            pass
+        else:
+            assert False
+
+        try:
+            a * b
+        except:
+            pass
+        else:
+            assert False
+
+        try:
+            a / b
+        except:
+            pass
+        else:
+            assert False
+
+    def test_power_errors(self):
+        """Test error handling for invalid exponentiation of Polynomials."""
+        pass
+
 
 class TestComparisons:
-    pass
+
+    def test_eq(self):
+        assert 0 == RationalNumber(0) == QuadraticNumber(0) == Polynomial(0)
+        assert 1 == RationalNumber(1) == QuadraticNumber(1) == Polynomial(1)
+        assert -7 == RationalNumber(-7) == QuadraticNumber(-7) == Polynomial(-7)
+
+        assert RationalNumber(3, 4) == QuadraticNumber(RationalNumber(3, 4))
+        assert RationalNumber(3, 4) == Polynomial(RationalNumber(3, 4))
+        assert RationalNumber(-3, 4) == QuadraticNumber(RationalNumber(-3, 4))
+        assert RationalNumber(-3, 4) == Polynomial(RationalNumber(-3, 4))
+
+        assert QuadraticNumber.sqrt(3) == Polynomial(QuadraticNumber.sqrt(3))
+        assert QuadraticNumber.sqrt(-3) == Polynomial(QuadraticNumber.sqrt(-3))
