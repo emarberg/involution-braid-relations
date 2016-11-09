@@ -509,22 +509,6 @@ class Monomial:
         else:
             self.exponents = {i: e for i, e in exponents.items() if e != 0}
 
-    @classmethod
-    def string_to_index(cls, s):
-        if s.isalpha() and len(s) == 1:
-            return ord(s)
-        else:
-            raise Exception('Invalid input to Monomial.string_to_index: `%s`' % s)
-
-    @classmethod
-    def index_to_string(cls, n):
-        if ord('a') <= n <= ord('z') or ord('A') <= n <= ord('Z'):
-            return chr(n)
-        elif n < 0:
-            return 'y_' + str(-n)
-        else:
-            return 'x_' + str(n)
-
     def __eq__(self, other):
         if type(other) != Monomial:
             return other == 1 and len(self.exponents) == 0
@@ -565,13 +549,34 @@ class Monomial:
             s += base
         return s
 
+    @classmethod
+    def string_to_index(cls, s):
+        if s.isalpha() and len(s) == 1:
+            return ord(s)
+        else:
+            raise Exception('Invalid input to Monomial.string_to_index: `%s`' % s)
+
+    @classmethod
+    def index_to_string(cls, n):
+        if ord('a') <= n <= ord('z') or ord('A') <= n <= ord('Z'):
+            return chr(n)
+        elif n < 0:
+            return 'y_' + str(-n)
+        else:
+            return 'x_' + str(n)
+
 
 class Polynomial(VectorMixin, NumberMixin):
     def __init__(self, i=None):
-        if i is None or i == 0:
+        if i is None or (type(i) in [int, RationalNumber, QuadraticNumber] and i == 0):
             self.coefficients = {}
         elif (type(i) == str and len(i) == 1 and i.isalpha()) or type(i) == dict:
-            self.coefficients = {Monomial(i): 1}
+            try:
+                monomial = Monomial(i)
+            except:
+                raise Exception('Invalid input to Polynomial: `%s`' % type(i))
+            else:
+                self.coefficients = {monomial: 1}
         elif type(i) == Monomial:
             self.coefficients = {i: 1}
         elif type(i) in [int, RationalNumber]:
@@ -579,7 +584,7 @@ class Polynomial(VectorMixin, NumberMixin):
         elif type(i) == QuadraticNumber:
             self.coefficients = {Monomial(): i}
         else:
-            raise Exception('Invalid input type `%s` for Polynomial' % type(i))
+            raise Exception('Invalid input to Polynomial: `%s`' % type(i))
 
     def __lt__(self, other):
         diff = other - self

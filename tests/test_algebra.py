@@ -103,6 +103,8 @@ class TestRationalNumbers:
     @pytest.mark.parametrize("p, q", [
         (1, 0),
         (1.0, 20),
+        (1, 20.0),
+        (0, 0),
         (QuadraticNumber(), 1),
         (Polynomial(), 1),
         (RationalNumber(1, 2), None),
@@ -431,9 +433,9 @@ class TestQuadraticNumbers:
         assert {f.n: v for f, v in (n**e).coefficients.items()} == expected
 
     @pytest.mark.parametrize("i", [
-        (0.0),
-        (QuadraticNumber()),
-        (Polynomial())
+        0.0,
+        QuadraticNumber(),
+        Polynomial()
     ])
     def test_constructor_errors(self, i):
         """Test error handling of invalid arguments passed to QuadraticNumber constructor."""
@@ -604,7 +606,7 @@ class TestMonomial:
         'abc',
     ])
     def test_constructor_errors(self, i):
-        """Test error handling of invalid arguments passed to QuadraticNumber constructor."""
+        """Test error handling of invalid arguments passed to Monomial constructor."""
         try:
             Monomial(i)
         except Exception as e:
@@ -616,7 +618,8 @@ class TestMonomial:
         1,
         3.0,
         QuadraticNumber(),
-        RationalNumber()
+        RationalNumber(),
+        Polynomial()
     ])
     def test_multiplication_errors(self, i):
         """Test error handling for invalid multiplication of Monomials."""
@@ -650,6 +653,8 @@ class TestPolynomial:
     @pytest.mark.parametrize("i, expected", [
         (None, {}),
         (0, {}),
+        (RationalNumber(0), {}),
+        (QuadraticNumber(0), {}),
         ('x', {Monomial('x'): 1}),
         ({0: 1, 1: 2}, {Monomial({0: 1, 1: 2}): 1}),
         (Monomial('x'), {Monomial('x'): 1}),
@@ -660,6 +665,20 @@ class TestPolynomial:
     def test_constructor(self, i, expected):
         """Test constructor for Polynomial with a variety of valid inputs."""
         assert Polynomial(i).coefficients == expected
+
+    def test_eq(self):
+        assert 0 == RationalNumber(0) == QuadraticNumber(0) == Polynomial(0)
+        assert 1 == RationalNumber(1) == QuadraticNumber(1) == Polynomial(1)
+        assert -7 == RationalNumber(-7) == QuadraticNumber(-7) == Polynomial(-7)
+
+        q = RationalNumber(3, 4)
+        assert q == QuadraticNumber(q) == Polynomial(q)
+
+        q = RationalNumber(-3, 4)
+        assert q == QuadraticNumber(q) == Polynomial(q)
+
+        assert QuadraticNumber.sqrt(3) == Polynomial(QuadraticNumber.sqrt(3))
+        assert QuadraticNumber.sqrt(-3) == Polynomial(QuadraticNumber.sqrt(-3))
 
     @pytest.mark.parametrize("a, b, expected", [
         (0, Polynomial('x'), True),
@@ -752,9 +771,21 @@ class TestPolynomial:
         """Tests for exponentiation of Polynomials."""
         pass
 
-    def test_constructor_errors(self):
+    @pytest.mark.parametrize("i", [
+        Polynomial(0),
+        1.0,
+        'abc',
+        {'a': 1},
+        Polynomial(10)
+    ])
+    def test_constructor_errors(self, i):
         """Test error handling of invalid arguments passed to Polynomial constructor."""
-        pass
+        try:
+            Polynomial(i)
+        except Exception as e:
+            assert str(e).startswith('Invalid input to Polynomial: ')
+        else:
+            assert False
 
     def test_addition_errors(self):
         """Test error handling for invalid addition of Polynomials by zero."""
@@ -820,19 +851,3 @@ class TestPolynomial:
     def test_power_errors(self):
         """Test error handling for invalid exponentiation of Polynomials."""
         pass
-
-
-class TestComparisons:
-
-    def test_eq(self):
-        assert 0 == RationalNumber(0) == QuadraticNumber(0) == Polynomial(0)
-        assert 1 == RationalNumber(1) == QuadraticNumber(1) == Polynomial(1)
-        assert -7 == RationalNumber(-7) == QuadraticNumber(-7) == Polynomial(-7)
-
-        assert RationalNumber(3, 4) == QuadraticNumber(RationalNumber(3, 4))
-        assert RationalNumber(3, 4) == Polynomial(RationalNumber(3, 4))
-        assert RationalNumber(-3, 4) == QuadraticNumber(RationalNumber(-3, 4))
-        assert RationalNumber(-3, 4) == Polynomial(RationalNumber(-3, 4))
-
-        assert QuadraticNumber.sqrt(3) == Polynomial(QuadraticNumber.sqrt(3))
-        assert QuadraticNumber.sqrt(-3) == Polynomial(QuadraticNumber.sqrt(-3))
