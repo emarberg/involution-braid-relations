@@ -663,6 +663,9 @@ class TestPolynomial:
 
     @pytest.mark.parametrize("a, b, expected", [
         (0, Polynomial('x'), True),
+        (RationalNumber(0), Polynomial('x'), True),
+        (QuadraticNumber(0), Polynomial('x'), True),
+        (Polynomial(0), Polynomial('x'), True),
         (1, Polynomial('x'), False),
         (0, 2*Polynomial('x'), True),
         (RationalNumber(3, 5), Polynomial('x'), False),
@@ -694,6 +697,10 @@ class TestPolynomial:
         (RationalNumber(3, 5), Polynomial('x'), False),
         (QuadraticNumber.sqrt(3), Polynomial('x'), False),
         (0, Polynomial('x') * Polynomial('y'), False),
+        (1, Polynomial('x') * Polynomial('y') + 2, True),
+        (RationalNumber(1), Polynomial('x') * Polynomial('y') + 2, True),
+        (QuadraticNumber(1), Polynomial('x') * Polynomial('y') + 2, True),
+        (Polynomial(1), Polynomial('x') * Polynomial('y') + 2, True),
         (Polynomial('x'), Polynomial('x')**2 + 2*Polynomial('x'), False),
         (0, Polynomial('x') + 1, True),
         (-2*Polynomial('x') - 3, Polynomial('x') - 1, True),
