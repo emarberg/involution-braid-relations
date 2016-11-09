@@ -100,7 +100,8 @@ class NumberMixin:
         return -(self - other)
 
     def __pow__(self, exponent):
-        assert type(exponent) == int and 0 < exponent
+        if type(exponent) != int or exponent <= 0:
+            raise Exception('** not implemented when exponent is non-positive or non-integer')
         if exponent == 1:
             return self + 0
         elif exponent % 2 == 0:
@@ -205,12 +206,12 @@ class RationalNumber(NumberMixin):
         return other * RationalNumber(1, self)
 
     def __pow__(self, exponent):
-        if exponent == 0 and self != 0:
+        if type(exponent) != int:
+            raise Exception('Cannot exponentiate RationalNumber by `%s`' % type(exponent))
+        elif exponent == 0 and self != 0:
             return RationalNumber(1)
         elif exponent == 0 and self == 0:
             raise Exception('Cannot compute indeterminate power 0**0')
-        elif type(exponent) != int:
-            raise Exception('Cannot exponentiate RationalNumber by `%s`' % type(exponent))
 
         x = super(RationalNumber, self).__pow__(abs(exponent))
         if exponent < 0:
@@ -332,9 +333,9 @@ class QuadraticNumber(VectorMixin, NumberMixin):
         else:
             denom = 1
 
-        if i == 0:
+        if i == 0 and type(i) in [int, QuadraticNumber]:
             return QuadraticNumber()
-        if type(i) == int:
+        elif type(i) == int:
             pf = PrimeFactorization(i)
             square_free = pf.get_square_free_part()
             ans = QuadraticNumber()
@@ -347,8 +348,7 @@ class QuadraticNumber(VectorMixin, NumberMixin):
             q = i / (7 + 3*cls.sqrt(5))
             if q.is_rational():
                 return cls.sqrt(q) * (3*cls.sqrt(2) + cls.sqrt(10))/2
-        else:
-            raise Exception('Cannot compute square root of `%s`' % i)
+        raise Exception('Cannot compute square root of `%s`' % i)
 
     def is_rational(self):
         return all(pf.n == 1 for pf in self.coefficients)
@@ -361,15 +361,6 @@ class QuadraticNumber(VectorMixin, NumberMixin):
 
     def is_real(self):
         return all(0 < pf.n for pf in self.coefficients)
-
-    def to_float(self):
-        if self.is_real():
-            ans = 0.0
-            for pf, coeff in self.coefficients.items():
-                ans += np.sqrt(pf.n) * coeff.numerator / coeff.denominator
-            return ans
-        else:
-            raise Exception('Cannot convert non-real QuadraticNumber to float')
 
     def decompose(self):
         positive_part, negative_part = QuadraticNumber(), QuadraticNumber()
@@ -429,6 +420,16 @@ class QuadraticNumber(VectorMixin, NumberMixin):
                 new[square_free] += coeff
         return new
 
+    def __pow__(self, exponent):
+        if type(exponent) == int:
+            if exponent == 0 and self != 0:
+                return QuadraticNumber(1)
+            elif exponent == 0 and self == 0:
+                raise Exception('Cannot compute indeterminate power 0**0')
+            elif exponent < 0:
+                return 1 / super(QuadraticNumber, self).__pow__(-exponent)
+        return super(QuadraticNumber, self).__pow__(exponent)
+
     def get_rational_part(self):
         return self[PrimeFactorization(1)]
 
@@ -479,14 +480,17 @@ class Monomial:
         if exponents is None:
             self.exponents = {}
         elif type(exponents) == str:
-            e = Monomial.string_to_index(exponents)
+            try:
+                e = Monomial.string_to_index(exponents)
+            except:
+                raise Exception('Invalid input to Monomial: `%s`' % exponents)
             self.exponents = {e: 1}
         elif type(exponents) == int:
             self.exponents = {exponents: 1}
         elif type(exponents) != dict or not all(type(i) == int for i in exponents):
-            raise Exception('Invalid input `%s` to Monomial' % exponents)
+            raise Exception('Invalid input to Monomial: `%s`' % exponents)
         else:
-            self.exponents = exponents
+            self.exponents = {i: e for i, e in exponents.items() if e != 0}
 
     @classmethod
     def string_to_index(cls, s):
@@ -511,7 +515,7 @@ class Monomial:
             return self.exponents == other.exponents
 
     def __lt__(self, other):
-        return repr(self) < repr(other)
+        return tuple(sorted(self.exponents.items())) < tuple(sorted(other.exponents.items()))
 
     def __hash__(self):
         return hash(tuple(sorted(self.exponents.items())))
@@ -525,12 +529,10 @@ class Monomial:
             raise Exception('Cannot multiply Monomial with `%s`' % type(other))
 
     def __pow__(self, other):
-        if other == 0:
-            return Monomial()
-        elif type(other) == int:
-            return Monomial({i: self[i]*other for i in self.exponents})
-        else:
+        if type(other) != int:
             raise Exception('Cannot exponentiate Monomial by `%s`' % type(other))
+        else:
+            return Monomial({i: self[i]*other for i in self.exponents})
 
     def __getitem__(self, i):
         return self.exponents.get(i, 0)
@@ -1111,6 +1113,9 @@ class Root(VectorMixin, NumberMixin):
 
     def __hash__(self):
         return hash((self.graph,) + tuple(self[i] for i in self.graph.generators))
+
+    def __pow__(self, exponent):
+        raise NotImplementedError
 
     @classmethod
     def get_index_repr(cls, index):
