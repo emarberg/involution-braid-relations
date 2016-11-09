@@ -1,6 +1,12 @@
 import pytest
 
-from ..braids import RationalNumber, QuadraticNumber, Polynomial, PrimeFactorization, Monomial
+from algebra import (
+    Monomial,
+    Polynomial,
+    PrimeFactorization,
+    QuadraticNumber,
+    RationalNumber
+)
 
 
 class TestRationalNumbers:
@@ -666,19 +672,30 @@ class TestPolynomial:
         """Test constructor for Polynomial with a variety of valid inputs."""
         assert Polynomial(i).coefficients == expected
 
-    def test_eq(self):
-        assert 0 == RationalNumber(0) == QuadraticNumber(0) == Polynomial(0)
-        assert 1 == RationalNumber(1) == QuadraticNumber(1) == Polynomial(1)
-        assert -7 == RationalNumber(-7) == QuadraticNumber(-7) == Polynomial(-7)
+    def test_repr(self):
+        """Tests for conversion of Polynomial to str."""
+        assert str(Polynomial(0)) == '0'
+        assert str(Polynomial(1)) == '1'
+        assert str(Polynomial(-10)) == '-10'
+        assert str(-Polynomial('x')) == '-x'
+        assert str(-5 * Polynomial('x')) == '-5x'
+        assert str(RationalNumber(7, 8) * Polynomial('x')) == '7/8x'
+        assert str(QuadraticNumber.sqrt(7) * 8 * Polynomial('x')**2) == '(8*sqrt(7))x^2'
 
-        q = RationalNumber(3, 4)
-        assert q == QuadraticNumber(q) == Polynomial(q)
-
-        q = RationalNumber(-3, 4)
-        assert q == QuadraticNumber(q) == Polynomial(q)
-
-        assert QuadraticNumber.sqrt(3) == Polynomial(QuadraticNumber.sqrt(3))
-        assert QuadraticNumber.sqrt(-3) == Polynomial(QuadraticNumber.sqrt(-3))
+    @pytest.mark.parametrize("K", [
+        [0, RationalNumber(0), QuadraticNumber(0), Polynomial(0)],
+        [1, RationalNumber(1), QuadraticNumber(1), Polynomial(1)],
+        [-7, RationalNumber(-7), QuadraticNumber(-7), Polynomial(-7)],
+        [RationalNumber(3, 4), QuadraticNumber(RationalNumber(3, 4)),
+         Polynomial(RationalNumber(3, 4))],
+        [QuadraticNumber.sqrt(3), Polynomial(QuadraticNumber.sqrt(3))],
+        [QuadraticNumber.sqrt(-3), Polynomial(QuadraticNumber.sqrt(-3))]
+    ])
+    def test_eq(self, K):
+        """Test == operator for various 'equal' objects."""
+        for a in K:
+            for b in K:
+                assert a == b
 
     @pytest.mark.parametrize("a, b, expected", [
         (0, Polynomial('x'), True),
@@ -759,13 +776,58 @@ class TestPolynomial:
         assert f[{ord('x'): 3}] == 3
         assert f[Monomial('x')] == 2
 
-    def test_addition(self):
-        """Tests for addition and substraction of Polynomials."""
-        pass
+    @pytest.mark.parametrize("a, b, expected", [
+        (Polynomial(0), 0, {}),
+        (Polynomial(0), RationalNumber(0), {}),
+        (Polynomial(0), QuadraticNumber(0), {}),
+        (Polynomial(0), Polynomial(0), {}),
+        (Polynomial(5), -5, {}),
+        (Polynomial(5), RationalNumber(-5), {}),
+        (Polynomial(5), QuadraticNumber(-5), {}),
+        (Polynomial(5), Polynomial(-5), {}),
+        (Polynomial(5), Polynomial(-5), {}),
+        (Polynomial(5), QuadraticNumber.sqrt(5), {Monomial(): 5 + QuadraticNumber.sqrt(5)}),
+        (2*Polynomial('x'), 3*Polynomial('x')**2, {Monomial('x'): 2, Monomial('x')**2: 3}),
+        (2*Polynomial('x') - Polynomial('x')**2, Polynomial('x') + 3*Polynomial('x')**2, {
+            Monomial('x'): 3,
+            Monomial('x')**2: 2
+        })
+    ])
+    def test_addition(self, a, b, expected):
+        """Tests for addition of Polynomials."""
+        assert {m: v for m, v in (a + b).coefficients.items()} == expected
+        assert {m: v for m, v in (b + a).coefficients.items()} == expected
+        assert {m: v for m, v in (-(-a - b)).coefficients.items()} == expected
+        assert {m: v for m, v in (-(-b - a)).coefficients.items()} == expected
 
-    def test_multiplication(self):
-        """Tests for multiplication and division of Polynomials."""
-        pass
+    @pytest.mark.parametrize("a, b, expected", [
+        (Polynomial(0), 0, {}),
+        (Polynomial(0), RationalNumber(0), {}),
+        (Polynomial(0), QuadraticNumber(0), {}),
+        (Polynomial(0), Polynomial(0), {}),
+        (Polynomial(1), 1, {Monomial(): 1}),
+        (Polynomial(1), RationalNumber(1), {Monomial(): 1}),
+        (Polynomial(1), QuadraticNumber(1), {Monomial(): 1}),
+        (Polynomial(1), Polynomial(1), {Monomial(): 1}),
+        (Polynomial(5), -5,  {Monomial(): -25}),
+        (Polynomial(5), QuadraticNumber.sqrt(5), {Monomial(): QuadraticNumber.sqrt(125)}),
+        (2*Polynomial('x'), 3*Polynomial('x')**2, {Monomial('x')**3: 6}),
+        (2*Polynomial('x') - Polynomial('x')**2, Polynomial('x') + 3*Polynomial('x')**2, {
+            Monomial('x')**2: 2,
+            Monomial('x')**3: 5,
+            Monomial('x')**4: -3
+        })
+    ])
+    def test_multiplication(self, a, b, expected):
+        """Tests for multiplication of Polynomials."""
+        assert {m: v for m, v in (a * b).coefficients.items()} == expected
+        assert {m: v for m, v in (b * a).coefficients.items()} == expected
+
+    @pytest.mark.parametrize("a, b, expected", [
+    ])
+    def test_divison(self, a, b, expected):
+        """Tests for multiplication of Polynomials."""
+        assert {m: v for m, v in (a / b).coefficients.items()} == expected
 
     def test_power(self):
         """Tests for exponentiation of Polynomials."""
