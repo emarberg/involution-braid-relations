@@ -1,111 +1,6 @@
 import numpy as np
 
-from utils import reverse_tuple
-
-
-class VectorMixin:
-    def is_zero(self):
-        return len(self.coefficients) == 0
-
-    def __setitem__(self, index, value):
-        if value != 0:
-            self.coefficients[index] = value
-        elif index in self.coefficients:
-            del self.coefficients[index]
-
-    def __getitem__(self, index):
-        return self.coefficients.get(index, 0)
-
-    def __iter__(self):
-        return self.coefficients.items().__iter__()
-
-    def __contains__(self, i):
-        return i in self.coefficients
-
-    def __len__(self):
-        return len(self.coefficients)
-
-    def __eq__(self, other):
-        return len(other - self) == 0
-
-    @classmethod
-    def get_index_repr(cls, index):
-        """Return nice string representation of given `index`."""
-        raise NotImplementedError
-
-    def __repr__(self):
-        s = ''
-        for i, v in sorted(self.coefficients.items()):
-            alpha = self.get_index_repr(i)
-            if alpha == '' and 0 < v:
-                s += ' + ' + str(v)
-            elif alpha == '' and v < 0:
-                s += ' - ' + str(-v)
-            elif v == 1:
-                s += ' + ' + alpha
-            elif v == -1:
-                s += ' - ' + alpha
-            elif 0 < v and type(v) in [int, RationalNumber]:
-                s += ' + ' + str(v) + '*' + alpha
-            elif v < 0 and type(v) in [int, RationalNumber]:
-                s += ' - ' + str(-v) + '*' + alpha
-            else:
-                s += ' + (' + str(v) + ')*' + alpha
-        if s == '':
-            s = '0'
-        elif s.startswith(' - '):
-            s = '-' + s[3:]
-        elif s.startswith(' + '):
-            s = s[3:]
-
-        return '(' + s + ')'
-
-
-class NumberMixin:
-    def __lt__(self, other):
-        raise NotImplementedError
-
-    def __le__(self, other):
-        raise NotImplementedError
-
-    def __gt__(self, other):
-        return -self < -other
-
-    def __ge__(self, other):
-        return -self <= -other
-
-    def __neg__(self):
-        return self * -1
-
-    def __add__(self, other):
-        raise NotImplementedError
-
-    def __radd__(self, other):
-        return self + other
-
-    def __mul__(self, other):
-        raise NotImplementedError
-
-    def __rmul__(self, other):
-        return self * other
-
-    def __sub__(self, other):
-        return self + other * -1
-
-    def __rsub__(self, other):
-        return -(self - other)
-
-    def __pow__(self, exponent):
-        if type(exponent) != int or exponent <= 0:
-            raise Exception('** not implemented when exponent is non-positive or non-integer')
-        if exponent == 1:
-            return self + 0
-        elif exponent % 2 == 0:
-            x = self**(exponent//2)
-            return x * x
-        else:
-            x = self**((exponent-1)//2)
-            return x * x * self
+from utils import reverse_tuple, NumberMixin, VectorMixin
 
 
 class RationalNumber(NumberMixin):
@@ -134,6 +29,9 @@ class RationalNumber(NumberMixin):
 
     def is_integer(self):
         return self.denominator == 1
+
+    def is_rational(self):
+        return True
 
     def __hash__(self):
         if self.is_integer():
@@ -746,6 +644,13 @@ class Polynomial(VectorMixin, NumberMixin):
     def get_constant_part(self):
         return self[Monomial()]
 
+    def is_rational(self):
+        if self.is_constant():
+            v = self.get_constant_part()
+            if type(v) == int or v.is_rational():
+                return True
+        return False
+
     def set_variable(self, variable, value):
         try:
             if type(value) not in [int, RationalNumber, QuadraticNumber, Polynomial]:
@@ -1144,6 +1049,9 @@ class Root(VectorMixin, NumberMixin):
 
     def __pow__(self, exponent):
         raise NotImplementedError
+
+    def __repr__(self):
+        return super(Root, self).__repr__()[1:-1]
 
     @classmethod
     def get_index_repr(cls, index):
