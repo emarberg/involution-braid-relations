@@ -354,7 +354,7 @@ class QuadraticNumber(VectorMixin, NumberMixin):
         elif all(c < 0 for c in diff.coefficients.values()):
             return False
         positive_part, negative_part = diff.decompose()
-        if max(len(positive_part), len(negative_part)) > 3:
+        if max(len(positive_part), len(negative_part)) > 2:
             raise Exception('Cannot determine inequality %s < %s' % (negative_part, positive_part))
         else:
             return negative_part**2 < positive_part**2
@@ -689,50 +689,44 @@ class Polynomial(VectorMixin, NumberMixin):
         b = self[{x: 1}]
         c = self[{}]
 
-        if self != a*Polynomial({x: 2}) + b*Polynomial({x: 1}) + c*Polynomial({}):
-            return False
-        if a == 0 and b == 0:
-            return False
-        return True
+        return self == a*Polynomial({x: 2}) + b*Polynomial({x: 1}) + c*Polynomial({})
 
     def get_factors(self):
         """TODO: improve this method."""
         if len(self.get_variables()) != 1:
             raise Exception('Cannot factor `%s`' % str(self))
 
+        def to_quadratic_number(i):
+            if type(i) != QuadraticNumber:
+                i = QuadraticNumber(i)
+            return i
+
         x = next(iter(self.get_variables()))
-        a = self[{x: 2}]
-        b = self[{x: 1}]
-        c = self[{}]
+        a = to_quadratic_number(self[{x: 2}])
+        b = to_quadratic_number(self[{x: 1}])
+        c = to_quadratic_number(self[{}])
         x = Polynomial({x: 1})
 
         if self != a*x**2 + b*x + c:
             raise Exception('Cannot factor `%s`' % str(self))
-        # print(a, b, c, c == 0, x - b/a)
+
         if a != 0:
             b /= a
             c /= a
-        # print(a, b, c, c == 0, x - b/a)
 
-        if a == 0 and b == 0:
-            raise Exception('Constant polynomial has no roots')
-        elif a == 0:
-            assert self == x + c/b
-            return [x + c/b]
+        if a == 0 and b != 0:
+            return {x + c/b}
         elif c == 0:
-            assert self == a * x * (x + b)
-            return [x, x + b]
+            return {x, x + b}
         else:
-            r = (-b + QuadraticNumber.sqrt(b**2 - 4*c)) / 2
-            s = (-b - QuadraticNumber.sqrt(b**2 - 4*c)) / 2
-            if r == s:
-                assert self == a * (x - r) * (x - r)
-                return [x - r]
-            else:
-                assert self == a * (x - r) * (x - s)
-                return [x - r, x - s]
+            try:
+                r = (-b + QuadraticNumber.sqrt(b**2 - 4*c)) / 2
+                s = (-b - QuadraticNumber.sqrt(b**2 - 4*c)) / 2
+                return {x - r, x - s}
+            except:
+                raise Exception('Cannot factor `%s`' % str(self))
 
-    def is_linear(self):
+    def is_degree_one(self):
         for monomial in self.coefficients:
             if len(monomial.exponents) > 1:
                 return False
@@ -747,14 +741,22 @@ class Polynomial(VectorMixin, NumberMixin):
         return self[Monomial()]
 
     def set_variable(self, variable, value):
-        if type(variable) == int:
-            pass
-        elif type(variable) == str:
-            variable = Monomial.string_to_index(variable)
-        elif type(variable) == Monomial and list(variable.exponents.values()) == [1]:
-            variable = next(iter(variable.exponents.keys()))
-        else:
-            raise Exception('Invalid input `%s` to Polynomial.set_variable' % variable)
+        try:
+            if type(value) not in [int, RationalNumber, QuadraticNumber, Polynomial]:
+                raise Exception
+
+            if type(variable) == int:
+                pass
+            elif type(variable) == str:
+                variable = Monomial.string_to_index(variable)
+            elif type(variable) == Monomial and list(variable.exponents.values()) == [1]:
+                variable = next(iter(variable.exponents.keys()))
+            else:
+                raise Exception
+        except:
+            raise Exception(
+                'Invalid inputs to Polynomial.set_variable: `%s` ' % str((variable, value))
+            )
 
         new = Polynomial()
         for monomial, coeff in self:

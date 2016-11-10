@@ -54,7 +54,7 @@ class ConstraintsManager:
         elif type(constraint) != Polynomial:
             raise Exception('Constraint cannot be of type `%s`' % type(constraint))
 
-        if constraint.is_linear():
+        if constraint.is_degree_one():
             self.zero_constraints.add(constraint)
         else:
             self.quadratic_constraints.add(constraint)

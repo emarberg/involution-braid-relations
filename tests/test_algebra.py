@@ -50,16 +50,42 @@ class TestRationalNumbers:
         assert len({1, RationalNumber(1, 1)}) == 1
 
     @pytest.mark.parametrize("a, b, expected", [
+        (RationalNumber(1), 1, True),
+        (2, RationalNumber(1), False),
+        (RationalNumber(2, 3), RationalNumber(5, 7), True),
+        (RationalNumber(3, 4), QuadraticNumber.sqrt(2)/2, False),
+        (QuadraticNumber.sqrt(2)/2, RationalNumber(3, 4), True)
     ])
     def test_le(self, a, b, expected):
         """Test <= operator for RationalNumbers."""
         assert (a <= b) == (-b <= -a) == expected
 
     @pytest.mark.parametrize("a, b, expected", [
+        (RationalNumber(1), 2, True),
+        (2, RationalNumber(1), False),
+        (RationalNumber(2, 3), RationalNumber(5, 7), True),
+        (RationalNumber(3, 4), QuadraticNumber.sqrt(2)/2, False),
+        (QuadraticNumber.sqrt(2)/2, RationalNumber(3, 4), True)
     ])
     def test_lt(self, a, b, expected):
         """Test <= operator for RationalNumbers."""
         assert (a < b) == (-b < -a) == expected
+
+    def test_compare_errors(self):
+        """Test error handling in == and < operators for RationalNumbers."""
+        try:
+            RationalNumber(0) == 0.0
+        except Exception as e:
+            assert str(e).startswith('Cannot compare RationalNumber and ')
+        else:
+            assert False
+
+        try:
+            RationalNumber(-1) < 0.0
+        except Exception as e:
+            assert str(e).startswith('Cannot compare RationalNumber and ')
+        else:
+            assert False
 
     @pytest.mark.parametrize("a, b, c", [
         (RationalNumber(3, 7), 0, RationalNumber(3, 7)),
@@ -355,16 +381,54 @@ class TestQuadraticNumbers:
         hash(QuadraticNumber.sqrt(2))
 
     @pytest.mark.parametrize("a, b, expected", [
+        (QuadraticNumber.sqrt(2), QuadraticNumber.sqrt(2) + Polynomial('x'), True),
+        (QuadraticNumber.sqrt(2) + QuadraticNumber.sqrt(7), 3 + QuadraticNumber.sqrt(8), True),
     ])
     def test_le(self, a, b, expected):
         """Test <= operator for QuadraticNumbers."""
         assert (a <= b) == (-b <= -a) == expected
 
     @pytest.mark.parametrize("a, b, expected", [
+        (QuadraticNumber.sqrt(2) + QuadraticNumber.sqrt(7),
+         QuadraticNumber.sqrt(3) + QuadraticNumber.sqrt(8), True),
+        (QuadraticNumber.sqrt(2) + QuadraticNumber.sqrt(7),
+         QuadraticNumber.sqrt(3) + QuadraticNumber.sqrt(11), True),
+        (QuadraticNumber.sqrt(2), 2 + Polynomial('x'), True)
     ])
     def test_lt(self, a, b, expected):
         """Test <= operator for QuadraticNumbers."""
         assert (a < b) == (-b < -a) == expected
+
+    def test_lt_errors(self):
+        """Test error handling in == and < operators for RationalNumbers."""
+        try:
+            QuadraticNumber(-1) < 0.0
+        except Exception as e:
+            assert str(e).startswith('Cannot compare QuadraticNumber and ')
+        else:
+            assert False
+
+        try:
+            QuadraticNumber.sqrt(-2) < QuadraticNumber.sqrt(3)
+        except Exception as e:
+            assert str(e).startswith('Cannot compare quadratic numbers with non-real difference')
+        else:
+            assert False
+
+        a, b, c, d = tuple(QuadraticNumber.sqrt(i) for i in [2, 3, 5, 7])
+        try:
+            a + b + c < d + 17
+        except Exception as e:
+            assert str(e).startswith('Cannot determine inequality ')
+        else:
+            assert False
+
+        try:
+            2 - a < b + c + d
+        except Exception as e:
+            assert str(e).startswith('Cannot determine inequality ')
+        else:
+            assert False
 
     @pytest.mark.parametrize("a, b, expected", [
         (QuadraticNumber(0), 0, {}),
@@ -824,14 +888,14 @@ class TestPolynomial:
         assert {m: v for m, v in (b * a).coefficients.items()} == expected
 
     @pytest.mark.parametrize("a, b, expected", [
+        (Polynomial('x'), 3, {Monomial('x'): RationalNumber(1, 3)}),
+        (Polynomial('x'), RationalNumber(3), {Monomial('x'): RationalNumber(1, 3)}),
+        (Polynomial('x'), QuadraticNumber(3), {Monomial('x'): RationalNumber(1, 3)}),
+        (Polynomial('x'), Polynomial(3), {Monomial('x'): RationalNumber(1, 3)})
     ])
     def test_divison(self, a, b, expected):
         """Tests for multiplication of Polynomials."""
         assert {m: v for m, v in (a / b).coefficients.items()} == expected
-
-    def test_power(self):
-        """Tests for exponentiation of Polynomials."""
-        pass
 
     @pytest.mark.parametrize("i", [
         Polynomial(0),
@@ -848,14 +912,6 @@ class TestPolynomial:
             assert str(e).startswith('Invalid input to Polynomial: ')
         else:
             assert False
-
-    def test_addition_errors(self):
-        """Test error handling for invalid addition of Polynomials by zero."""
-        pass
-
-    def test_multiplication_errors(self):
-        """Test error handling for invalid multiplication of Polynomials."""
-        pass
 
     @pytest.mark.parametrize("divisor", [
         0,
@@ -910,6 +966,128 @@ class TestPolynomial:
         else:
             assert False
 
-    def test_power_errors(self):
-        """Test error handling for invalid exponentiation of Polynomials."""
-        pass
+    def test_get_variables(self):
+        assert Polynomial().get_variables() == set()
+        assert Polynomial('x').get_variables() == {ord('x')}
+
+        f = Polynomial('x')
+        g = Polynomial('y')
+        h = Polynomial('z')
+        F = QuadraticNumber.sqrt(2) + 3 + 5*f**2*g + g**7*h + h**2*f
+        assert F.get_variables() == {ord('x'), ord('y'), ord('z')}
+
+    @pytest.mark.parametrize("f, expected", [
+        (Polynomial(), True),
+        (Polynomial(1), True),
+        (Polynomial(QuadraticNumber.sqrt(2)), True),
+        (Polynomial('x') + QuadraticNumber.sqrt(2)*Polynomial('y'), True),
+        (Polynomial('x')*Polynomial('y'), False),
+        (Polynomial('z')**2, False),
+    ])
+    def test_is_degree_one(self, f, expected):
+        assert f.is_degree_one() == expected
+
+    @pytest.mark.parametrize("f, variable, value, expected", [
+        (Polynomial(), 'x', 1, 0),
+        (Polynomial(1), 'x', 0, 1),
+        (Polynomial('x'), 'x', 3, 3),
+        (Polynomial('x'), ord('x'), 3, 3),
+        (Polynomial('x'), Monomial('x'), 3, 3),
+        (Polynomial('x')**2, 'x', Polynomial('x') + Polynomial('y'),
+            Polynomial('x')**2 + 2*Polynomial('x')*Polynomial('y') + Polynomial('y')**2)
+    ])
+    def test_set_variable(self, f, variable, value, expected):
+        assert f.set_variable(variable, value) == expected
+
+    def test_set_variable_errors(self):
+        """Test error handling in Polynomial.get_factors method."""
+        # variable cannot be None
+        try:
+            Polynomial('y').set_variable(None, 0)
+        except Exception as e:
+            assert str(e).startswith('Invalid inputs to Polynomial.set_variable: `(None, 0)`')
+        else:
+            assert False
+
+        # if variable is string, must be valid input to Monomial
+        try:
+            Polynomial('y').set_variable('abc', 0)
+        except Exception as e:
+            assert str(e).startswith('Invalid inputs to Polynomial.set_variable: `(\'abc\', 0)`')
+        else:
+            assert False
+
+        # value cannot be float
+        try:
+            Polynomial('y').set_variable('y', 0.0)
+        except Exception as e:
+            assert str(e).startswith('Invalid inputs to Polynomial.set_variable: `(\'y\', 0.0)`')
+        else:
+            assert False
+
+        # cannot set variable to zero if this incurs divide-by-zero error
+        try:
+            Polynomial({0: -1}).set_variable(0, 0)
+        except Exception as e:
+            assert str(e).startswith('Division by zero when setting variable in ')
+        else:
+            assert False
+
+    @pytest.mark.parametrize("f, variables, expected", [
+        (Polynomial(), {ord('x'), ord('y')}, 0),
+        (Polynomial('x') + 3, {ord('x')}, 3),
+        (Polynomial('x') + 3, {ord('y')}, Polynomial('x') + 3),
+        (Polynomial('x') + 3, {ord('x'), ord('y')}, 3),
+        (Polynomial('x') + Polynomial('y') + 1, {ord('x'), ord('y')}, 1)
+    ])
+    def test_set_variable_to_zero(self, f, variables, expected):
+        assert f.set_variables_to_zero(variables) == expected
+
+    @pytest.mark.parametrize("f, expected", [
+        (Polynomial('x')*Polynomial('y'), False),
+        (Polynomial('x')**3, False),
+        (Polynomial(3), False),
+        (Polynomial('x') + 3, True),
+        (Polynomial('x')**2 + 3, True)
+    ])
+    def test_is_factorable(self, f, expected):
+        assert f.is_factorable() == expected
+
+    @pytest.mark.parametrize("f, expected", [
+        (Polynomial('x') + 1, {Polynomial('x') + 1}),
+        (5*Polynomial('x') + 1, {Polynomial('x') + RationalNumber(1, 5)}),
+        (Polynomial('x')**2 - 1, {Polynomial('x') + 1, Polynomial('x') - 1}),
+        (Polynomial('x')**2 - 2*Polynomial('x') + 1, {Polynomial('x') - 1}),
+        (Polynomial('x')**2 - 2*Polynomial('x'), {Polynomial('x') - 2, Polynomial('x')}),
+    ])
+    def test_get_factors(self, f, expected):
+        factors = f.get_factors()
+        assert factors == expected
+
+        # check that factors are indeed the monic roots of f
+        if len(factors) == 1:
+            monic_root_a = factors.pop()
+            monic_root_b = monic_root_a
+        else:
+            monic_root_a, monic_root_b = tuple(factors)
+
+        leading_coeff = f[{ord('x'): 2}]
+        if leading_coeff == 0:
+            leading_coeff = f[{ord('x'): 1}]
+            assert f == leading_coeff * monic_root_a
+        else:
+            assert f == leading_coeff * monic_root_a * monic_root_b
+
+    @pytest.mark.parametrize("f", [
+        Polynomial('x') * Polynomial('y'),
+        Polynomial('x')**3 - 1,
+        Polynomial('x')**2 - QuadraticNumber.sqrt(3)
+    ])
+    def test_get_factors_error(self, f):
+        """Test error handling in Polynomial.get_factors method."""
+        try:
+            f.get_factors()
+        except Exception as e:
+            assert str(e).startswith('Cannot factor ')
+        else:
+            assert False
