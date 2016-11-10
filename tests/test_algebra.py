@@ -1114,3 +1114,10 @@ class TestPolynomial:
             assert str(e) == '** not implemented when exponent is non-positive or non-integer'
         else:
             assert False
+
+    def test_is_rational(self):
+        assert Polynomial().is_rational()
+        assert Polynomial(RationalNumber(7, 8)).is_rational()
+        assert Polynomial(QuadraticNumber(RationalNumber(7, 8))).is_rational()
+        assert not Polynomial(QuadraticNumber.sqrt(2)).is_rational()
+        assert not Polynomial('x').is_rational()
