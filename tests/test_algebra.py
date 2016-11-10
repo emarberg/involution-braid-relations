@@ -651,7 +651,7 @@ class TestMonomial:
         ('x', 'x', {ord('x'): 2}),
         ('x', None, {ord('x'): 1}),
         ({0: 1, 1: 2, 2: 3}, {1: 1, 2: 2, 3: 3}, {0: 1, 1: 3, 2: 5, 3: 3}),
-        ({0: 1, 1: 2}, {0: -1, 1: -1}, {1: 1})
+        ({0: 1, 1: 2}, {0: -1, 1: -1}, {1: 1}),
     ])
     def test_multiplication(self, m, n, expected):
         """Tests for multiplication of Monomials."""
@@ -880,7 +880,8 @@ class TestPolynomial:
             Monomial('x')**2: 2,
             Monomial('x')**3: 5,
             Monomial('x')**4: -3
-        })
+        }),
+        (Polynomial({0: -1}), Polynomial({0: 1}), {Monomial(): 1})
     ])
     def test_multiplication(self, a, b, expected):
         """Tests for multiplication of Polynomials."""
