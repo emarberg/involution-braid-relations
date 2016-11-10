@@ -257,7 +257,7 @@ class PrimeFactorization:
         if type(other) == PrimeFactorization:
             ans = PrimeFactorization()
             ans.n = self.n * other.n
-            factors = set(self.factorization.keys()).union(set(other.factorization.keys()))
+            factors = set(self.factorization.keys()) | set(other.factorization.keys())
             ans.factorization = {p: self[p] + other[p] for p in factors}
             if ans[-1] != 0 and ans[-1] % 2 == 0:
                 del ans.factorization[-1]
@@ -372,7 +372,7 @@ class QuadraticNumber(VectorMixin, NumberMixin):
             other = QuadraticNumber(other)
         elif type(other) != QuadraticNumber:
             raise Exception('Cannot add QuadraticNumber and `%s`' % type(other))
-        keys = set(self.coefficients.keys()).union(set(other.coefficients.keys()))
+        keys = set(self.coefficients.keys()) | set(other.coefficients.keys())
         new = QuadraticNumber()
         new.coefficients = {i: self[i] + other[i] for i in keys if (self[i] + other[i]) != 0}
         return new
@@ -519,7 +519,7 @@ class Monomial:
 
     def __mul__(self, other):
         if type(other) == Monomial:
-            keys = set(self.exponents.keys()).union(other.exponents.keys())
+            keys = set(self.exponents.keys()) | other.exponents.keys()
             exponents = {i: self[i] + other[i] for i in keys if self[i] + other[i] != 0}
             return Monomial(exponents)
         else:
@@ -606,7 +606,7 @@ class Polynomial(VectorMixin, NumberMixin):
         elif type(other) != Polynomial:
             raise Exception('Cannot add Polynomial and `%s`' % type(other))
         new = Polynomial()
-        keys = set(self.coefficients.keys()).union(other.coefficients.keys())
+        keys = set(self.coefficients.keys()) | other.coefficients.keys()
         new.coefficients = {i: self[i] + other[i] for i in keys if self[i] + other[i] != 0}
         return new
 
@@ -622,6 +622,12 @@ class Polynomial(VectorMixin, NumberMixin):
             for monomial_2, coeff_2 in self:
                 new[monomial_1*monomial_2] += coeff_1 * coeff_2
         return new
+
+    def __pow__(self, other):
+        if type(other) == int and other == 0:
+            return Polynomial(1)
+        else:
+            return super(Polynomial, self).__pow__(other)
 
     def __truediv__(self, other):
         if type(other) == Polynomial and other.is_constant():
@@ -790,7 +796,7 @@ class CoxeterGraph:
         with i^* = j and j^* = i extends to an automorphism of W. If `star` is not given,
         * is defined to be the identity map.
         """
-        self.generators = sorted({t[0] for t in triples}.union({t[1] for t in triples}))
+        self.generators = sorted({t[0] for t in triples} | {t[1] for t in triples})
 
         # construct dictionary with orders m_ij of products of simple generators
         self.orders = {}
@@ -1120,7 +1126,7 @@ class Root(VectorMixin, NumberMixin):
         if other == 0:
             other = Root(self.graph)
         if type(other) == Root and self.graph == other.graph:
-            indices = set(self.coefficients.keys()).union(set(other.coefficients.keys()))
+            indices = set(self.coefficients.keys()) | set(other.coefficients.keys())
             new = Root(self.graph)
             new.coefficients = {i: self[i] + other[i] for i in indices if (self[i] + other[i]) != 0}
             return new
@@ -1480,13 +1486,14 @@ class CoxeterWord:
         self.left_action = j * self.left_action
         self.right_action = self.right_action * j
 
-    def _check_valid(self, other):
-        check_a = type(other) == CoxeterWord and other.graph == self.graph
-        check_b = type(other) == int and other in self.graph.generators
-        assert check_a or check_b
+    def _is_valid_argument(self, other):
+        valid_a = type(other) == CoxeterWord and other.graph == self.graph
+        valid_b = type(other) == int and other in self.graph.generators
+        return valid_a or valid_b
 
     def __mul__(self, other):
-        self._check_valid(other)
+        if not self._is_valid_argument(other):
+            raise Exception('Cannot multiply CoxeterWord by `%s`' % type(other))
 
         if type(other) == int:
             new = self.copy()
@@ -1498,7 +1505,8 @@ class CoxeterWord:
         return new
 
     def __rmul__(self, other):
-        self._check_valid(other)
+        if not self._is_valid_argument(other):
+            raise Exception('Cannot multiply CoxeterWord by `%s`' % type(other))
 
         if type(other) == int:
             new = self.copy()

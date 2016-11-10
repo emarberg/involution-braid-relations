@@ -255,7 +255,7 @@ class BraidSolver:
             return m//2
 
     def get_unconditional_descent(self):
-        descents_to_avoid = self.word_s.left_descents.union(self.word_t.left_descents)
+        descents_to_avoid = self.word_s.left_descents | self.word_t.left_descents
         unconditional = \
             list(self.sigma.unconditional_descents.intersection(descents_to_avoid)) + \
             list(self.sigma.unconditional_descents.difference(descents_to_avoid))
@@ -274,7 +274,7 @@ class BraidSolver:
         return None
 
     def get_weak_conditional_descents(self):
-        descents_to_avoid = self.word_s.left_descents.union(self.word_t.left_descents)
+        descents_to_avoid = self.word_s.left_descents | self.word_t.left_descents
         return self.sigma.weak_conditional_descents.difference(descents_to_avoid)
 
     def is_quadratic_constraint_factorable(self):

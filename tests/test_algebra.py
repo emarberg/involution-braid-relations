@@ -718,6 +718,10 @@ class TestMonomial:
             assert False
 
 
+X = Polynomial('x')
+Y = Polynomial('y')
+
+
 class TestPolynomial:
 
     @pytest.mark.parametrize("i, expected", [
@@ -738,13 +742,14 @@ class TestPolynomial:
 
     def test_repr(self):
         """Tests for conversion of Polynomial to str."""
+        x = Polynomial('x')
         assert str(Polynomial(0)) == '0'
         assert str(Polynomial(1)) == '1'
         assert str(Polynomial(-10)) == '-10'
-        assert str(-Polynomial('x')) == '-x'
-        assert str(-5 * Polynomial('x')) == '-5x'
-        assert str(RationalNumber(7, 8) * Polynomial('x')) == '7/8x'
-        assert str(QuadraticNumber.sqrt(7) * 8 * Polynomial('x')**2) == '(8*sqrt(7))x^2'
+        assert str(-x) == '-x'
+        assert str(-5 * x) == '-5x'
+        assert str(RationalNumber(7, 8) * x) == '7/8x'
+        assert str(QuadraticNumber.sqrt(7) * 8 * x**2) == '(8*sqrt(7))x^2'
 
     @pytest.mark.parametrize("K", [
         [0, RationalNumber(0), QuadraticNumber(0), Polynomial(0)],
@@ -762,20 +767,20 @@ class TestPolynomial:
                 assert a == b
 
     @pytest.mark.parametrize("a, b, expected", [
-        (0, Polynomial('x'), True),
-        (RationalNumber(0), Polynomial('x'), True),
-        (QuadraticNumber(0), Polynomial('x'), True),
-        (Polynomial(0), Polynomial('x'), True),
-        (1, Polynomial('x'), False),
-        (0, 2*Polynomial('x'), True),
-        (RationalNumber(3, 5), Polynomial('x'), False),
-        (QuadraticNumber.sqrt(3), Polynomial('x'), False),
-        (0, Polynomial('x') * Polynomial('y'), True),
-        (Polynomial('x'), Polynomial('x')**2 + 2*Polynomial('x'), True),
-        (0, Polynomial('x') - 1, False),
-        (0, Polynomial('x')**2 - 2*Polynomial('x') + 1, False),
-        (-2*Polynomial('x'), Polynomial('x')**2 - 2*Polynomial('x') + 1, True),
-        (Polynomial('x') + Polynomial('x')**2, 2*Polynomial('x') + 3*Polynomial('x')**2, True),
+        (0, X, True),
+        (RationalNumber(0), X, True),
+        (QuadraticNumber(0), X, True),
+        (Polynomial(0), X, True),
+        (1, X, False),
+        (0, 2*X, True),
+        (RationalNumber(3, 5), X, False),
+        (QuadraticNumber.sqrt(3), X, False),
+        (0, X * Y, True),
+        (X, X**2 + 2*X, True),
+        (0, X - 1, False),
+        (0, X**2 - 2*X + 1, False),
+        (-2*X, X**2 - 2*X + 1, True),
+        (X + X**2, 2*X + 3*X**2, True),
     ])
     def test_le(self, a, b, expected):
         """Test <= operator for Polynomials."""
@@ -791,20 +796,20 @@ class TestPolynomial:
             assert (q*a <= r*b) == (-r*b <= -q*a) == expected
 
     @pytest.mark.parametrize("a, b, expected", [
-        (0, Polynomial('x'), False),
-        (0, 2*Polynomial('x'), False),
-        (1, Polynomial('x'), False),
-        (RationalNumber(3, 5), Polynomial('x'), False),
-        (QuadraticNumber.sqrt(3), Polynomial('x'), False),
-        (0, Polynomial('x') * Polynomial('y'), False),
-        (1, Polynomial('x') * Polynomial('y') + 2, True),
-        (RationalNumber(1), Polynomial('x') * Polynomial('y') + 2, True),
-        (QuadraticNumber(1), Polynomial('x') * Polynomial('y') + 2, True),
-        (Polynomial(1), Polynomial('x') * Polynomial('y') + 2, True),
-        (Polynomial('x'), Polynomial('x')**2 + 2*Polynomial('x'), False),
-        (0, Polynomial('x') + 1, True),
-        (-2*Polynomial('x') - 3, Polynomial('x') - 1, True),
-        (-2*Polynomial('x'), Polynomial('x')**2 - 2*Polynomial('x') + 1, True)
+        (0, X, False),
+        (0, 2*X, False),
+        (1, X, False),
+        (RationalNumber(3, 5), X, False),
+        (QuadraticNumber.sqrt(3), X, False),
+        (0, X * Y, False),
+        (1, X * Y + 2, True),
+        (RationalNumber(1), X * Y + 2, True),
+        (QuadraticNumber(1), X * Y + 2, True),
+        (Polynomial(1), X * Y + 2, True),
+        (X, X**2 + 2*X, False),
+        (0, X + 1, True),
+        (-2*X - 3, X - 1, True),
+        (-2*X, X**2 - 2*X + 1, True)
     ])
     def test_lt(self, a, b, expected):
         """Test < operator for Polynomials."""
@@ -851,18 +856,15 @@ class TestPolynomial:
         (Polynomial(5), Polynomial(-5), {}),
         (Polynomial(5), Polynomial(-5), {}),
         (Polynomial(5), QuadraticNumber.sqrt(5), {Monomial(): 5 + QuadraticNumber.sqrt(5)}),
-        (2*Polynomial('x'), 3*Polynomial('x')**2, {Monomial('x'): 2, Monomial('x')**2: 3}),
-        (2*Polynomial('x') - Polynomial('x')**2, Polynomial('x') + 3*Polynomial('x')**2, {
-            Monomial('x'): 3,
-            Monomial('x')**2: 2
-        })
+        (2*X, 3*X**2, {Monomial('x'): 2, Monomial('x')**2: 3}),
+        (2*X - X**2, X + 3*X**2, {Monomial('x'): 3, Monomial('x')**2: 2})
     ])
     def test_addition(self, a, b, expected):
         """Tests for addition of Polynomials."""
-        assert {m: v for m, v in (a + b).coefficients.items()} == expected
-        assert {m: v for m, v in (b + a).coefficients.items()} == expected
-        assert {m: v for m, v in (-(-a - b)).coefficients.items()} == expected
-        assert {m: v for m, v in (-(-b - a)).coefficients.items()} == expected
+        assert (a + b).coefficients == expected
+        assert (b + a).coefficients == expected
+        assert (-(-a - b)).coefficients == expected
+        assert (-(-b - a)).coefficients == expected
 
     @pytest.mark.parametrize("a, b, expected", [
         (Polynomial(0), 0, {}),
@@ -875,28 +877,26 @@ class TestPolynomial:
         (Polynomial(1), Polynomial(1), {Monomial(): 1}),
         (Polynomial(5), -5,  {Monomial(): -25}),
         (Polynomial(5), QuadraticNumber.sqrt(5), {Monomial(): QuadraticNumber.sqrt(125)}),
-        (2*Polynomial('x'), 3*Polynomial('x')**2, {Monomial('x')**3: 6}),
-        (2*Polynomial('x') - Polynomial('x')**2, Polynomial('x') + 3*Polynomial('x')**2, {
-            Monomial('x')**2: 2,
-            Monomial('x')**3: 5,
-            Monomial('x')**4: -3
-        }),
-        (Polynomial({0: -1}), Polynomial({0: 1}), {Monomial(): 1})
+        (2*X, 3*X**2, {Monomial('x')**3: 6}),
+        (2*X - X**2, X + 3*X**2, {Monomial('x')**2: 2, Monomial('x')**3: 5, Monomial('x')**4: -3}),
+        (Polynomial({0: -1}), Polynomial({0: 1}), {Monomial(): 1}),
+        (sum(X**i for i in range(10)), sum(X**i for i in range(10)),
+         (sum((i+1)*X**i for i in range(10)) + sum((i+1)*X**(18-i) for i in range(9))).coefficients)
     ])
     def test_multiplication(self, a, b, expected):
         """Tests for multiplication of Polynomials."""
-        assert {m: v for m, v in (a * b).coefficients.items()} == expected
-        assert {m: v for m, v in (b * a).coefficients.items()} == expected
+        assert (a * b).coefficients == expected
+        assert (b * a).coefficients == expected
 
     @pytest.mark.parametrize("a, b, expected", [
-        (Polynomial('x'), 3, {Monomial('x'): RationalNumber(1, 3)}),
-        (Polynomial('x'), RationalNumber(3), {Monomial('x'): RationalNumber(1, 3)}),
-        (Polynomial('x'), QuadraticNumber(3), {Monomial('x'): RationalNumber(1, 3)}),
-        (Polynomial('x'), Polynomial(3), {Monomial('x'): RationalNumber(1, 3)})
+        (X, 3, {Monomial('x'): RationalNumber(1, 3)}),
+        (X, RationalNumber(3), {Monomial('x'): RationalNumber(1, 3)}),
+        (X, QuadraticNumber(3), {Monomial('x'): RationalNumber(1, 3)}),
+        (X, Polynomial(3), {Monomial('x'): RationalNumber(1, 3)})
     ])
     def test_divison(self, a, b, expected):
         """Tests for multiplication of Polynomials."""
-        assert {m: v for m, v in (a / b).coefficients.items()} == expected
+        assert (a / b).coefficients == expected
 
     @pytest.mark.parametrize("i", [
         Polynomial(0),
@@ -981,9 +981,9 @@ class TestPolynomial:
         (Polynomial(), True),
         (Polynomial(1), True),
         (Polynomial(QuadraticNumber.sqrt(2)), True),
-        (Polynomial('x') + QuadraticNumber.sqrt(2)*Polynomial('y'), True),
-        (Polynomial('x')*Polynomial('y'), False),
-        (Polynomial('z')**2, False),
+        (X + QuadraticNumber.sqrt(2)*Y, True),
+        (X*Y, False),
+        (Y**2, False),
     ])
     def test_is_degree_one(self, f, expected):
         assert f.is_degree_one() == expected
@@ -991,11 +991,11 @@ class TestPolynomial:
     @pytest.mark.parametrize("f, variable, value, expected", [
         (Polynomial(), 'x', 1, 0),
         (Polynomial(1), 'x', 0, 1),
-        (Polynomial('x'), 'x', 3, 3),
-        (Polynomial('x'), ord('x'), 3, 3),
-        (Polynomial('x'), Monomial('x'), 3, 3),
-        (Polynomial('x')**2, 'x', Polynomial('x') + Polynomial('y'),
-            Polynomial('x')**2 + 2*Polynomial('x')*Polynomial('y') + Polynomial('y')**2)
+        (X, 'x', 3, 3),
+        (X, ord('x'), 3, 3),
+        (X, Monomial('x'), 3, 3),
+        (X**2, 'x', X + Y,
+         X**2 + 2*X*Y + Y**2)
     ])
     def test_set_variable(self, f, variable, value, expected):
         assert f.set_variable(variable, value) == expected
@@ -1036,30 +1036,30 @@ class TestPolynomial:
 
     @pytest.mark.parametrize("f, variables, expected", [
         (Polynomial(), {ord('x'), ord('y')}, 0),
-        (Polynomial('x') + 3, {ord('x')}, 3),
-        (Polynomial('x') + 3, {ord('y')}, Polynomial('x') + 3),
-        (Polynomial('x') + 3, {ord('x'), ord('y')}, 3),
-        (Polynomial('x') + Polynomial('y') + 1, {ord('x'), ord('y')}, 1)
+        (X + 3, {ord('x')}, 3),
+        (X + 3, {ord('y')}, X + 3),
+        (X + 3, {ord('x'), ord('y')}, 3),
+        (X + Y + 1, {ord('x'), ord('y')}, 1)
     ])
     def test_set_variable_to_zero(self, f, variables, expected):
         assert f.set_variables_to_zero(variables) == expected
 
     @pytest.mark.parametrize("f, expected", [
-        (Polynomial('x')*Polynomial('y'), False),
-        (Polynomial('x')**3, False),
+        (X*Y, False),
+        (X**3, False),
         (Polynomial(3), False),
-        (Polynomial('x') + 3, True),
-        (Polynomial('x')**2 + 3, True)
+        (X + 3, True),
+        (X**2 + 3, True)
     ])
     def test_is_factorable(self, f, expected):
         assert f.is_factorable() == expected
 
     @pytest.mark.parametrize("f, expected", [
-        (Polynomial('x') + 1, {Polynomial('x') + 1}),
-        (5*Polynomial('x') + 1, {Polynomial('x') + RationalNumber(1, 5)}),
-        (Polynomial('x')**2 - 1, {Polynomial('x') + 1, Polynomial('x') - 1}),
-        (Polynomial('x')**2 - 2*Polynomial('x') + 1, {Polynomial('x') - 1}),
-        (Polynomial('x')**2 - 2*Polynomial('x'), {Polynomial('x') - 2, Polynomial('x')}),
+        (X + 1, {X + 1}),
+        (5*X + 1, {X + RationalNumber(1, 5)}),
+        (X**2 - 1, {X + 1, X - 1}),
+        (X**2 - 2*X + 1, {X - 1}),
+        (X**2 - 2*X, {X - 2, X}),
     ])
     def test_get_factors(self, f, expected):
         factors = f.get_factors()
@@ -1080,9 +1080,9 @@ class TestPolynomial:
             assert f == leading_coeff * monic_root_a * monic_root_b
 
     @pytest.mark.parametrize("f", [
-        Polynomial('x') * Polynomial('y'),
-        Polynomial('x')**3 - 1,
-        Polynomial('x')**2 - QuadraticNumber.sqrt(3)
+        X * Y,
+        X**3 - 1,
+        X**2 - QuadraticNumber.sqrt(3)
     ])
     def test_get_factors_error(self, f):
         """Test error handling in Polynomial.get_factors method."""
@@ -1090,5 +1090,27 @@ class TestPolynomial:
             f.get_factors()
         except Exception as e:
             assert str(e).startswith('Cannot factor ')
+        else:
+            assert False
+
+    def test_pow(self):
+        """Test ** operator for polynomials."""
+        f = X + 1
+        assert f**0 == 1
+        assert f**1 == f
+        assert f**2 == X**2 + 2*X + 1
+        assert f**3 == X**3 + 3*X**2 + 3*X + 1
+
+        try:
+            f**1.0
+        except Exception as e:
+            assert str(e) == '** not implemented when exponent is non-positive or non-integer'
+        else:
+            assert False
+
+        try:
+            f**-1
+        except Exception as e:
+            assert str(e) == '** not implemented when exponent is non-positive or non-integer'
         else:
             assert False
