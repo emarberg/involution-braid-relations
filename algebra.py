@@ -3,6 +3,7 @@ import numpy as np
 from utils import (
     reverse_tuple,
     IndeterminatePowerException,
+    InvalidInputException,
     ZeroDivisionException,
     NumberMixin,
     VectorMixin
@@ -32,7 +33,7 @@ class RationalNumber(NumberMixin):
         elif q == 0:
             raise ZeroDivisionException(self)
         else:
-            raise Exception('Invalid input types to RationalNumber: %s' % str((type(p), type(q))))
+            raise InvalidInputException(self, (type(p), type(q)))
 
     @classmethod
     def reduce(cls, p, q):
@@ -152,7 +153,7 @@ class PrimeFactorization:
             self.factorization = PrimeFactorization.get_prime_factorization(i)
             self.n = i
         else:
-            raise Exception('Invalid input to PrimeFactorization: %s' % type(i))
+            raise InvalidInputException(self, type(i))
 
     def __getitem__(self, p):
         return self.factorization.get(p, 0)
@@ -246,7 +247,7 @@ class QuadraticNumber(VectorMixin, NumberMixin):
             if i != 0:
                 self.coefficients[PrimeFactorization(1)] = i
         else:
-            raise Exception('Invalid input type to QuadraticNumber: %s' % type(i))
+            raise InvalidInputException(self, type(i))
 
     def is_comparable(self, other):
         return type(other) in [int, RationalNumber, QuadraticNumber, Polynomial]
@@ -425,12 +426,12 @@ class Monomial:
             try:
                 e = Monomial.string_to_index(exponents)
             except:
-                raise Exception('Invalid input to Monomial: `%s`' % exponents)
+                raise InvalidInputException(self, exponents)
             self.exponents = {e: 1}
         elif type(exponents) == int:
             self.exponents = {exponents: 1}
         elif type(exponents) != dict or not all(type(i) == int for i in exponents):
-            raise Exception('Invalid input to Monomial: `%s`' % exponents)
+            raise InvalidInputException(self, exponents)
         else:
             self.exponents = {i: e for i, e in exponents.items() if e != 0}
 
@@ -479,7 +480,7 @@ class Monomial:
         if s.isalpha() and len(s) == 1:
             return ord(s)
         else:
-            raise Exception('Invalid input to Monomial.string_to_index: `%s`' % s)
+            raise InvalidInputException(Monomial(), str('`%s`' % s), method='string_to_index')
 
     @classmethod
     def index_to_string(cls, n):
@@ -499,7 +500,7 @@ class Polynomial(VectorMixin, NumberMixin):
             try:
                 monomial = Monomial(i)
             except:
-                raise Exception('Invalid input to Polynomial: `%s`' % type(i))
+                raise InvalidInputException(self, type(i))
             else:
                 self.coefficients = {monomial: 1}
         elif type(i) == Monomial:
@@ -509,7 +510,7 @@ class Polynomial(VectorMixin, NumberMixin):
         elif type(i) == QuadraticNumber:
             self.coefficients = {Monomial(): i}
         else:
-            raise Exception('Invalid input to Polynomial: `%s`' % type(i))
+            raise InvalidInputException(self, type(i))
 
     def is_comparable(self, other):
         return type(other) in [int, RationalNumber, QuadraticNumber, Polynomial]
@@ -708,9 +709,7 @@ class Polynomial(VectorMixin, NumberMixin):
             else:
                 raise Exception
         except:
-            raise Exception(
-                'Invalid inputs to Polynomial.set_variable: `%s` ' % str((variable, value))
-            )
+            raise InvalidInputException(self, '`%s` ' % str(variable, value), 'set_variable')
 
         new = Polynomial()
         for monomial, coeff in self:
@@ -1201,7 +1200,7 @@ class RootTransform:
             self._strong_conditional_descents = None
             self._weak_conditional_descents = None
         else:
-            raise Exception('Invalid inputs (%s, %s) to RootTransform' % (coxeter_graph, sigma))
+            raise InvalidInputException(self, (coxeter_graph, sigma))
 
     def __eq__(self, other):
         return isinstance(other, RootTransform) and \
@@ -1230,9 +1229,7 @@ class RootTransform:
             self.sigma[i] = value
             self._unset_cached_properties()
         else:
-            raise Exception(
-                'Invalid inputs (%s, %s) to %s.__setitem__' % (i, value, self.__name__)
-            )
+            raise InvalidInputException(self, (i, value, self.__name__), '__setitem__')
 
     @property
     def unconditional_descents(self):

@@ -8,6 +8,12 @@ class IndeterminatePowerException(Exception):
         super(IndeterminatePowerException, self).__init__('Cannot compute indeterminate power 0**0')
 
 
+class InvalidInputException(Exception):
+    def __init__(self, obj, inputs, method='__init__'):
+        super(InvalidInputException, self).__init__(
+            'Invalid inputs to %s.%s: %s' % (obj.__class__.__name__, method, str(inputs)))
+
+
 class ZeroDivisionException(Exception):
     def __init__(self, a):
         super(ZeroDivisionException, self).__init__('Cannot divide %s by 0' % a.__class__.__name__)
