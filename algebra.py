@@ -691,46 +691,79 @@ class Polynomial(VectorMixin, NumberMixin):
 
 
 class CoxeterGraph:
-    def __init__(self, triples, star=None):
+    def __init__(self, triples, generators=None, star=None):
         """
         Input `triples` should be list of tuples (i, j, m) where i, j are indices of simple
         generators and m is order of s_i s_j. Triples with m == 1 or 2 can be omitted.
-        If (i, j, m) is included then the reverse tuple (j, i, m) may also be omitted.
+        If (i, j, m) is included then the reverse tuple (j, i, m) also may be omitted.
+
+        Input `generators` should be list of integers indexing simple generators of the group.
+        If not provided, this list will be formed from the set of numbers i or j in `triples`.
+        If i or j does not belong to `generators` for some (i, j, m) in `triples`, an error
+        will be raised.
 
         Input `star` should be list of pairs (i, j) such that the involution * : S -> S
         with i^* = j and j^* = i extends to an automorphism of W. If `star` is not given,
         * is defined to be the identity map.
         """
-        self.generators = sorted({t[0] for t in triples} | {t[1] for t in triples})
+        self._setup_generators(triples, generators)
+        self._setup_orders(triples)
+        self._setup_star(star)
 
+    def _setup_generators(self, triples, generators):
+        gens_from_triples = {t[0] for t in triples} | {t[1] for t in triples}
+        if generators is not None:
+            if gens_from_triples.issubset(set(generators)):
+                self.generators = sorted(set(generators))
+            else:
+                raise Exception('Invalid input to CoxeterGraph: '
+                                '`generators` must contain i and j for all (i, j, m) in `triples`')
+        else:
+            self.generators = sorted(gens_from_triples)
+
+    def _setup_orders(self, triples):
         # construct dictionary with orders m_ij of products of simple generators
         self.orders = {}
         for i, j, m in triples:
-            if i != j and m != 2:
-                # check that m=m_ij is a positive int or infinity
-                valid_order = (type(m) == int and 3 <= m) or m == np.infty
-                # check that triples does not contain inconsistent entries
-                if valid_order and self.orders.get((i, j), m) == m:
-                    self.orders[(i, j)] = m
-                    self.orders[(j, i)] = m
-                else:
-                    raise Exception('Invalid input `triples = %s` to CoxeterGraph' % triples)
+            # value of m must be an integer with 1 <= m <= infty
+            valid_order = (type(m) == int and 1 <= m) or m == np.infty
+            # must have m == 1 iff i == j
+            valid_order = valid_order and ((m == 1) == (i == j))
+            valid_generators = i in self.generators and j in self.generators
 
+            if not (valid_order and valid_generators):
+                raise Exception('Invalid input to CoxeterGraph: '
+                                '`triples` contains invalid tuple %s' % str((i, j, m)))
+            elif self.orders.get((i, j), m) != m:
+                raise Exception('Invalid input to CoxeterGraph: '
+                                '`triples` contains inconsistent tuple %s' % str((i, j, m)))
+            elif i != j and m != 2:
+                self.orders[(i, j)] = m
+                self.orders[(j, i)] = m
+
+    def _setup_star(self, star):
         # construct dictionary with images of the *-involution 'star'
         self._star = {}
         if star:
+            gens_from_star = {t[0] for t in star} | {t[1] for t in star}
+            if not gens_from_star.issubset(set(self.generators)):
+                raise Exception('Invalid input to CoxeterGraph: '
+                                '`star` contains pairs which are not both generators')
+
             for i, j in star:
                 if self._star.get(i, j) == j and self._star.get(j, i) == i:
                     self._star[i] = j
                     self._star[j] = i
                 else:
-                    raise Exception('Invalid input `star = %s` to CoxeterGraph' % star)
+                    raise Exception('Invalid input to CoxeterGraph: '
+                                    '`star` contains inconsistent tuple %s' % str((i, j)))
 
         # validate that input `star` encodes automorphism
         for i in self.generators:
             for j in self.generators:
                 if self.get_order(i, j) != self.get_order(self.star(i), self.star(j)):
-                    raise Exception('Invalid input `star = %s` to CoxeterGraph' % star)
+                    raise Exception('Invalid input to CoxeterGraph: '
+                                    '`star = %s` does not define automorphism' % star)
 
     def __eq__(self, other):
         return \
@@ -824,7 +857,7 @@ class CoxeterGraph:
     @staticmethod
     def A(n, star=None):
         triples = [(i, i+1, 3) for i in range(1, n)]
-        return CoxeterGraph(triples, star)
+        return CoxeterGraph(triples, range(1, n+1), star)
 
     @staticmethod
     def A2(n):
