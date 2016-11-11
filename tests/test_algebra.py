@@ -2,6 +2,7 @@ import pytest
 
 from utils import (
     IndeterminatePowerException,
+    InvalidInputException,
     ZeroDivisionException
 )
 
@@ -158,14 +159,13 @@ class TestRationalNumbers:
             if q == 0:
                 assert type(e) == ZeroDivisionException
             else:
-                assert str(e).startswith('Invalid input types to RationalNumber: ')
+                assert type(e) == InvalidInputException
         else:
             assert False
 
     @pytest.mark.parametrize("a, b", [
         (RationalNumber(3, 7), 1.2),
         (1.2, RationalNumber(3, 7)),
-        (RationalNumber(3, 7), None),
         (None, RationalNumber(3, 7)),
     ])
     def test_operator_errors(self, a, b):
@@ -302,7 +302,7 @@ class TestPrimeFactorization:
         try:
             PrimeFactorization(i)
         except Exception as e:
-            assert str(e).startswith('Invalid input to PrimeFactorization: ')
+            assert type(e) == InvalidInputException
         else:
             assert False
 
@@ -519,7 +519,7 @@ class TestQuadraticNumbers:
         try:
             QuadraticNumber(i)
         except Exception as e:
-            assert str(e).startswith('Invalid input type to QuadraticNumber: ')
+            assert type(e) == InvalidInputException
         else:
             assert False
 
@@ -582,7 +582,6 @@ class TestQuadraticNumbers:
     @pytest.mark.parametrize("a, b", [
         (QuadraticNumber(3), 1.2),
         (1.2, QuadraticNumber(3)),
-        (QuadraticNumber(7), None),
         (None, QuadraticNumber(7)),
     ])
     def test_operator_errors(self, a, b):
@@ -685,7 +684,7 @@ class TestMonomial:
         try:
             Monomial(i)
         except Exception as e:
-            assert str(e).startswith('Invalid input to Monomial: ')
+            assert type(e) == InvalidInputException
         else:
             assert False
 
@@ -916,7 +915,7 @@ class TestPolynomial:
         try:
             Polynomial(i)
         except Exception as e:
-            assert str(e).startswith('Invalid input to Polynomial: ')
+            assert type(e) == InvalidInputException
         else:
             assert False
 
@@ -951,7 +950,6 @@ class TestPolynomial:
     @pytest.mark.parametrize("a, b", [
         (Polynomial(3), 1.2),
         (1.2, Polynomial(3)),
-        (Polynomial(7), None),
         (None, Polynomial(7)),
     ])
     def test_operator_errors(self, a, b):
@@ -1023,7 +1021,7 @@ class TestPolynomial:
         try:
             Polynomial('y').set_variable(None, 0)
         except Exception as e:
-            assert str(e).startswith('Invalid inputs to Polynomial.set_variable: `(None, 0)`')
+            assert type(e) == InvalidInputException
         else:
             assert False
 
@@ -1031,7 +1029,7 @@ class TestPolynomial:
         try:
             Polynomial('y').set_variable('abc', 0)
         except Exception as e:
-            assert str(e).startswith('Invalid inputs to Polynomial.set_variable: `(\'abc\', 0)`')
+            assert type(e) == InvalidInputException
         else:
             assert False
 
@@ -1039,7 +1037,7 @@ class TestPolynomial:
         try:
             Polynomial('y').set_variable('y', 0.0)
         except Exception as e:
-            assert str(e).startswith('Invalid inputs to Polynomial.set_variable: `(\'y\', 0.0)`')
+            assert type(e) == InvalidInputException
         else:
             assert False
 

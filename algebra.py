@@ -709,7 +709,7 @@ class Polynomial(VectorMixin, NumberMixin):
             else:
                 raise Exception
         except:
-            raise InvalidInputException(self, '`%s` ' % str(variable, value), 'set_variable')
+            raise InvalidInputException(self, '`%s` ' % str((variable, value)), 'set_variable')
 
         new = Polynomial()
         for monomial, coeff in self:

@@ -133,10 +133,10 @@ class NumberMixin:
         return self * other
 
     def __sub__(self, other):
-        return -(-self + other)
+        return self + (other*-1)
 
     def __rsub__(self, other):
-        return -(self - other)
+        return other + (self*-1)
 
     def __pow__(self, exponent):
         if type(exponent) != int or exponent <= 0:
