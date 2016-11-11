@@ -1067,14 +1067,14 @@ class Root(VectorMixin, NumberMixin):
                     ans += u * v * self.graph.eval_bilinear(i, j)
             return ans
         else:
-            raise Exception('Cannot evaluate bilinear form with input `other = %s`' % other)
+            raise InvalidInputException(self, other, 'eval_bilinear')
 
     def reflect(self, index):
         if index in self.graph.generators:
             v = 2 * self.eval_bilinear(index)
             return self - Root(self.graph, index, v)
         else:
-            raise Exception('Cannot reflect by root alpha_i with `i = %s`' % index)
+            raise InvalidInputException(self, index, 'reflect')
 
     def is_constant(self):
         return not any(type(v) == Polynomial and not v.is_constant() for i, v in self)

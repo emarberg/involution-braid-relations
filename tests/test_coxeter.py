@@ -261,7 +261,125 @@ class TestRoot:
         assert len({a, b, c, d}) == 1
 
     def test_eval_bilinear(self):
-        pass
+        g = CoxeterGraph.F(4)
+        r = Root(g, 1)
+        s = Root(g, 2)
+        t = Root(g, 3)
+
+        assert r.eval_bilinear(r) == r.eval_bilinear(1) == 1
+        assert s.eval_bilinear(s) == s.eval_bilinear(2) == 1
+        assert t.eval_bilinear(t) == t.eval_bilinear(3) == 1
+
+        assert r.eval_bilinear(s) == r.eval_bilinear(2) == -RationalNumber(1)/2
+        assert r.eval_bilinear(t) == r.eval_bilinear(3) == 0
+        assert s.eval_bilinear(r) == s.eval_bilinear(1) == -RationalNumber(1)/2
+        assert s.eval_bilinear(t) == s.eval_bilinear(3) == -QuadraticNumber.sqrt(2)/2
+        assert t.eval_bilinear(r) == t.eval_bilinear(1) == 0
+        assert t.eval_bilinear(s) == t.eval_bilinear(2) == -QuadraticNumber.sqrt(2)/2
+
+        assert (r + s).eval_bilinear(s + t) == RationalNumber(1)/2 - QuadraticNumber.sqrt(2)/2
+        assert (r + s).reflect(3) == r + s + QuadraticNumber.sqrt(2)*t
+
+        # int inputs to r.eval_bilinear or r.reflect must belong to r.graph.generators
+        try:
+            r.eval_bilinear(0)
+        except Exception as e:
+            assert type(e) == InvalidInputException
+        else:
+            assert False
+
+        try:
+            r.reflect(0)
+        except Exception as e:
+            assert type(e) == InvalidInputException
+        else:
+            assert False
+
+        h = CoxeterGraph.H(4)
+        u = Root(h, 1)
+
+        # cannot compute r.eval_bilinear() if input Root has different CoxeterGraph
+        try:
+            r.eval_bilinear(u)
+        except Exception as e:
+            assert type(e) == InvalidInputException
+        else:
+            assert False
+
+    def test_set_variables(self):
+        """Tests for Root.set_variable and Root.set_variables_to_zero methods."""
+        x = Polynomial({0: 1})
+        y = Polynomial({1: 1})
+
+        g = CoxeterGraph.F(4)
+        a = Root(g, 1, x)
+        b = Root(g, 2, y)
+        c = Root(g, 3, x + y)
+
+        assert a.set_variable(0, 3) == Root(g, 1, 3)
+        assert a.set_variable(1, 3) == a
+        assert a.set_variable(0, 0) == a.set_variables_to_zero({0}) == Root(g)
+
+        assert (a + b + c).set_variable(0, 1) == Root(g, 1) + b + (1 + y)*Root(g, 3)
+        assert (a + b + c).set_variables_to_zero({0}) == (Root(g, 2) + Root(g, 3))*y
+        assert (a + b + c).set_variables_to_zero({1}) == (Root(g, 1) + Root(g, 3))*x
+        assert (a + b + c).set_variables_to_zero({0, 1}) == 0
+
+    def test_add(self):
+        g = CoxeterGraph.F(4)
+        a = Root(g, 1, 1) - Root(g, 2, 1)
+        b = Root(g, 2, 1) - Root(g, 3, 1)
+        assert (a + b).coefficients == {1: 1, 3: -1}
+
+        assert a + 0 == 0 + a == a
+        try:
+            a + Root(CoxeterGraph.H(3), 3)
+        except Exception as e:
+            assert type(e) == Root.OperatorException
+        else:
+            assert False
+
+    def test_power_error(self):
+        """Test that ** operator is not implemented for Root objects."""
+        g = CoxeterGraph.E(8)
+        r = Root(g, 1) + Root(g, 8)
+        try:
+            r**2
+        except NotImplementedError:
+            pass
+
+    def test_convenience_methods(self):
+        """Tests for methods is_constant, is_positive, is_negative, and is_valid."""
+        g = CoxeterGraph.E(8)
+
+        r = Root(g, 1, Polynomial(8))
+        s = Root(g, 2, Polynomial('x') + 1)
+        assert r.is_constant()
+        assert not s.is_constant()
+
+        t = -r - s
+        u = r - s
+        v = Root(g, 3, Polynomial('x') - 1)
+        assert r.is_positive() and not r.is_negative()
+        assert s.is_positive() and not r.is_negative()
+        assert not t.is_positive() and t.is_negative()
+        assert not u.is_positive() and not u.is_negative()
+        assert not v.is_positive() and not v.is_negative()
+
+        z = Root(g)
+        assert z.is_zero()
+
+        # z is not 'valid' since it is zero
+        assert not z.is_valid()
+        assert r.is_valid()
+        assert s.is_valid()
+        assert t.is_valid()
+        # u is not 'valid' because its coeff of alpha_1 is > 0 while its coeff of alpha_2 is < 0
+        assert not u.is_valid()
+        assert v.is_valid()
+
+        # v +/- s is 'valid' since its coeff of alpha_3 is x - 1, which is neither < 0 or > 0
+        assert (v + s).is_valid() and (v - s).is_valid()
 
 
 class TestRootTransform:
