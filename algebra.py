@@ -281,6 +281,7 @@ class QuadraticNumber(VectorMixin, NumberMixin):
             return True
         elif all(c < 0 for c in diff.coefficients.values()):
             return False
+
         positive_part, negative_part = diff.decompose()
         if max(len(positive_part), len(negative_part)) > 2:
             raise QuadraticNumber.IndeterminateComparisonException(negative_part, positive_part)
@@ -480,7 +481,7 @@ class Monomial:
         if s.isalpha() and len(s) == 1:
             return ord(s)
         else:
-            raise InvalidInputException(Monomial(), str('`%s`' % s), method='string_to_index')
+            raise InvalidInputException(Monomial(), s, method='string_to_index')
 
     @classmethod
     def index_to_string(cls, n):
@@ -709,7 +710,7 @@ class Polynomial(VectorMixin, NumberMixin):
             else:
                 raise Exception
         except:
-            raise InvalidInputException(self, '`%s` ' % str((variable, value)), 'set_variable')
+            raise InvalidInputException(self, (variable, value), 'set_variable')
 
         new = Polynomial()
         for monomial, coeff in self:
@@ -733,51 +734,6 @@ class Polynomial(VectorMixin, NumberMixin):
 
 
 class CoxeterGraph:
-
-    class GeneratorsException(Exception):
-        def __init__(self):
-            super(CoxeterGraph.GeneratorsException, self).__init__(
-                'Invalid input to CoxeterGraph: '
-                '`generators` must contain i and j for all (i, j, m) in `edges`')
-
-    class InvalidTupleException(Exception):
-        def __init__(self, i, j, m):
-            super(CoxeterGraph.InvalidTupleException, self).__init__(
-                'Invalid input to CoxeterGraph: '
-                '`edges` contains invalid tuple %s' % str((i, j, m)))
-
-    class InconsistentTupleException(Exception):
-        def __init__(self, i, j, m):
-            super(CoxeterGraph.InconsistentTupleException, self).__init__(
-                'Invalid input to CoxeterGraph: '
-                '`edges` contains inconsistent tuple %s' % str((i, j, m)))
-
-    class InvalidStarException(Exception):
-        def __init__(self):
-            super(CoxeterGraph.InvalidStarException, self).__init__(
-                'Invalid input to CoxeterGraph: `star` contains pairs involving non-generators')
-
-    class InconsistentStarException(Exception):
-        def __init__(self, i, j):
-            super(CoxeterGraph.InconsistentStarException, self).__init__(
-                'Invalid input to CoxeterGraph: '
-                '`star` contains inconsistent tuple %s' % str((i, j)))
-
-    class StarNotHomomorphismException(Exception):
-        def __init__(self, star):
-            super(CoxeterGraph.StarNotHomomorphismException, self).__init__(
-                'Invalid input to CoxeterGraph: '
-                '`star = %s` does not define automorphism' % star)
-
-    class GetOrderException(Exception):
-        def __init__(self):
-            super(CoxeterGraph.GetOrderException, self).__init__(
-                'Error in CoxeterGraph.get_order: input parameters (i, j) must index generators')
-
-    class StarException(Exception):
-        def __init__(self):
-            super(CoxeterGraph.StarException, self).__init__(
-                'Error in CoxeterGraph.star: input parameter i must index a generator')
 
     class EvalBilinearException(Exception):
         def __init__(self):
@@ -818,7 +774,7 @@ class CoxeterGraph:
             if generators_from_edges.issubset(generators):
                 self.generators = sorted(generators)
             else:
-                raise CoxeterGraph.GeneratorsException
+                raise InvalidInputException(self, generators)
         else:
             self.generators = sorted(generators_from_edges)
 
@@ -832,10 +788,8 @@ class CoxeterGraph:
             valid_order = valid_order and ((m == 1) == (i == j))
             valid_generators = i in self.generators and j in self.generators
 
-            if not (valid_order and valid_generators):
-                raise CoxeterGraph.InvalidTupleException(i, j, m)
-            elif self.orders.get((i, j), m) != m:
-                raise CoxeterGraph.InconsistentTupleException(i, j, m)
+            if not (valid_order and valid_generators) or self.orders.get((i, j), m) != m:
+                raise InvalidInputException(self, '%s in `tuples`' % str((i, j, m)))
             elif i != j and m != 2:
                 self.orders[(i, j)] = m
                 self.orders[(j, i)] = m
@@ -846,19 +800,19 @@ class CoxeterGraph:
         if star:
             generators_from_star = {t[0] for t in star} | {t[1] for t in star}
             if not generators_from_star.issubset(set(self.generators)):
-                raise CoxeterGraph.InvalidStarException
+                raise InvalidInputException(self, star)
             for i, j in star:
                 if self._star.get(i, j) == j and self._star.get(j, i) == i:
                     self._star[i] = j
                     self._star[j] = i
                 else:
-                    raise CoxeterGraph.InconsistentStarException(i, j)
+                    raise InvalidInputException(self, '%s in `star`' % str((i, j)))
 
         # validate that input `star` encodes automorphism
         for i in self.generators:
             for j in self.generators:
                 if self.get_order(i, j) != self.get_order(self.star(i), self.star(j)):
-                    raise CoxeterGraph.StarNotHomomorphismException(star)
+                    raise InvalidInputException(self, star)
 
     def __eq__(self, other):
         return \
@@ -877,7 +831,7 @@ class CoxeterGraph:
 
     def star(self, i):
         if i not in self.generators:
-            raise CoxeterGraph.StarException
+            raise InvalidInputException(self, i, 'star')
         else:
             return self._star.get(i, i)
 
@@ -892,9 +846,11 @@ class CoxeterGraph:
 
     def get_order(self, i, j):
         """Return order of s_i*s_j in W."""
-        if i not in self.generators or j not in self.generators:
-            raise CoxeterGraph.GetOrderException
-        if i == j:
+        if i not in self.generators:
+            raise InvalidInputException(self, i, 'get_order')
+        elif j not in self.generators:
+            raise InvalidInputException(self, j, 'get_order')
+        elif i == j:
             return 1
         else:
             return self.orders.get((i, j), 2)
@@ -1083,11 +1039,6 @@ class CoxeterGraph:
 
 class Root(VectorMixin, NumberMixin):
 
-    class InvalidIndexException(Exception):
-        def __init__(self, i):
-            super(Root.InvalidIndexException, self).__init__(
-                'Invalid `index = %s` in constuctor for Root' % i)
-
     def __init__(self, coxeter_graph, index=None, coeff=1):
         self.graph = coxeter_graph
         if index is None or coeff == 0:
@@ -1095,7 +1046,7 @@ class Root(VectorMixin, NumberMixin):
         elif index in coxeter_graph.generators:
             self.coefficients = {index: coeff}
         else:
-            raise Root.InvalidIndexException(index)
+            raise InvalidInputException(self, index)
 
     def is_comparable(self, other):
         if type(other) == int and other == 0:

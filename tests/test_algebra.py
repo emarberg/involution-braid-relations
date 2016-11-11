@@ -828,6 +828,14 @@ class TestPolynomial:
         if (r-q)*b > 0:
             assert (q*a < r*b) == (-r*b < -q*a) == expected
 
+    def test_lt_errors(self):
+        try:
+            Polynomial('x') < 1.0
+        except Exception as e:
+            assert type(e) == Polynomial.OperatorException
+        else:
+            assert False
+
     def test_hash(self):
         """Test that hashes for Polynomials are consistent."""
         assert hash(Polynomial(0)) == hash(0)

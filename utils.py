@@ -15,8 +15,8 @@ class InvalidInputException(Exception):
 
 
 class ZeroDivisionException(Exception):
-    def __init__(self, a):
-        super(ZeroDivisionException, self).__init__('Cannot divide %s by 0' % a.__class__.__name__)
+    def __init__(self, n):
+        super(ZeroDivisionException, self).__init__('Cannot divide %s by 0' % n.__class__.__name__)
 
 
 class VectorMixin:

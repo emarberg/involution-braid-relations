@@ -1,6 +1,10 @@
 import pytest
 import numpy as np
 
+from utils import (
+    InvalidInputException
+)
+
 from algebra import (
     QuadraticNumber,
     RationalNumber,
@@ -31,14 +35,21 @@ class TestCoxeterGraph:
         try:
             g.get_order(2, 10)
         except Exception as e:
-            assert type(e) == CoxeterGraph.GetOrderException
+            assert type(e) == InvalidInputException
+        else:
+            assert False
+
+        try:
+            g.get_order(10, 2)
+        except Exception as e:
+            assert type(e) == InvalidInputException
         else:
             assert False
 
         try:
             g.star(10)
         except Exception as e:
-            assert type(e) == CoxeterGraph.StarException
+            assert type(e) == InvalidInputException
         else:
             assert False
 
@@ -48,7 +59,7 @@ class TestCoxeterGraph:
         try:
             CoxeterGraph(edges=[(1, 2, 1)], generators=[3, 4, 5])
         except Exception as e:
-            assert type(e) == CoxeterGraph.GeneratorsException
+            assert type(e) == InvalidInputException
         else:
             assert False
 
@@ -56,7 +67,7 @@ class TestCoxeterGraph:
         try:
             CoxeterGraph(edges=[(1, 2, 1)])
         except Exception as e:
-            assert type(e) == CoxeterGraph.InvalidTupleException
+            assert type(e) == InvalidInputException
         else:
             assert False
 
@@ -64,7 +75,7 @@ class TestCoxeterGraph:
         try:
             CoxeterGraph(edges=[(1, 1, 2)])
         except Exception as e:
-            assert type(e) == CoxeterGraph.InvalidTupleException
+            assert type(e) == InvalidInputException
         else:
             assert False
 
@@ -72,7 +83,7 @@ class TestCoxeterGraph:
         try:
             CoxeterGraph(edges=[(1, 2, 3.0)])
         except Exception as e:
-            assert type(e) == CoxeterGraph.InvalidTupleException
+            assert type(e) == InvalidInputException
         else:
             assert False
 
@@ -80,7 +91,7 @@ class TestCoxeterGraph:
         try:
             CoxeterGraph(edges=[(1, 2, 3), (2, 1, 2)])
         except Exception as e:
-            assert type(e) == CoxeterGraph.InconsistentTupleException
+            assert type(e) == InvalidInputException
         else:
             assert False
 
@@ -90,7 +101,7 @@ class TestCoxeterGraph:
         try:
             CoxeterGraph(edges=[(1, 2, 3)], star=[(3, 4)])
         except Exception as e:
-            assert type(e) == CoxeterGraph.InvalidStarException
+            assert type(e) == InvalidInputException
         else:
             assert False
 
@@ -98,7 +109,7 @@ class TestCoxeterGraph:
         try:
             CoxeterGraph(edges=[(1, 2, 3)], star=[(1, 2), (2, 2)])
         except Exception as e:
-            assert type(e) == CoxeterGraph.InconsistentStarException
+            assert type(e) == InvalidInputException
         else:
             assert False
 
@@ -106,7 +117,7 @@ class TestCoxeterGraph:
         try:
             CoxeterGraph(edges=[(1, 2, 3), (2, 3, 4)], star=[(1, 3)])
         except Exception as e:
-            assert type(e) == CoxeterGraph.StarNotHomomorphismException
+            assert type(e) == InvalidInputException
         else:
             assert False
 
@@ -211,7 +222,7 @@ class TestRoot:
         try:
             Root(g, 0)
         except Exception as e:
-            assert type(e) == Root.InvalidIndexException
+            assert type(e) == InvalidInputException
         else:
             assert False
 
