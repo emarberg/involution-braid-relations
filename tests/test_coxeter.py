@@ -196,7 +196,61 @@ class TestCoxeterGraph:
 
 
 class TestRoot:
-    pass
+    def test_constructor(self):
+        g = CoxeterGraph.A(5)
+
+        zero = Root(g)
+        assert zero.coefficients == {}
+
+        one = Root(g, 1)
+        assert one.coefficients == {1: 1}
+
+        nonzero = Root(g, 1, Polynomial('x'))
+        assert nonzero.coefficients == {1: Polynomial('x')}
+
+        try:
+            Root(g, 0)
+        except Exception as e:
+            assert type(e) == Root.InvalidIndexException
+        else:
+            assert False
+
+    def test_eq(self):
+        g = CoxeterGraph.B(5)
+        h = CoxeterGraph.A(5)
+
+        # can only compare roots with other roots with same graph, or the int 0
+        r = Root(g)
+        assert r == 0 and 0 == r
+        for zero in [RationalNumber(0), QuadraticNumber(0), Polynomial(0), Root(h)]:
+            try:
+                r == zero
+            except Exception as e:
+                assert type(e) == Root.ComparisonException
+            else:
+                assert False
+
+            try:
+                zero == r
+            except Exception as e:
+                assert type(e) == type(zero).ComparisonException
+            else:
+                assert False
+
+        r = Root(g, 1)
+        s = Root(g, 2)
+        assert r != s
+
+        a = Root(g, 1, 2)
+        b = Root(g, 1, RationalNumber(2))
+        c = Root(g, 1, QuadraticNumber(2))
+        d = Root(g, 1, Polynomial(2))
+
+        assert a == b == c == d and d == c == b == a
+        assert len({a, b, c, d}) == 1
+
+    def test_eval_bilinear(self):
+        pass
 
 
 class TestRootTransform:

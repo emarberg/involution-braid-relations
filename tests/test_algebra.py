@@ -76,14 +76,14 @@ class TestRationalNumbers:
         try:
             RationalNumber(0) == 0.0
         except Exception as e:
-            assert str(e).startswith('Cannot compare RationalNumber and ')
+            assert type(e) == RationalNumber.ComparisonException
         else:
             assert False
 
         try:
             RationalNumber(-1) < 0.0
         except Exception as e:
-            assert str(e).startswith('Cannot compare RationalNumber and ')
+            assert type(e) == RationalNumber.ComparisonException
         else:
             assert False
 
@@ -404,7 +404,7 @@ class TestQuadraticNumbers:
         try:
             QuadraticNumber(-1) < 0.0
         except Exception as e:
-            assert str(e).startswith('Cannot compare QuadraticNumber and ')
+            assert type(e) == QuadraticNumber.ComparisonException
         else:
             assert False
 

@@ -4,6 +4,12 @@ from utils import reverse_tuple, NumberMixin, VectorMixin
 
 
 class RationalNumber(NumberMixin):
+
+    class ComparisonException(Exception):
+        def __init__(self, other):
+            super(RationalNumber.ComparisonException, self).__init__(
+                'Cannot compare RationalNumber with `%s`' % type(other))
+
     def __init__(self, p=0, q=1):
         if type(p) == type(q) == RationalNumber:
             p, q = (p.numerator * q.denominator, q.numerator * p.denominator)
@@ -49,7 +55,7 @@ class RationalNumber(NumberMixin):
         elif type(other) == Polynomial:
             return Polynomial(self) == other
         else:
-            raise Exception('Cannot compare RationalNumber and `%s`' % type(other))
+            raise RationalNumber.ComparisonException(other)
 
     def __lt__(self, other):
         if type(other) == int:
@@ -61,7 +67,7 @@ class RationalNumber(NumberMixin):
         elif type(other) == Polynomial:
             return Polynomial(self) < other
         else:
-            raise Exception('Cannot compare RationalNumber and `%s`' % type(other))
+            raise RationalNumber.ComparisonException(other)
 
     def __le__(self, other):
         if type(other) == Polynomial:
@@ -222,6 +228,9 @@ class QuadraticNumber(VectorMixin, NumberMixin):
         else:
             raise Exception('Invalid input type to QuadraticNumber: %s' % type(i))
 
+    def is_comparable(self, other):
+        return type(other) in [int, RationalNumber, QuadraticNumber, Polynomial]
+
     def __repr__(self):
         if self.is_rational():
             return str(self.get_rational_part())
@@ -240,7 +249,7 @@ class QuadraticNumber(VectorMixin, NumberMixin):
         elif type(other) in [int, RationalNumber]:
             other = QuadraticNumber(other)
         elif type(other) != QuadraticNumber:
-            raise Exception('Cannot compare QuadraticNumber and `%s`' % type(other))
+            raise QuadraticNumber.ComparisonException(self, other)
 
         diff = other - self
         if diff.is_rational():
@@ -480,9 +489,15 @@ class Polynomial(VectorMixin, NumberMixin):
         else:
             raise Exception('Invalid input to Polynomial: `%s`' % type(i))
 
+    def is_comparable(self, other):
+        return type(other) in [int, RationalNumber, QuadraticNumber, Polynomial]
+
     def __lt__(self, other):
-        diff = other - self
-        return 0 < diff.get_constant_part() and all(0 < c for c in diff.coefficients.values())
+        if self.is_comparable(other):
+            diff = other - self
+            return 0 < diff.get_constant_part() and all(0 < c for c in diff.coefficients.values())
+        else:
+            raise Polynomial.ComparisonException(self, other)
 
     def __le__(self, other):
         diff = other - self
@@ -1040,6 +1055,12 @@ class CoxeterGraph:
 
 
 class Root(VectorMixin, NumberMixin):
+
+    class InvalidIndexException(Exception):
+        def __init__(self, i):
+            super(Root.InvalidIndexException, self).__init__(
+                'Invalid `index = %s` in constuctor for Root' % i)
+
     def __init__(self, coxeter_graph, index=None, coeff=1):
         self.graph = coxeter_graph
         if index is None or coeff == 0:
@@ -1047,11 +1068,13 @@ class Root(VectorMixin, NumberMixin):
         elif index in coxeter_graph.generators:
             self.coefficients = {index: coeff}
         else:
-            raise Exception('Invalid `index = %s` in constuctor for Root' % index)
+            raise Root.InvalidIndexException(index)
 
-    def __eq__(self, other):
-        if other == 0 or type(other) == Root:
-            return len(self - other) == 0
+    def is_comparable(self, other):
+        if type(other) == int and other == 0:
+            return True
+        elif type(other) == Root and other.graph == self.graph:
+            return True
         else:
             return False
 
@@ -1260,7 +1283,9 @@ class RootTransform:
         return self.sigma.values()
 
     def is_identity(self):
-        return all(self.sigma.get(i, None) == Root(self.graph, i) for i in self.graph.generators)
+        if sorted(self.sigma.keys()) == self.graph.generators:
+            return all(self.sigma[i] == Root(self.graph, i) for i in self.graph.generators)
+        return False
 
     def __repr__(self):
         s = '{\n'

@@ -4,6 +4,22 @@ def reverse_tuple(input_tuple):
 
 
 class VectorMixin:
+
+    class ComparisonException(Exception):
+        def __init__(self, a, b):
+            super(VectorMixin.ComparisonException, self).__init__(
+                'Cannot compare %s with `%s`' % (a.__class__.__name__, type(b)))
+
+    def __eq__(self, other):
+        if self.is_comparable(other):
+            return len(other - self) == 0
+        else:
+            raise VectorMixin.ComparisonException(self, other)
+
+    def is_comparable(self, other):
+        """Returns True if we can evaluate ==, etc, between self and other."""
+        raise NotImplementedError
+
     def is_zero(self):
         return len(self.coefficients) == 0
 
@@ -24,9 +40,6 @@ class VectorMixin:
 
     def __len__(self):
         return len(self.coefficients)
-
-    def __eq__(self, other):
-        return len(other - self) == 0
 
     @classmethod
     def get_index_repr(cls, index):
