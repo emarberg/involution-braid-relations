@@ -3,6 +3,16 @@ def reverse_tuple(input_tuple):
     return tuple(reversed(input_tuple))
 
 
+class IndeterminatePowerException(Exception):
+    def __init__(self):
+        super(IndeterminatePowerException, self).__init__('Cannot compute indeterminate power 0**0')
+
+
+class ZeroDivisionException(Exception):
+    def __init__(self, a):
+        super(ZeroDivisionException, self).__init__('Cannot divide %s by 0' % a.__class__.__name__)
+
+
 class VectorMixin:
 
     class OperatorException(Exception):
@@ -83,6 +93,12 @@ class VectorMixin:
 
 
 class NumberMixin:
+
+    class PowerException(Exception):
+        def __init__(self):
+            super(NumberMixin.PowerException, self).__init__(
+                '** not implemented when exponent is non-positive or non-integer')
+
     def __lt__(self, other):
         raise NotImplementedError
 
@@ -118,7 +134,7 @@ class NumberMixin:
 
     def __pow__(self, exponent):
         if type(exponent) != int or exponent <= 0:
-            raise Exception('** not implemented when exponent is non-positive or non-integer')
+            raise NumberMixin.PowerException
         if exponent == 1:
             return self + 0
         elif exponent % 2 == 0:

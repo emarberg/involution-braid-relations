@@ -1,6 +1,12 @@
 import numpy as np
 
-from utils import reverse_tuple, NumberMixin, VectorMixin
+from utils import (
+    reverse_tuple,
+    IndeterminatePowerException,
+    ZeroDivisionException,
+    NumberMixin,
+    VectorMixin
+)
 
 
 class RationalNumber(NumberMixin):
@@ -23,6 +29,8 @@ class RationalNumber(NumberMixin):
             p, q = self.reduce(p, q)
             self.numerator = p
             self.denominator = q
+        elif q == 0:
+            raise ZeroDivisionException(self)
         else:
             raise Exception('Invalid input types to RationalNumber: %s' % str((type(p), type(q))))
 
@@ -118,7 +126,7 @@ class RationalNumber(NumberMixin):
         elif exponent == 0 and self != 0:
             return RationalNumber(1)
         elif exponent == 0 and self == 0:
-            raise Exception('Cannot compute indeterminate power 0**0')
+            raise IndeterminatePowerException
 
         x = super(RationalNumber, self).__pow__(abs(exponent))
         if exponent < 0:
@@ -219,6 +227,17 @@ class PrimeFactorization:
 
 
 class QuadraticNumber(VectorMixin, NumberMixin):
+
+    class ImaginaryComparisonException(Exception):
+        def __init__(self, diff):
+            super(QuadraticNumber.ImaginaryComparisonException, self).__init__(
+                'Cannot compare quadratic numbers with non-real difference %s' % diff)
+
+    class IndeterminateComparisonException(Exception):
+        def __init__(self, a, b):
+            super(QuadraticNumber.IndeterminateComparisonException, self).__init__(
+                'Cannot determine inequality %s < %s' % (a, b))
+
     def __init__(self, i=0):
         if type(i) == int:
             i = RationalNumber(i)
@@ -256,14 +275,14 @@ class QuadraticNumber(VectorMixin, NumberMixin):
         if diff.is_rational():
             return 0 < diff[PrimeFactorization(1)]
         elif not diff.is_real():
-            raise Exception('Cannot compare quadratic numbers with non-real difference')
+            raise QuadraticNumber.ImaginaryComparisonException(diff)
         elif all(0 < c for c in diff.coefficients.values()):
             return True
         elif all(c < 0 for c in diff.coefficients.values()):
             return False
         positive_part, negative_part = diff.decompose()
         if max(len(positive_part), len(negative_part)) > 2:
-            raise Exception('Cannot determine inequality %s < %s' % (negative_part, positive_part))
+            raise QuadraticNumber.IndeterminateComparisonException(negative_part, positive_part)
         else:
             return negative_part**2 < positive_part**2
 
@@ -306,13 +325,15 @@ class QuadraticNumber(VectorMixin, NumberMixin):
             if exponent == 0 and self != 0:
                 return QuadraticNumber(1)
             elif exponent == 0 and self == 0:
-                raise Exception('Cannot compute indeterminate power 0**0')
+                raise IndeterminatePowerException
             elif exponent < 0:
                 return 1 / super(QuadraticNumber, self).__pow__(-exponent)
         return super(QuadraticNumber, self).__pow__(exponent)
 
     def __truediv__(self, other):
-        if not (type(other) in [int, RationalNumber, QuadraticNumber] and other != 0):
+        if other == 0:
+            raise ZeroDivisionException(self)
+        elif type(other) not in [int, RationalNumber, QuadraticNumber]:
             raise QuadraticNumber.OperatorException(self, other, '__truediv__')
         if self == 0:
             return QuadraticNumber(0)
@@ -550,7 +571,7 @@ class Polynomial(VectorMixin, NumberMixin):
         if type(other) not in [int, RationalNumber, QuadraticNumber]:
             raise Polynomial.OperatorException(self, other, '__truediv__')
         elif other == 0:
-            raise Exception('Cannot divide Polynomial by 0')
+            raise ZeroDivisionException(self)
         elif type(other) in [int, RationalNumber]:
             other = QuadraticNumber(other)
 

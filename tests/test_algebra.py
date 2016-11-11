@@ -1,5 +1,10 @@
 import pytest
 
+from utils import (
+    IndeterminatePowerException,
+    ZeroDivisionException
+)
+
 from algebra import (
     Monomial,
     Polynomial,
@@ -150,7 +155,10 @@ class TestRationalNumbers:
             # denominator must be nonzero
             RationalNumber(p, q)
         except Exception as e:
-            assert str(e).startswith('Invalid input types to RationalNumber: ')
+            if q == 0:
+                assert type(e) == ZeroDivisionException
+            else:
+                assert str(e).startswith('Invalid input types to RationalNumber: ')
         else:
             assert False
 
@@ -192,18 +200,17 @@ class TestRationalNumbers:
 
     @pytest.mark.parametrize("zero", [
         0,
-        0.0,
         RationalNumber(0, 1),
         QuadraticNumber(0),
         Polynomial(),
     ])
-    def test_division_errors(self, zero):
+    def test_zero_division_errors(self, zero):
         """Test error handling for attempted division of RationalNumber by zero."""
         a = RationalNumber(3, 7)
         try:
             a / zero
-        except:
-            pass
+        except Exception as e:
+            assert type(e) == ZeroDivisionException
         else:
             assert False
 
@@ -211,8 +218,8 @@ class TestRationalNumbers:
         # cannot compute 0**0
         try:
             RationalNumber(0, 1)**0
-        except:
-            pass
+        except Exception as e:
+            assert type(e) == IndeterminatePowerException
         else:
             assert False
 
@@ -411,7 +418,7 @@ class TestQuadraticNumbers:
         try:
             QuadraticNumber.sqrt(-2) < QuadraticNumber.sqrt(3)
         except Exception as e:
-            assert str(e).startswith('Cannot compare quadratic numbers with non-real difference')
+            assert type(e) == QuadraticNumber.ImaginaryComparisonException
         else:
             assert False
 
@@ -419,14 +426,14 @@ class TestQuadraticNumbers:
         try:
             a + b + c < d + 17
         except Exception as e:
-            assert str(e).startswith('Cannot determine inequality ')
+            assert type(e) == QuadraticNumber.IndeterminateComparisonException
         else:
             assert False
 
         try:
             2 - a < b + c + d
         except Exception as e:
-            assert str(e).startswith('Cannot determine inequality ')
+            assert type(e) == QuadraticNumber.IndeterminateComparisonException
         else:
             assert False
 
@@ -517,9 +524,9 @@ class TestQuadraticNumbers:
             assert False
 
     @pytest.mark.parametrize("i", [
-        (0.0),
-        (QuadraticNumber.sqrt(2)),
-        (Polynomial(4))
+        0.0,
+        QuadraticNumber.sqrt(2),
+        Polynomial(4)
     ])
     def test_sqrt_errors(self, i):
         """Test error handling of invalid arguments passed to QuadraticNumber constructor."""
@@ -537,13 +544,13 @@ class TestQuadraticNumbers:
         QuadraticNumber(0),
         Polynomial(),
     ])
-    def test_division_errors(self, zero):
+    def test_zero_division_errors(self, zero):
         """Test error handling for attempted division of QuadraticNumber by zero."""
         a = QuadraticNumber(RationalNumber(3, 7)) + QuadraticNumber.sqrt(2)
         try:
             a / zero
-        except:
-            pass
+        except Exception as e:
+            assert type(e) == ZeroDivisionException
         else:
             assert False
 
@@ -560,9 +567,7 @@ class TestQuadraticNumbers:
         try:
             QuadraticNumber(12) ** i
         except Exception as e:
-            assert str(e).startswith(
-                '** not implemented when exponent is non-positive or non-integer'
-            )
+            assert type(e) == QuadraticNumber.PowerException
         else:
             assert False
 
@@ -570,7 +575,7 @@ class TestQuadraticNumbers:
         try:
             QuadraticNumber(0)**0
         except Exception as e:
-            assert str(e).startswith('Cannot compute indeterminate power 0**0')
+            assert type(e) == IndeterminatePowerException
         else:
             assert False
 
@@ -916,19 +921,30 @@ class TestPolynomial:
             assert False
 
     @pytest.mark.parametrize("divisor", [
-        0,
         0.0,
-        RationalNumber(0),
-        QuadraticNumber(0),
-        Polynomial(0),
         Polynomial('x')
     ])
     def test_division_errors(self, divisor):
+        """Test error handling for division of Polynomials by invalid arguments."""
+        try:
+            Polynomial('x') / divisor
+        except Exception as e:
+            assert type(e) == Polynomial.OperatorException
+        else:
+            assert False
+
+    @pytest.mark.parametrize("divisor", [
+        0,
+        RationalNumber(0),
+        QuadraticNumber(0),
+        Polynomial(0)
+    ])
+    def test_zero_division_errors(self, divisor):
         """Test error handling for attempted division of Polynomials by zero."""
         try:
             Polynomial('x') / divisor
-        except:
-            pass
+        except Exception as e:
+            assert type(e) == ZeroDivisionException
         else:
             assert False
 
@@ -1105,14 +1121,14 @@ class TestPolynomial:
         try:
             f**1.0
         except Exception as e:
-            assert str(e) == '** not implemented when exponent is non-positive or non-integer'
+            assert type(e) == Polynomial.PowerException
         else:
             assert False
 
         try:
             f**-1
         except Exception as e:
-            assert str(e) == '** not implemented when exponent is non-positive or non-integer'
+            assert type(e) == Polynomial.PowerException
         else:
             assert False
 
