@@ -691,40 +691,99 @@ class Polynomial(VectorMixin, NumberMixin):
 
 
 class CoxeterGraph:
-    def __init__(self, triples, generators=None, star=None):
+
+    class GeneratorsException(Exception):
+        def __init__(self):
+            super(CoxeterGraph.GeneratorsException, self).__init__(
+                'Invalid input to CoxeterGraph: '
+                '`generators` must contain i and j for all (i, j, m) in `edges`')
+
+    class InvalidTupleException(Exception):
+        def __init__(self, i, j, m):
+            super(CoxeterGraph.InvalidTupleException, self).__init__(
+                'Invalid input to CoxeterGraph: '
+                '`edges` contains invalid tuple %s' % str((i, j, m)))
+
+    class InconsistentTupleException(Exception):
+        def __init__(self, i, j, m):
+            super(CoxeterGraph.InconsistentTupleException, self).__init__(
+                'Invalid input to CoxeterGraph: '
+                '`edges` contains inconsistent tuple %s' % str((i, j, m)))
+
+    class InvalidStarException(Exception):
+        def __init__(self):
+            super(CoxeterGraph.InvalidStarException, self).__init__(
+                'Invalid input to CoxeterGraph: `star` contains pairs involving non-generators')
+
+    class InconsistentStarException(Exception):
+        def __init__(self, i, j):
+            super(CoxeterGraph.InconsistentStarException, self).__init__(
+                'Invalid input to CoxeterGraph: '
+                '`star` contains inconsistent tuple %s' % str((i, j)))
+
+    class StarNotHomomorphismException(Exception):
+        def __init__(self, star):
+            super(CoxeterGraph.StarNotHomomorphismException, self).__init__(
+                'Invalid input to CoxeterGraph: '
+                '`star = %s` does not define automorphism' % star)
+
+    class GetOrderException(Exception):
+        def __init__(self):
+            super(CoxeterGraph.GetOrderException, self).__init__(
+                'Error in CoxeterGraph.get_order: input parameters (i, j) must index generators')
+
+    class StarException(Exception):
+        def __init__(self):
+            super(CoxeterGraph.StarException, self).__init__(
+                'Error in CoxeterGraph.star: input parameter i must index a generator')
+
+    class EvalBilinearException(Exception):
+        def __init__(self):
+            super(CoxeterGraph.EvalBilinearException, self).__init__(
+                'Error in CoxeterGraph.eval_bilinear: '
+                'method currently not supported for parameters (i, j) '
+                'when m_ij is not 1, 2, 3, 4, 5, 6, 12, or infinity')
+
+    class GetBraidException(Exception):
+        def __init__(self):
+            super(CoxeterGraph.GetBraidException, self).__init__(
+                'Error in CoxeterGraph.get_braid: m_ij must be finite for input parameters (i, j)')
+
+    def __init__(self, edges, generators=None, star=None):
         """
-        Input `triples` should be list of tuples (i, j, m) where i, j are indices of simple
+        Input `edges` should be list of tuples (i, j, m) where i, j are indices of simple
         generators and m is order of s_i s_j. Triples with m == 1 or 2 can be omitted.
         If (i, j, m) is included then the reverse tuple (j, i, m) also may be omitted.
 
         Input `generators` should be list of integers indexing simple generators of the group.
-        If not provided, this list will be formed from the set of numbers i or j in `triples`.
-        If i or j does not belong to `generators` for some (i, j, m) in `triples`, an error
+        If not provided, this list will be formed from the set of numbers i or j in `edges`.
+        If i or j does not belong to `generators` for some (i, j, m) in `edges`, an error
         will be raised.
 
         Input `star` should be list of pairs (i, j) such that the involution * : S -> S
         with i^* = j and j^* = i extends to an automorphism of W. If `star` is not given,
         * is defined to be the identity map.
         """
-        self._setup_generators(triples, generators)
-        self._setup_orders(triples)
+        self._setup_generators(edges, generators)
+        self._setup_orders(edges)
         self._setup_star(star)
 
-    def _setup_generators(self, triples, generators):
-        gens_from_triples = {t[0] for t in triples} | {t[1] for t in triples}
+    def _setup_generators(self, edges, generators):
+        # assign sorted list of simple generator indices to self.generators
+        generators_from_edges = {t[0] for t in edges} | {t[1] for t in edges}
         if generators is not None:
-            if gens_from_triples.issubset(set(generators)):
-                self.generators = sorted(set(generators))
+            generators = set(generators)
+            if generators_from_edges.issubset(generators):
+                self.generators = sorted(generators)
             else:
-                raise Exception('Invalid input to CoxeterGraph: '
-                                '`generators` must contain i and j for all (i, j, m) in `triples`')
+                raise CoxeterGraph.GeneratorsException
         else:
-            self.generators = sorted(gens_from_triples)
+            self.generators = sorted(generators_from_edges)
 
-    def _setup_orders(self, triples):
+    def _setup_orders(self, edges):
         # construct dictionary with orders m_ij of products of simple generators
         self.orders = {}
-        for i, j, m in triples:
+        for i, j, m in edges:
             # value of m must be an integer with 1 <= m <= infty
             valid_order = (type(m) == int and 1 <= m) or m == np.infty
             # must have m == 1 iff i == j
@@ -732,11 +791,9 @@ class CoxeterGraph:
             valid_generators = i in self.generators and j in self.generators
 
             if not (valid_order and valid_generators):
-                raise Exception('Invalid input to CoxeterGraph: '
-                                '`triples` contains invalid tuple %s' % str((i, j, m)))
+                raise CoxeterGraph.InvalidTupleException(i, j, m)
             elif self.orders.get((i, j), m) != m:
-                raise Exception('Invalid input to CoxeterGraph: '
-                                '`triples` contains inconsistent tuple %s' % str((i, j, m)))
+                raise CoxeterGraph.InconsistentTupleException(i, j, m)
             elif i != j and m != 2:
                 self.orders[(i, j)] = m
                 self.orders[(j, i)] = m
@@ -745,25 +802,21 @@ class CoxeterGraph:
         # construct dictionary with images of the *-involution 'star'
         self._star = {}
         if star:
-            gens_from_star = {t[0] for t in star} | {t[1] for t in star}
-            if not gens_from_star.issubset(set(self.generators)):
-                raise Exception('Invalid input to CoxeterGraph: '
-                                '`star` contains pairs which are not both generators')
-
+            generators_from_star = {t[0] for t in star} | {t[1] for t in star}
+            if not generators_from_star.issubset(set(self.generators)):
+                raise CoxeterGraph.InvalidStarException
             for i, j in star:
                 if self._star.get(i, j) == j and self._star.get(j, i) == i:
                     self._star[i] = j
                     self._star[j] = i
                 else:
-                    raise Exception('Invalid input to CoxeterGraph: '
-                                    '`star` contains inconsistent tuple %s' % str((i, j)))
+                    raise CoxeterGraph.InconsistentStarException(i, j)
 
         # validate that input `star` encodes automorphism
         for i in self.generators:
             for j in self.generators:
                 if self.get_order(i, j) != self.get_order(self.star(i), self.star(j)):
-                    raise Exception('Invalid input to CoxeterGraph: '
-                                    '`star = %s` does not define automorphism' % star)
+                    raise CoxeterGraph.StarNotHomomorphismException(star)
 
     def __eq__(self, other):
         return \
@@ -781,18 +834,24 @@ class CoxeterGraph:
         return hash((gens, orders, star))
 
     def star(self, i):
-        return self._star.get(i, i)
+        if i not in self.generators:
+            raise CoxeterGraph.StarException
+        else:
+            return self._star.get(i, i)
 
     def get_braid(self, i, j):
+        """Returns alternating tuple (i, j, i, j, ...) of length m_ij."""
         gens = [i, j]
         m = self.get_order(i, j)
         if m == np.infty:
-            raise Exception('Error in CoxeterGraph.get_braid: order m_ij must be finite')
+            raise CoxeterGraph.GetBraidException
         else:
             return tuple(gens[t % 2] for t in range(m))
 
     def get_order(self, i, j):
         """Return order of s_i*s_j in W."""
+        if i not in self.generators or j not in self.generators:
+            raise CoxeterGraph.GetOrderException
         if i == j:
             return 1
         else:
@@ -801,34 +860,24 @@ class CoxeterGraph:
     def eval_bilinear(self, i, j):
         """Returns -cos(pi/m_ij)."""
         m = self.get_order(i, j)
-        if self.is_simply_laced():
-            if m == 1:
-                return RationalNumber(1)
-            elif m == 2:
-                return RationalNumber(0)
-            else:
-                return RationalNumber(-1, 2)
-        elif self.is_quadratic():
-            if m == 1:
-                return QuadraticNumber(1)
-            elif m == 2:
-                return QuadraticNumber(0)
-            elif m == 3:
-                return -QuadraticNumber(1)/2
-            elif m == 4:
-                return -QuadraticNumber.sqrt(2)/2
-            elif m == 5:
-                return -(QuadraticNumber.sqrt(5) + 1)/4
-            elif m == 6:
-                return -QuadraticNumber.sqrt(3)/2
-            elif m == 12:
-                return -(QuadraticNumber.sqrt(6) + QuadraticNumber.sqrt(2))/4
-            elif m == np.infty:
-                return QuadraticNumber(-1)
+        if m == 1:
+            return 1
+        elif m == 2:
+            return 0
+        elif m == 3:
+            return RationalNumber(-1, 2)
+        elif m == 4:
+            return -QuadraticNumber.sqrt(2)/2
+        elif m == 5:
+            return -(QuadraticNumber.sqrt(5) + 1)/4
+        elif m == 6:
+            return -QuadraticNumber.sqrt(3)/2
+        elif m == 12:
+            return -(QuadraticNumber.sqrt(6) + QuadraticNumber.sqrt(2))/4
+        elif m == np.infty:
+            return -1
         else:
-            raise Exception('Error in CoxeterGraph.eval_bilinear: '
-                            'currently, m_ij must be 1, 2, ..., 6 or 12 or infinity')
-            #  return -np.cos(np.pi / self.get_order(i, j))
+            raise CoxeterGraph.EvalBilinearException
 
     def is_simply_laced(self):
         return set(self.orders.values()).issubset({1, 2, 3})
@@ -856,18 +905,18 @@ class CoxeterGraph:
 
     @staticmethod
     def A(n, star=None):
-        triples = [(i, i+1, 3) for i in range(1, n)]
-        return CoxeterGraph(triples, range(1, n+1), star)
+        edges = [(i, i+1, 3) for i in range(1, n)]
+        return CoxeterGraph(edges, star=star)
 
     @staticmethod
     def A2(n):
         star = [(i, n+1-i) for i in range(1, n+1)]
-        return CoxeterGraph.A(n, star)
+        return CoxeterGraph.A(n, star=star)
 
     @staticmethod
     def A_tilde(n):
-        triples = [(i, i+1, 3) for i in range(1, n)] + [(n, 1, 3)]
-        return CoxeterGraph(triples)
+        edges = [(i, i+1, 3) for i in range(1, n)] + [(n, 1, 3)]
+        return CoxeterGraph(edges)
 
     @staticmethod
     def B(n):
@@ -878,8 +927,8 @@ class CoxeterGraph:
 
         """
         assert 2 <= n
-        triples = [(i, i+1, 3) for i in range(1, n-1)] + [(0, 1, 4)]
-        return CoxeterGraph(triples)
+        edges = [(i, i+1, 3) for i in range(1, n-1)] + [(0, 1, 4)]
+        return CoxeterGraph(edges)
 
     @staticmethod
     def B_tilde(n):
@@ -902,14 +951,14 @@ class CoxeterGraph:
 
         """
         assert 4 <= n
-        triples = [(i, i+1, 3) for i in range(1, n-1)] + [(0, 2, 3)]
-        return CoxeterGraph(triples, star)
+        edges = [(i, i+1, 3) for i in range(1, n-1)] + [(0, 2, 3)]
+        return CoxeterGraph(edges, star=star)
 
     @staticmethod
     def D2(n):
         assert 4 <= n
         star = [(0, 1)] + [(i, i) for i in range(2, n)]
-        return CoxeterGraph.D(n, star)
+        return CoxeterGraph.D(n, star=star)
 
     @staticmethod
     def D_tilde(n):
@@ -927,14 +976,14 @@ class CoxeterGraph:
 
         """
         assert n in [6, 7, 8]
-        triples = [(1, 2, 3), (2, 4, 3), (3, 4, 3)] + [(i, i+1, 3) for i in range(4, n)]
-        return CoxeterGraph(triples, star)
+        edges = [(1, 2, 3), (2, 4, 3), (3, 4, 3)] + [(i, i+1, 3) for i in range(4, n)]
+        return CoxeterGraph(edges, star=star)
 
     @staticmethod
     def E2(n):
         assert n == 6
         star = [(1, 6), (2, 5), (3, 3), (4, 4)]
-        return CoxeterGraph.E(n, star)
+        return CoxeterGraph.E(n, star=star)
 
     @staticmethod
     def E_tilde(n):
@@ -944,14 +993,14 @@ class CoxeterGraph:
     @staticmethod
     def F(n=4, star=None):
         assert n == 4
-        triples = [(1, 2, 3), (2, 3, 4), (3, 4, 3)]
-        return CoxeterGraph(triples, star)
+        edges = [(1, 2, 3), (2, 3, 4), (3, 4, 3)]
+        return CoxeterGraph(edges, star=star)
 
     @staticmethod
     def F2(n=4):
         assert n == 4
         star = [(1, 4), (2, 3)]
-        return CoxeterGraph.F(n, star)
+        return CoxeterGraph.F(n, star=star)
 
     @staticmethod
     def F_tilde(n):
@@ -966,7 +1015,7 @@ class CoxeterGraph:
     @staticmethod
     def G2(n=2):
         assert n == 2
-        return CoxeterGraph([(1, 2, 6)], [(1, 2)])
+        return CoxeterGraph([(1, 2, 6)], star=[(1, 2)])
 
     @staticmethod
     def G_tilde(n):
@@ -984,10 +1033,10 @@ class CoxeterGraph:
         """
         assert n in [3, 4]
         if n == 3:
-            triples = [(1, 2, 5), (2, 3, 3)]
+            edges = [(1, 2, 5), (2, 3, 3)]
         elif n == 4:
-            triples = [(1, 2, 5), (2, 3, 3), (3, 4, 3)]
-        return CoxeterGraph(triples)
+            edges = [(1, 2, 5), (2, 3, 3), (3, 4, 3)]
+        return CoxeterGraph(edges)
 
 
 class Root(VectorMixin, NumberMixin):
