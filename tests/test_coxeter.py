@@ -226,14 +226,14 @@ class TestRoot:
             try:
                 r == zero
             except Exception as e:
-                assert type(e) == Root.ComparisonException
+                assert type(e) == Root.OperatorException
             else:
                 assert False
 
             try:
                 zero == r
             except Exception as e:
-                assert type(e) == type(zero).ComparisonException
+                assert type(e) == type(zero).OperatorException
             else:
                 assert False
 

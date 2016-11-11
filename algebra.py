@@ -5,10 +5,11 @@ from utils import reverse_tuple, NumberMixin, VectorMixin
 
 class RationalNumber(NumberMixin):
 
-    class ComparisonException(Exception):
-        def __init__(self, other):
-            super(RationalNumber.ComparisonException, self).__init__(
-                'Cannot compare RationalNumber with `%s`' % type(other))
+    class OperatorException(Exception):
+        def __init__(self, other, operator='__eq__'):
+            method = 'RationalNumber.' + operator
+            super(RationalNumber.OperatorException, self).__init__(
+                'Cannot evaluate %s with input of type `%s`' % (method, type(other)))
 
     def __init__(self, p=0, q=1):
         if type(p) == type(q) == RationalNumber:
@@ -55,7 +56,7 @@ class RationalNumber(NumberMixin):
         elif type(other) == Polynomial:
             return Polynomial(self) == other
         else:
-            raise RationalNumber.ComparisonException(other)
+            raise RationalNumber.OperatorException(other)
 
     def __lt__(self, other):
         if type(other) == int:
@@ -67,7 +68,7 @@ class RationalNumber(NumberMixin):
         elif type(other) == Polynomial:
             return Polynomial(self) < other
         else:
-            raise RationalNumber.ComparisonException(other)
+            raise RationalNumber.OperatorException(other, '__lt__')
 
     def __le__(self, other):
         if type(other) == Polynomial:
@@ -84,7 +85,7 @@ class RationalNumber(NumberMixin):
             p = self.numerator*other.denominator + other.numerator*self.denominator
             q = self.denominator*other.denominator
         else:
-            raise Exception('Cannot add RationalNumber and `%s`' % type(other))
+            raise RationalNumber.OperatorException(other, '__add__')
         return RationalNumber(p, q)
 
     def __mul__(self, other):
@@ -95,7 +96,7 @@ class RationalNumber(NumberMixin):
         elif type(other) == RationalNumber:
             p, q = self.numerator*other.numerator, self.denominator*other.denominator
         else:
-            raise Exception('Cannot multiply RationalNumber by `%s`' % type(other))
+            raise RationalNumber.OperatorException(other, '__mul__')
         return RationalNumber(p, q)
 
     def __truediv__(self, other):
@@ -106,14 +107,14 @@ class RationalNumber(NumberMixin):
         elif type(other) in [int, RationalNumber]:
             return RationalNumber(self, other)
         else:
-            raise Exception('Cannot divide RationalNumber by `%s`' % type(other))
+            raise RationalNumber.OperatorException(other, '__truediv__')
 
     def __rtruediv__(self, other):
         return other * RationalNumber(1, self)
 
     def __pow__(self, exponent):
         if type(exponent) != int:
-            raise Exception('Cannot exponentiate RationalNumber by `%s`' % type(exponent))
+            raise RationalNumber.OperatorException(exponent, '__pow__')
         elif exponent == 0 and self != 0:
             return RationalNumber(1)
         elif exponent == 0 and self == 0:
@@ -249,7 +250,7 @@ class QuadraticNumber(VectorMixin, NumberMixin):
         elif type(other) in [int, RationalNumber]:
             other = QuadraticNumber(other)
         elif type(other) != QuadraticNumber:
-            raise QuadraticNumber.ComparisonException(self, other)
+            raise QuadraticNumber.OperatorException(self, other)
 
         diff = other - self
         if diff.is_rational():
@@ -278,7 +279,7 @@ class QuadraticNumber(VectorMixin, NumberMixin):
         elif type(other) in [int, RationalNumber]:
             other = QuadraticNumber(other)
         elif type(other) != QuadraticNumber:
-            raise Exception('Cannot add QuadraticNumber and `%s`' % type(other))
+            raise QuadraticNumber.OperatorException(self, other, '__add__')
         keys = set(self.coefficients.keys()) | set(other.coefficients.keys())
         new = QuadraticNumber()
         new.coefficients = {i: self[i] + other[i] for i in keys if (self[i] + other[i]) != 0}
@@ -290,7 +291,7 @@ class QuadraticNumber(VectorMixin, NumberMixin):
         elif type(other) in [int, RationalNumber]:
             other = QuadraticNumber(other)
         elif type(other) != QuadraticNumber:
-            raise Exception('Cannot multiply QuadraticNumber and `%s`' % type(other))
+            raise QuadraticNumber.OperatorException(self, other, '__mul__')
         new = QuadraticNumber()
         for factors_1, coeff_1 in other:
             for factors_2, coeff_2 in self:
@@ -312,7 +313,7 @@ class QuadraticNumber(VectorMixin, NumberMixin):
 
     def __truediv__(self, other):
         if not (type(other) in [int, RationalNumber, QuadraticNumber] and other != 0):
-            raise Exception('Cannot divide Quadratic number by `%s`' % str(other))
+            raise QuadraticNumber.OperatorException(self, other, '__truediv__')
         if self == 0:
             return QuadraticNumber(0)
         elif type(other) in [int, RationalNumber]:
@@ -497,7 +498,7 @@ class Polynomial(VectorMixin, NumberMixin):
             diff = other - self
             return 0 < diff.get_constant_part() and all(0 < c for c in diff.coefficients.values())
         else:
-            raise Polynomial.ComparisonException(self, other)
+            raise Polynomial.OperatorException(self, other, '__lt__')
 
     def __le__(self, other):
         diff = other - self
@@ -517,7 +518,7 @@ class Polynomial(VectorMixin, NumberMixin):
         if type(other) in [int, RationalNumber, QuadraticNumber]:
             other = Polynomial(other)
         elif type(other) != Polynomial:
-            raise Exception('Cannot add Polynomial and `%s`' % type(other))
+            raise Polynomial.OperatorException(self, other, '__add__')
         new = Polynomial()
         keys = set(self.coefficients.keys()) | other.coefficients.keys()
         new.coefficients = {i: self[i] + other[i] for i in keys if self[i] + other[i] != 0}
@@ -529,7 +530,7 @@ class Polynomial(VectorMixin, NumberMixin):
         elif type(other) in [int, RationalNumber, QuadraticNumber]:
             other = Polynomial(other)
         elif type(other) != Polynomial:
-            raise Exception('Cannot multiply Polynomial and `%s`' % type(other))
+            raise Polynomial.OperatorException(self, other, '__mul__')
         new = Polynomial()
         for monomial_1, coeff_1 in other:
             for monomial_2, coeff_2 in self:
@@ -547,7 +548,7 @@ class Polynomial(VectorMixin, NumberMixin):
             other = other[1]
 
         if type(other) not in [int, RationalNumber, QuadraticNumber]:
-            raise Exception('Cannot divide Polynomial by `%s`' % type(other))
+            raise Polynomial.OperatorException(self, other, '__truediv__')
         elif other == 0:
             raise Exception('Cannot divide Polynomial by 0')
         elif type(other) in [int, RationalNumber]:
@@ -557,6 +558,12 @@ class Polynomial(VectorMixin, NumberMixin):
         for i, v in self:
             new[i] = v/other
         return new
+
+    def __rtruediv__(self, other):
+        if self.is_constant() and type(other) in [int, RationalNumber, QuadraticNumber]:
+            return Polynomial(other / self.get_constant_part())
+        else:
+            raise Polynomial.OperatorException(self, other, '__rtruediv__')
 
     def __getitem__(self, i):
         if i == 1:
@@ -1141,7 +1148,7 @@ class Root(VectorMixin, NumberMixin):
             new.coefficients = {i: self[i] + other[i] for i in indices if (self[i] + other[i]) != 0}
             return new
         else:
-            raise Exception('Cannot add `%s` to Root' % other)
+            raise Root.OperatorException(self, other, '__add__')
 
     def __mul__(self, other):
         new = Root(self.graph)

@@ -5,16 +5,17 @@ def reverse_tuple(input_tuple):
 
 class VectorMixin:
 
-    class ComparisonException(Exception):
-        def __init__(self, a, b):
-            super(VectorMixin.ComparisonException, self).__init__(
-                'Cannot compare %s with `%s`' % (a.__class__.__name__, type(b)))
+    class OperatorException(Exception):
+        def __init__(self, a, b, operator='__eq__'):
+            method = a.__class__.__name__ + '.' + operator
+            super(VectorMixin.OperatorException, self).__init__(
+                'Cannot evaluate %s with input of type `%s`' % (method, type(b)))
 
     def __eq__(self, other):
         if self.is_comparable(other):
             return len(other - self) == 0
         else:
-            raise VectorMixin.ComparisonException(self, other)
+            raise VectorMixin.OperatorException(self, other)
 
     def is_comparable(self, other):
         """Returns True if we can evaluate ==, etc, between self and other."""
@@ -110,7 +111,7 @@ class NumberMixin:
         return self * other
 
     def __sub__(self, other):
-        return self + other * -1
+        return -(-self + other)
 
     def __rsub__(self, other):
         return -(self - other)
