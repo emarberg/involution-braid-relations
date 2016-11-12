@@ -219,6 +219,7 @@ class TestRoot:
         nonzero = Root(g, 1, Polynomial('x'))
         assert nonzero.coefficients == {1: Polynomial('x')}
 
+        # second argument to root constructor must belong of g.generators
         try:
             Root(g, 0)
         except Exception as e:
@@ -248,10 +249,12 @@ class TestRoot:
             else:
                 assert False
 
+        # r and s are linearly independent vectors, so clearly not equal
         r = Root(g, 1)
         s = Root(g, 2)
         assert r != s
 
+        # roots should be considered equal if their coefficients represent the same numbers
         a = Root(g, 1, 2)
         b = Root(g, 1, RationalNumber(2))
         c = Root(g, 1, QuadraticNumber(2))
@@ -266,10 +269,12 @@ class TestRoot:
         s = Root(g, 2)
         t = Root(g, 3)
 
+        # <alpha, alpha> == 1 for any root alpha
         assert r.eval_bilinear(r) == r.eval_bilinear(1) == 1
         assert s.eval_bilinear(s) == s.eval_bilinear(2) == 1
         assert t.eval_bilinear(t) == t.eval_bilinear(3) == 1
 
+        # <alpha_i, alpha_j> == -cos(pi / m_ij)
         assert r.eval_bilinear(s) == r.eval_bilinear(2) == -RationalNumber(1)/2
         assert r.eval_bilinear(t) == r.eval_bilinear(3) == 0
         assert s.eval_bilinear(r) == s.eval_bilinear(1) == -RationalNumber(1)/2
@@ -277,6 +282,7 @@ class TestRoot:
         assert t.eval_bilinear(r) == t.eval_bilinear(1) == 0
         assert t.eval_bilinear(s) == t.eval_bilinear(2) == -QuadraticNumber.sqrt(2)/2
 
+        # check that <-,-> is bilinear
         assert (r + s).eval_bilinear(s + t) == RationalNumber(1)/2 - QuadraticNumber.sqrt(2)/2
         assert (r + s).reflect(3) == r + s + QuadraticNumber.sqrt(2)*t
 
@@ -288,6 +294,7 @@ class TestRoot:
         else:
             assert False
 
+        # input to r.reflect() must belong to r.graph.generators
         try:
             r.reflect(0)
         except Exception as e:

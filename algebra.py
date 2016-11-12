@@ -751,7 +751,7 @@ class CoxeterGraph:
         """
         Input `edges` should be list of tuples (i, j, m) where i, j are indices of simple
         generators and m is order of s_i s_j. Triples with m == 1 or 2 can be omitted.
-        If (i, j, m) is included then the reverse tuple (j, i, m) also may be omitted.
+        If (i, j, m) is included then the reverse triple (j, i, m) also may be omitted.
 
         Input `generators` should be list of integers indexing simple generators of the group.
         If not provided, this list will be formed from the set of numbers i or j in `edges`.
@@ -1086,6 +1086,14 @@ class Root(VectorMixin, NumberMixin):
         return (not self.is_zero()) and all(v <= 0 for _, v in self)
 
     def is_valid(self):
+        """
+        A Root object given by a linear combination sum_i c_i alpha_i of simple roots
+        is 'invalid' if it is zero or if for some i and j it holds that c_i and c_j are
+        nonzero polynomials with all positive and all negative coefficients, respectively.
+
+        An 'invalid' linear combination does not specialize to a positive or negative root
+        for any choice of nonnegative values for our indeterminates.
+        """
         if self.is_zero():
             return False
         if any(v < 0 for _, v in self) and any(0 < v for _, v in self):
