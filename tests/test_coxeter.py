@@ -183,15 +183,6 @@ class TestCoxeterGraph:
         else:
             assert False
 
-        # static methods for affine Coxeter systems are currently not implemented
-        B5 = CoxeterGraph.B_tilde(5)
-        C5 = CoxeterGraph.C_tilde(5)
-        D5 = CoxeterGraph.D_tilde(5)
-        E8 = CoxeterGraph.E_tilde(8)
-        F4 = CoxeterGraph.F_tilde(5)
-        G2 = CoxeterGraph.G_tilde(2)
-        assert {B5, C5, D5, E8, F4, G2} == {None}
-
     def test_eval_bilinear(self):
         a5 = CoxeterGraph.A(5)
         b6 = CoxeterGraph.B(6)

@@ -1006,36 +1006,6 @@ class CoxeterGraph:
         edges = [(i, i+1, 3) for i in range(1, n)] + [(n, 1, 3)]
         return CoxeterGraph(edges)
 
-    @staticmethod
-    def B_tilde(n):
-        # TODO
-        pass
-
-    @staticmethod
-    def C_tilde(n):
-        # TODO
-        pass
-
-    @staticmethod
-    def D_tilde(n):
-        # TODO
-        pass
-
-    @staticmethod
-    def E_tilde(n):
-        # TODO
-        pass
-
-    @staticmethod
-    def F_tilde(n):
-        # TODO
-        pass
-
-    @staticmethod
-    def G_tilde(n):
-        # TODO
-        pass
-
 
 class Root(VectorMixin, NumberMixin):
 
