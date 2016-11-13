@@ -626,7 +626,13 @@ class TestMonomial:
     ])
     def test_constructor(self, i, expected):
         """Test constructor for Monomial with a variety of valid inputs."""
-        assert Monomial(i).exponents == expected
+        result = Monomial(i)
+        assert result.exponents == expected
+
+        # check that changes to input i have no effect on created Monomial
+        if type(i) == dict:
+            i.clear()
+            assert result.exponents == expected
 
     def test_repr(self):
         """Test conversion of Monomial to str."""
@@ -742,7 +748,13 @@ class TestPolynomial:
     ])
     def test_constructor(self, i, expected):
         """Test constructor for Polynomial with a variety of valid inputs."""
-        assert Polynomial(i).coefficients == expected
+        result = Polynomial(i)
+        assert result.coefficients == expected
+
+        # check that changes to input i have no effect on created Polynomial
+        if type(i) == dict:
+            i.clear()
+            assert result.coefficients == expected
 
     def test_repr(self):
         """Tests for conversion of Polynomial to str."""

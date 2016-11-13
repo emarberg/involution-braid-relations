@@ -912,11 +912,6 @@ class CoxeterGraph:
         return CoxeterGraph.A(n, star=star)
 
     @staticmethod
-    def A_tilde(n):
-        edges = [(i, i+1, 3) for i in range(1, n)] + [(n, 1, 3)]
-        return CoxeterGraph(edges)
-
-    @staticmethod
     def B(n):
         """
         Dynkin diagram labeling is:
@@ -927,16 +922,6 @@ class CoxeterGraph:
         assert 2 <= n
         edges = [(i, i+1, 3) for i in range(1, n-1)] + [(0, 1, 4)]
         return CoxeterGraph(edges)
-
-    @staticmethod
-    def B_tilde(n):
-        # TODO
-        pass
-
-    @staticmethod
-    def C_tilde(n):
-        # TODO
-        pass
 
     @staticmethod
     def D(n, star=None):
@@ -959,11 +944,6 @@ class CoxeterGraph:
         return CoxeterGraph.D(n, star=star)
 
     @staticmethod
-    def D_tilde(n):
-        # TODO
-        pass
-
-    @staticmethod
     def E(n, star=None):
         """
         Dynkin diagram labeling is:
@@ -984,11 +964,6 @@ class CoxeterGraph:
         return CoxeterGraph.E(n, star=star)
 
     @staticmethod
-    def E_tilde(n):
-        # TODO
-        pass
-
-    @staticmethod
     def F(n=4, star=None):
         assert n == 4
         edges = [(1, 2, 3), (2, 3, 4), (3, 4, 3)]
@@ -1001,11 +976,6 @@ class CoxeterGraph:
         return CoxeterGraph.F(n, star=star)
 
     @staticmethod
-    def F_tilde(n):
-        # TODO
-        pass
-
-    @staticmethod
     def G(n=2):
         assert n == 2
         return CoxeterGraph([(1, 2, 6)])
@@ -1014,11 +984,6 @@ class CoxeterGraph:
     def G2(n=2):
         assert n == 2
         return CoxeterGraph([(1, 2, 6)], star=[(1, 2)])
-
-    @staticmethod
-    def G_tilde(n):
-        # TODO
-        pass
 
     @staticmethod
     def H(n):
@@ -1035,6 +1000,41 @@ class CoxeterGraph:
         elif n == 4:
             edges = [(1, 2, 5), (2, 3, 3), (3, 4, 3)]
         return CoxeterGraph(edges)
+
+    @staticmethod
+    def A_tilde(n):
+        edges = [(i, i+1, 3) for i in range(1, n)] + [(n, 1, 3)]
+        return CoxeterGraph(edges)
+
+    @staticmethod
+    def B_tilde(n):
+        # TODO
+        pass
+
+    @staticmethod
+    def C_tilde(n):
+        # TODO
+        pass
+
+    @staticmethod
+    def D_tilde(n):
+        # TODO
+        pass
+
+    @staticmethod
+    def E_tilde(n):
+        # TODO
+        pass
+
+    @staticmethod
+    def F_tilde(n):
+        # TODO
+        pass
+
+    @staticmethod
+    def G_tilde(n):
+        # TODO
+        pass
 
 
 class Root(VectorMixin, NumberMixin):
@@ -1087,12 +1087,13 @@ class Root(VectorMixin, NumberMixin):
 
     def is_valid(self):
         """
-        A Root object given by a linear combination sum_i c_i alpha_i of simple roots
-        is 'invalid' if it is zero or if for some i and j it holds that c_i and c_j are
-        nonzero polynomials with all positive and all negative coefficients, respectively.
+        A Root object, which is a linear combination sum_i c_i alpha_i of simple roots,
+        is 'invalid' if it is zero or if for some i and j it holds that -c_i and c_j are
+        both polynomials whose coefficients are all nonnegative and whose constant
+        coefficients are positive.
 
         An 'invalid' linear combination does not specialize to a positive or negative root
-        for any choice of nonnegative values for our indeterminates.
+        for any choice of nonnegative indeterminate values.
         """
         if self.is_zero():
             return False
@@ -1188,7 +1189,7 @@ class RootTransform:
             self.sigma[i] = value
             self._unset_cached_properties()
         else:
-            raise InvalidInputException(self, (i, value, self.__name__), '__setitem__')
+            raise InvalidInputException(self, (i, value), '__setitem__')
 
     @property
     def unconditional_descents(self):
@@ -1223,24 +1224,24 @@ class RootTransform:
         return cls(coxeter_graph, sigma)
 
     def __mul__(self, j):
-        if j in self.graph.generators:
-            new = {}
-            for i in self.sigma:
-                root = Root(self.graph, i).reflect(j)
-                for k, v in root:
-                    new[i] = new.get(i, 0) + self.sigma[k] * v
-            return self.__class__(self.graph, new)
-        else:
-            raise Exception('Cannot multiply %s by %s' % (self.__name__, j))
+        if j not in self.graph.generators:
+            raise InvalidInputException(self, j, '__mul__')
+        new = {}
+        for i in self.sigma:
+            root = Root(self.graph, i).reflect(j)
+            for k, v in root:
+                if k not in self.sigma:
+                    raise InvalidInputException(self, j, '__mul__')
+                new[i] = new.get(i, 0) + self.sigma[k] * v
+        return self.__class__(self.graph, new)
 
     def __rmul__(self, j):
-        if j in self.graph.generators:
-            new = {}
-            for i in self.sigma:
-                new[i] = self.sigma[i].reflect(j)
-            return self.__class__(self.graph, new)
-        else:
-            raise Exception('Cannot right multiply %s by %s' % (self.__name__, j))
+        if j not in self.graph.generators:
+            raise InvalidInputException(self, j, '__rmul__')
+        new = {}
+        for i in self.sigma:
+            new[i] = self.sigma[i].reflect(j)
+        return self.__class__(self.graph, new)
 
     def to_coxeter_transform(self):
         return CoxeterTransform(self.graph, self.sigma)
@@ -1288,7 +1289,7 @@ class CoxeterTransform(RootTransform):
             if keys_valid and roots_valid and nonvariable:
                 self.sigma = sigma.copy()
             else:
-                raise Exception('Invalid input `sigma = %s` to CoxeterTransform' % sigma)
+                raise InvalidInputException(self, sigma)
         else:
             self.sigma = {i: Root(coxeter_graph, i) for i in coxeter_graph.generators}
         self.graph = coxeter_graph
@@ -1317,9 +1318,9 @@ class CoxeterTransform(RootTransform):
 
     def __setitem__(self, i, value):
         if not (value.is_constant() and type(value) == Root and value.graph == self.graph):
-            raise Exception('Invalid value `%s` in CoxeterTransform.__setitem__' % value)
+            raise InvalidInputException(self, (i, value), '__setitem__')
         elif i not in self.graph.generators:
-            raise Exception('Invalid index `%s` in CoxeterTransform.__setitem__' % i)
+            raise InvalidInputException(self, (i, value), '__setitem__')
         else:
             self.sigma[i] = value
             self._unset_cached_properties()
@@ -1409,7 +1410,7 @@ class CoxeterTransform(RootTransform):
 class CoxeterWord:
     def __init__(self, coxeter_graph, word=()):
         self.graph = coxeter_graph
-        self.word = []
+        self.word = ()
         self.left_action = CoxeterTransform.identity(coxeter_graph)
         self.right_action = CoxeterTransform.identity(coxeter_graph)
         self.is_reduced = True
@@ -1449,7 +1450,7 @@ class CoxeterWord:
 
     def get_reduced_words(self):
         ans = set()
-        to_add = set([tuple(self.word)])
+        to_add = {self.word}
         while to_add:
             ans.update(to_add)
             next_to_add = set()
@@ -1465,34 +1466,40 @@ class CoxeterWord:
 
     def copy(self):
         other = CoxeterWord(self.graph)
-        other.word = self.word[:]
+        other.word = self.word
         other.left_action = self.left_action.copy()
         other.right_action = self.right_action.copy()
         other.is_reduced = self.is_reduced
         return other
 
     def extend_right(self, j):
-        """Replace self.word by self.word + [j] and update other fields."""
-        self.word = self.word + [j]
+        """Append j to self.word and update other fields."""
+        self.word = self.word + (j,)
         self.is_reduced = self.is_reduced and (j not in self.right_descents)
-        self.left_action = self.left_action * j
-        self.right_action = j * self.right_action
+        try:
+            self.left_action = self.left_action * j
+            self.right_action = j * self.right_action
+        except:
+            raise InvalidInputException(self, j, 'extend_right')
 
     def extend_left(self, j):
-        """Replace self.word by [j] + self.word and update other fields."""
-        self.word = [j] + self.word
+        """Prepend j to self.word and update other fields."""
+        self.word = (j,) + self.word
         self.is_reduced = self.is_reduced and (j not in self.left_descents)
-        self.left_action = j * self.left_action
-        self.right_action = self.right_action * j
+        try:
+            self.left_action = j * self.left_action
+            self.right_action = self.right_action * j
+        except:
+            raise InvalidInputException(self, j, 'extend_left')
 
     def _is_valid_argument(self, other):
-        valid_a = type(other) == CoxeterWord and other.graph == self.graph
-        valid_b = type(other) == int and other in self.graph.generators
-        return valid_a or valid_b
+        return \
+            (type(other) == CoxeterWord and other.graph == self.graph) or \
+            (type(other) == int and other in self.graph.generators)
 
     def __mul__(self, other):
         if not self._is_valid_argument(other):
-            raise Exception('Cannot multiply CoxeterWord by `%s`' % type(other))
+            raise InvalidInputException(self, type(other), '__mul__')
 
         if type(other) == int:
             new = self.copy()
@@ -1505,7 +1512,7 @@ class CoxeterWord:
 
     def __rmul__(self, other):
         if not self._is_valid_argument(other):
-            raise Exception('Cannot multiply CoxeterWord by `%s`' % type(other))
+            raise InvalidInputException(self, type(other), '__rmul__')
 
         if type(other) == int:
             new = self.copy()
@@ -1518,4 +1525,4 @@ class CoxeterWord:
 
     def __repr__(self):
         letters = map(str, self.word)
-        return (not self.is_reduced)*'un' + 'reduced word [' + ', '.join(letters) + ']'
+        return (not self.is_reduced)*'un' + 'reduced word (' + ', '.join(letters) + ')'

@@ -12,7 +12,8 @@ from algebra import (
     CoxeterGraph,
     Root,
     RootTransform,
-    CoxeterTransform
+    CoxeterTransform,
+    CoxeterWord
 )
 
 
@@ -32,6 +33,7 @@ class TestCoxeterGraph:
         assert g.get_order(4, 3) == 4
         assert g.star(1) == 4 and g.star(2) == 3 and g.star(3) == 2 and g.star(4) == 1
 
+        # inputs i, j to g.get_order() must both be in generators
         try:
             g.get_order(2, 10)
         except Exception as e:
@@ -46,6 +48,7 @@ class TestCoxeterGraph:
         else:
             assert False
 
+        # input i to g.star() must be in generators
         try:
             g.star(10)
         except Exception as e:
@@ -180,6 +183,15 @@ class TestCoxeterGraph:
         else:
             assert False
 
+        # static methods for affine Coxeter systems are currently not implemented
+        B5 = CoxeterGraph.B_tilde(5)
+        C5 = CoxeterGraph.C_tilde(5)
+        D5 = CoxeterGraph.D_tilde(5)
+        E8 = CoxeterGraph.E_tilde(8)
+        F4 = CoxeterGraph.F_tilde(5)
+        G2 = CoxeterGraph.G_tilde(2)
+        assert {B5, C5, D5, E8, F4, G2} == {None}
+
     def test_eval_bilinear(self):
         a5 = CoxeterGraph.A(5)
         b6 = CoxeterGraph.B(6)
@@ -286,6 +298,11 @@ class TestRoot:
         assert (r + s).eval_bilinear(s + t) == RationalNumber(1)/2 - QuadraticNumber.sqrt(2)/2
         assert (r + s).reflect(3) == r + s + QuadraticNumber.sqrt(2)*t
 
+    def test_eval_bilinear_errors(self):
+        """Test error handling for various invalid inputs to Root.eval_bilinear()."""
+        g = CoxeterGraph.F(4)
+        r = Root(g, 1)
+
         # int inputs to r.eval_bilinear or r.reflect must belong to r.graph.generators
         try:
             r.eval_bilinear(0)
@@ -390,12 +407,391 @@ class TestRoot:
 
 
 class TestRootTransform:
-    pass
+    def test_constructor(self):
+        g = CoxeterGraph.A(5)
+        T = RootTransform(g)
+        assert T.graph == g
+        assert T.sigma == {}
+        assert T.unconditional_descents == set()
+        assert T.strong_conditional_descents == set()
+        assert T.weak_conditional_descents == set()
+
+        sigma = {1: -Root(g, 2), 2: Root(g, 1)}
+        T = RootTransform(g, sigma)
+        assert T.sigma == sigma
+        # check that changes to sigma do not affect T after construction
+        del sigma[1]
+        assert T.sigma == {1: -Root(g, 2), 2: Root(g, 1)}
+        assert T.unconditional_descents == {1}
+        assert T.strong_conditional_descents == {1}
+        assert T.weak_conditional_descents == {1}
+
+        T[1] *= Polynomial('x')
+        # T now has no unconditional descents, but 1 is a conditional descent
+        assert T.sigma == {1: -Root(g, 2, Polynomial('x')), 2: Root(g, 1)}
+        assert T.unconditional_descents == set()
+        assert T.strong_conditional_descents == {1}
+        assert T.weak_conditional_descents == {1}
+
+        T[1] += Root(g, 2)
+        # T now has no strong conditional descents, but 1 is a weak conditional descent
+        assert T.sigma == {1: Root(g, 2, 1 - Polynomial('x')), 2: Root(g, 1)}
+        assert T.unconditional_descents == set()
+        assert T.strong_conditional_descents == set()
+        assert T.weak_conditional_descents == {1}
+
+        T[1] += Root(g, 2, 2*Polynomial('x'))
+        # T now has no descents, although T is not trivial
+        assert T.sigma == {1: Root(g, 2, 1 + Polynomial('x')), 2: Root(g, 1)}
+        assert T.unconditional_descents == set()
+        assert T.strong_conditional_descents == set()
+        assert T.weak_conditional_descents == set()
+
+    def test_constructor_errors(self):
+        # Check error handling for invalid constructor inputs.
+        g = CoxeterGraph.A(5)
+        try:
+            RootTransform(g, {0: 0})
+        except Exception as e:
+            assert type(e) == InvalidInputException
+        else:
+            assert False
+
+        try:
+            RootTransform(g, {1: Root(CoxeterGraph.B(5), 1)})
+        except Exception as e:
+            assert type(e) == InvalidInputException
+        else:
+            assert False
+
+        T = RootTransform(g, {1: -Root(g, 2), 2: Root(g, 1)})
+        try:
+            T[1] = Root(CoxeterGraph.B(5), 1)
+        except Exception as e:
+            assert type(e) == InvalidInputException
+        else:
+            assert False
+
+    def test_eq(self):
+        g = CoxeterGraph.A(5)
+        T = RootTransform(g, {1: Root(g, 2, 1 + Polynomial('x')), 2: Root(g, 1)})
+        U = T
+        V = T.copy()
+
+        T[1] = Root(g)
+        assert U[1] == 0 and U == T
+        assert V[1] == Root(g, 2, 1 + Polynomial('x')) and T != V
+        assert len({T, U, V}) == len({T, V}) == 2
+
+    def test_multiply(self):
+        g = CoxeterGraph.A(5)
+        T = RootTransform(g, {1: Root(g, 2, 1 + Polynomial('x')), 2: Root(g, 1)})
+
+        U = T * 1
+        assert U.sigma == {
+            1: -Root(g, 2, 1 + Polynomial('x')),
+            2: Root(g, 1) + Root(g, 2, 1 + Polynomial('x'))
+        }
+
+        V = 1 * T
+        assert V.sigma == {
+            1: (Root(g, 1) + Root(g, 2)) * (1 + Polynomial('x')),
+            2: -Root(g, 1)
+        }
+
+        W = 1 * T * 1
+        assert W.sigma == {
+            1: -(Root(g, 1) + Root(g, 2))*(1 + Polynomial('x')),
+            2: Root(g, 1, Polynomial('x')) + Root(g, 2, 1 + Polynomial('x'))
+        }
+
+    def test_multiplication_errors(self):
+        g = CoxeterGraph.A(5)
+        T = RootTransform(g, {1: Root(g, 2, 1 + Polynomial('x')), 2: Root(g, 1)})
+
+        # cannot multiply by 6 since this is not a generator for the Coxeter system A5
+        try:
+            T * 6
+        except Exception as e:
+            assert type(e) == InvalidInputException
+        else:
+            assert False
+
+        try:
+            6 * T
+        except Exception as e:
+            assert type(e) == InvalidInputException
+        else:
+            assert False
+
+        # cannot multiply by 3 since (alpha_2).reflect(3) = alpha_2 + alpha_3 and T[3] is undefined
+        try:
+            T * 3
+        except Exception as e:
+            assert type(e) == InvalidInputException
+        else:
+            assert False
+
+    def test_convenience_methods(self):
+        """Tests for various convenience methods of RooTransform objects."""
+        g = CoxeterGraph.A(5)
+        sigma = {1: Root(g, 2, 1 + Polynomial('x')), 2: Root(g, 1)}
+        T = RootTransform(g, sigma)
+
+        assert not T.is_constant()
+        assert not T.is_complete()
+        assert T.is_positive()
+        assert not T.is_identity()
+
+        assert len(T) == 2
+        assert 1 in T and 2 in T and 3 not in T
+        assert {i for i in T} == {1, 2}
+        assert set(T.values()) == set(sigma.values())
+
+        U = RootTransform.identity(g)
+        assert U.sigma == {i: Root(g, i) for i in g.generators}
+        assert U.is_constant()
+        assert U.is_complete()
+        assert U.is_positive()
+        assert U.is_identity()
+
+        # check (non-)conversion of RootTransform to CoxeterTransform
+        try:
+            T.to_coxeter_transform()
+        except Exception as e:
+            assert type(e) == InvalidInputException
+        else:
+            assert False
+
+        V = U * 1 * 2 * 3
+        assert V.to_coxeter_transform().minimal_reduced_word == (1, 2, 3)
+
+        # try converting RootTransforms to str, check that no errors occur
+        str(U)
+        str(V)
 
 
 class TestCoxeterTransform:
-    pass
+    def test_constructor(self):
+        g = CoxeterGraph.B(3)
+        T = CoxeterTransform(g)
+        assert T.graph == g
+        assert T.sigma == {i: Root(g, i) for i in g.generators}
+        assert T.right_descents == set()
+        assert T.minimal_right_descent is None
+        assert T.minimal_reduced_word == ()
+
+        sigma = {i: -Root(g, i) for i in g.generators}
+        T = CoxeterTransform(g, sigma)
+        assert T.graph == g
+        assert T.sigma == sigma
+        sigma.clear()
+        assert T.sigma == {i: -Root(g, i) for i in g.generators}
+        assert T.right_descents == {0, 1, 2}
+        assert T.minimal_right_descent is 0
+        assert T.minimal_reduced_word == (2, 1, 0, 1, 2, 1, 0, 1, 0)
+
+    def test_constructor_errors(self):
+        # Check error handling for invalid constructor inputs.
+        g = CoxeterGraph.B(3)
+        try:
+            CoxeterTransform(g, {0: Root(g, 0)})
+        except Exception as e:
+            assert type(e) == InvalidInputException
+        else:
+            assert False
+
+        h = CoxeterGraph.A(3)
+        try:
+            CoxeterTransform(g, {0: Root(g, 0), 1: Root(g, 1), 2: Root(h, 2)})
+        except Exception as e:
+            assert type(e) == InvalidInputException
+        else:
+            assert False
+
+        try:
+            CoxeterTransform(g, {0: Root(g, 0), 1: Root(g, 1), 2: Root(g, Polynomial('x'))})
+        except Exception as e:
+            assert type(e) == InvalidInputException
+        else:
+            assert False
+
+    def test_get_inverse(self):
+        g = CoxeterGraph.B(3)
+        T = CoxeterTransform(g, {i: -Root(g, i) for i in g.generators})
+        assert T == T.get_inverse()
+
+        U = CoxeterTransform(g)
+        assert (U * 0 * 1).get_inverse() == U * 1 * 0
+
+    def test_eq(self):
+        g = CoxeterGraph.B(2)
+        T = RootTransform(g, {0: Root(g, 0), 1: Root(g, 1)})
+        U = CoxeterTransform(g, {0: Root(g, 0), 1: Root(g, 1)})
+        assert T == U
+
+        V = U.copy()
+        V[0] = -Root(g, 0)
+        V[1] = -Root(g, 1)
+
+        assert T == U and U != V
+        assert not hasattr(T, 'minimal_reduced_word')
+        assert U.minimal_reduced_word == ()
+        assert V.minimal_reduced_word == (1, 0, 1, 0)
+        assert len({T, U, V}) == 2
+
+    def test_setitem_errors(self):
+        g = CoxeterGraph.B(2)
+        V = CoxeterTransform(g, {0: Root(g, 0), 1: Root(g, 1)})
+
+        # cannot assign value which is non-constant Root
+        try:
+            V[0] = -Root(g, 0, Polynomial('x'))
+        except Exception as e:
+            assert type(e) == InvalidInputException
+        else:
+            assert False
+
+        # cannot assign to index which is not in g.generators
+        try:
+            V[2] = Root(g, 1)
+        except Exception as e:
+            assert type(e) == InvalidInputException
+        else:
+            assert False
+
+    def test_span_by_right_relations(self):
+        g = CoxeterGraph.A(3)
+        relations = {((1, 2), (2, 1)), ((2, 3), (3, 2))}
+
+        a = CoxeterTransform.from_word(g, (1, 2, 3, 1))
+        b = CoxeterTransform.from_word(g, (2, 3, 2, 1))
+        c = CoxeterTransform.from_word(g, (2, 3, 1, 2))
+
+        assert a.multiply_down((3, 2)) is not None
+        assert a.multiply_down((3, 2)).multiply_up((3, 2)) is not None
+        assert a.multiply_up((2, 3)) is None
+        assert a.span_by_right_relations(relations) == {a, b, c}
 
 
 class TestCoxeterWord:
-    pass
+    def test_init(self):
+        g = CoxeterGraph.B(3)
+        w = CoxeterWord(g)
+        assert w.word == ()
+        assert w.left_action == CoxeterTransform.identity(g)
+        assert w.right_action == CoxeterTransform.identity(g)
+        assert w.is_reduced
+        assert w.left_descents == set()
+        assert w.right_descents == set()
+        assert w.minimal_reduced_word == ()
+
+        w = CoxeterWord(g, (1, 0, 1, 0))
+        assert w.word == (1, 0, 1, 0)
+        assert w.left_action == CoxeterTransform.from_word(g, (0, 1, 0, 1))
+        assert w.right_action == w.left_action.get_inverse()
+        assert w.is_reduced
+        assert w.left_descents == {0, 1}
+        assert w.right_descents == {0, 1}
+        assert w.minimal_reduced_word == (0, 1, 0, 1)
+
+        v = CoxeterWord(g, (0, 1, 0, 1))
+        assert v != w and v.left_action == w.left_action and v.right_action == v.right_action
+        assert hash(v) != hash(w)
+
+        v = CoxeterWord(g, (0, 1, 0, 1, 1, 1))
+        assert not v.is_reduced
+        assert v != w and v.left_action == w.left_action and v.right_action == v.right_action
+        assert hash(v) != hash(w)
+
+        assert len(w) == 4 and len(v) == 6
+        assert str(v) == 'unreduced word (0, 1, 0, 1, 1, 1)'
+        assert str(w) == 'reduced word (1, 0, 1, 0)'
+
+    @pytest.mark.parametrize("word, involution_word", [
+        ((1, 0), (0, 1, 0)),
+        ((0, 2), (0, 2)),
+        ((1, 0, 1, 0), (0, 1, 0, 1, 0))
+    ])
+    def test_to_involution_word(self, word, involution_word):
+        g = CoxeterGraph.B(3)
+        w = CoxeterWord(g, word)
+        assert w.to_involution_word().word == involution_word
+
+    def test_get_reduced_words(self):
+        g = CoxeterGraph.B(3)
+        w = CoxeterWord(g, (1, 0, 1, 0))
+        assert w.get_reduced_words() == {(1, 0, 1, 0), (0, 1, 0, 1)}
+
+    def test_copy(self):
+        g = CoxeterGraph.B(3)
+        w = CoxeterWord(g)
+        v = w.copy()
+        assert v == w
+
+        w.extend_left(0)
+        assert w.word == (0,) and v.word == ()
+
+    def test_multiply(self):
+        g = CoxeterGraph.B(3)
+        assert CoxeterWord(g) * CoxeterWord(g) == CoxeterWord(g)
+
+        w = ((CoxeterWord(g) * 0) * 1) * 2
+        assert w.word == (0, 1, 2)
+        assert (w * w).word == (0, 1, 2, 0, 1, 2)
+
+        w = 0 * (1 * (2 * CoxeterWord(g)))
+        assert w.word == (0, 1, 2)
+        assert (w * w).word == (0, 1, 2, 0, 1, 2)
+        assert w.__rmul__(w).word == (0, 1, 2, 0, 1, 2)
+
+        w = 0 * (1 * (2 * ((CoxeterWord(g) * 0) * 1))) * 2
+        assert w.word == (0, 1, 2, 0, 1, 2)
+
+    def test_multiply_errors(self):
+        g = CoxeterGraph.B(3)
+        h = CoxeterGraph.A(3)
+
+        # cannot multiply by non-generator 3, as g.generators = [0, 1, 2]
+        try:
+            CoxeterWord(g) * 3
+        except Exception as e:
+            assert type(e) == InvalidInputException
+        else:
+            assert False
+
+        try:
+            3 * CoxeterWord(g)
+        except Exception as e:
+            assert type(e) == InvalidInputException
+        else:
+            assert False
+
+        try:
+            CoxeterWord(g).extend_right(3)
+        except Exception as e:
+            assert type(e) == InvalidInputException
+        else:
+            assert False
+
+        try:
+            CoxeterWord(g).extend_left(3)
+        except Exception as e:
+            assert type(e) == InvalidInputException
+        else:
+            assert False
+
+        # cannot multiply CoxeterWords with different CoxeterGraphs
+        try:
+            CoxeterWord(g).__mul__(CoxeterWord(h))
+        except Exception as e:
+            assert type(e) == InvalidInputException
+        else:
+            assert False
+
+        try:
+            CoxeterWord(g).__rmul__(CoxeterWord(h))
+        except Exception as e:
+            assert type(e) == InvalidInputException
+        else:
+            assert False
