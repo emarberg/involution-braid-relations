@@ -282,7 +282,7 @@ class BraidSolver:
         else:
             return False
 
-    def branch(self, should_filter=True):
+    def branch(self):
         t0 = time.time()
         children, label = self._get_children()
 
@@ -291,7 +291,7 @@ class BraidSolver:
             child.reduce()
 
         t2 = time.time()
-        children = [child for child in children if not should_filter or child.is_valid()]
+        children = [child for child in children if child.is_valid()]
 
         t3 = time.time()
         descr = '\n'
@@ -317,8 +317,8 @@ class BraidSolver:
 
         strong = self.get_strong_conditional_descent()
         if strong:
-            i, root = strong
-            children = self._get_children_from_strong_conditional_descents(i, root)
+            descent, inversion = strong
+            children = self._get_children_from_strong_conditional_descents(descent, inversion)
             return children, 'strong conditional descent'
 
         weak = self.get_weak_conditional_descents()
@@ -329,10 +329,7 @@ class BraidSolver:
         if self.sigma.is_constant() and not self.sigma.is_complete():
             return self._get_children_from_new_descent(), 'new descent'
 
-        if self.sigma.is_constant() and not self.sigma.is_identity():
-            return [], 'empty'
-
-        raise Exception('Bad case: %s' % self)
+        raise Exception('Current state does not match any branching rule: %s' % self)
 
     def _get_children_first_iteration(self):
         gens = [self.s, self.t]
@@ -756,7 +753,7 @@ class SolverQueue:
         t1 = time.time()
 
         self._print('')
-        self._print_status('Duration: %s seconds' % (t1 - t0))
+        self._print_status('Sanity check duration: %s seconds' % (t1 - t0))
 
     def _check_minimal_relations(self, max_length):
         self._print('Checking that minimal relations generate the atoms of any twisted involution.')
