@@ -11,12 +11,14 @@ from algebra import (
     Root,
     RootTransform
 )
-from utils import reverse_tuple
+from utils import (
+    reverse_tuple,
+    InvalidInputException
+)
 
 
 class ConstraintsManager:
     def __init__(self):
-        self.pivots = []
         # list of linear Polynomials which must be -= 0
         self.linear_constraints = set()
         # list of quadratic Polynomials which must be == 0
@@ -29,7 +31,6 @@ class ConstraintsManager:
     def __eq__(self, other):
         return \
             ConstraintsManager == type(other) and \
-            self.pivots == other.pivots and \
             self.linear_constraints == other.linear_constraints and \
             self.quadratic_constraints == other.quadratic_constraints and \
             self.nonpositive_constraints == other.nonpositive_constraints and \
@@ -38,7 +39,6 @@ class ConstraintsManager:
 
     def copy(self):
         other = ConstraintsManager()
-        other.pivots = self.pivots.copy()
         other.nonpositive_constraints = self.nonpositive_constraints.copy()
         other.linear_constraints = self.linear_constraints.copy()
         other.nonzero_constraints = self.nonzero_constraints.copy()
@@ -53,7 +53,7 @@ class ConstraintsManager:
         elif type(constraint) in [int, RationalNumber, QuadraticNumber]:
             constraint = Polynomial(constraint)
         elif type(constraint) != Polynomial:
-            raise Exception('Constraint cannot be of type `%s`' % type(constraint))
+            raise InvalidInputException(self, constraint, 'add_zero_constraint')
 
         degree = constraint.degree()
         if degree in [0, 1]:
@@ -61,7 +61,7 @@ class ConstraintsManager:
         elif degree == 2:
             self.quadratic_constraints.add(constraint)
         else:
-            raise Exception('Nonlinear constraint is not quadratic: %s' % constraint)
+            raise InvalidInputException(self, constraint, 'add_zero_constraint')
 
     def add_nonpositive_constraint(self, constraint):
         if type(constraint) == Root:
@@ -71,7 +71,7 @@ class ConstraintsManager:
         elif type(constraint) in [int, RationalNumber, QuadraticNumber]:
             constraint = Polynomial(constraint)
         elif type(constraint) != Polynomial:
-            raise Exception('Constraint cannot be of type `%s`' % type(constraint))
+            raise InvalidInputException(self, constraint, 'add_nonpositive_constraint')
 
         if -constraint in self.nonpositive_constraints:
             self.add_zero_constraint(constraint)
@@ -81,7 +81,8 @@ class ConstraintsManager:
     def add_nonzero_constraint(self, root):
         self.nonzero_constraints.add(root)
 
-    def row_reduce_zero_constraints(self):
+    def simplify(self):
+        variable_substitutions = []
         degenerate_constraints = set()
         while self.linear_constraints:
             row = self.linear_constraints.pop()
@@ -95,33 +96,34 @@ class ConstraintsManager:
             substitution = -row / row[var]
             substitution[var] = 0
 
-            for i in range(len(self.pivots)):
-                prev_var, prev_subst = self.pivots[i]
+            for i in range(len(variable_substitutions)):
+                prev_var, prev_subst = variable_substitutions[i]
                 c = prev_subst[var]
                 if c != 0:
                     new_subst = prev_subst + c*substitution
                     # note that since new_subst was assigned to newly created in previous line,
                     # the following deletion does not affect any other existing polynomial.
                     new_subst[var] = 0
-                    self.pivots[i] = (prev_var, new_subst)
+                    variable_substitutions[i] = (prev_var, new_subst)
 
-            self.pivots.append((var, substitution))
-            self.row_reduce_by_pivot(var, substitution)
+            variable_substitutions.append((var, substitution))
+            self.apply_variable_substitution(var, substitution)
 
         self.linear_constraints = degenerate_constraints
+        return variable_substitutions
 
-    def row_reduce_by_pivot(self, var, substitution):
+    def apply_variable_substitution(self, var, substitution):
         self.linear_constraints = {
-            c for c in self.reduced_row_generator(var, substitution, self.linear_constraints)
+            c for c in self.reduced_constraints(var, substitution, self.linear_constraints)
             if c != 0
         }
         self.nonpositive_constraints = {
-            c for c in self.reduced_row_generator(var, substitution, self.nonpositive_constraints)
+            c for c in self.reduced_constraints(var, substitution, self.nonpositive_constraints)
             if not (c <= 0)
         }
 
     @classmethod
-    def reduced_row_generator(cls, var, substitution, old_constraints):
+    def reduced_constraints(cls, var, substitution, old_constraints):
         for constraint in old_constraints:
             c = constraint[var]
             if c != 0:
@@ -135,24 +137,18 @@ class ConstraintsManager:
 
     def remove_vacuous_constraints(self):
         self.linear_constraints = {
-            f for f in self.linear_constraints
-            if not (f == 0)
+            f for f in self.linear_constraints if not (f == 0)
+        }
+        self.quadratic_constraints = {
+            f for f in self.quadratic_constraints if not (f == 0)
         }
         self.nonpositive_constraints = {
             f for f in self.nonpositive_constraints
             if not (f <= 0) and not any(f <= g and f != g for g in self.nonpositive_constraints)
         }
-        # if 10 < len(self.nonpositive_constraints):
-        # self.nonpositive_constraints = [
-        #     f for f in self.nonpositive_constraints
-        #     if not any(f <= g and f != g for g in self.nonpositive_constraints)
-        # ]
         self.nonzero_constraints = {
             r for r in self.nonzero_constraints
             if not any(v < 0 or 0 < v for v in r.coefficients.values())
-        }
-        self.quadratic_constraints = {
-            f for f in self.quadratic_constraints if not (f == 0)
         }
 
     def __repr__(self):
@@ -161,10 +157,6 @@ class ConstraintsManager:
 
         def pad(j):
             return (3 - len(str(j)))*' ' + str(j)
-
-        for var, substitution in self.pivots:
-            s += '%s. %s = %s\n' % (pad(i), var, substitution)
-            i += 1
 
         for c in self.nonpositive_constraints:
             s += '%s. 0 >= %s\n' % (pad(i), c)
@@ -188,8 +180,7 @@ class ConstraintsManager:
             return s
 
     def is_valid(self):
-        if any(0 < f for _, f in self.pivots) or \
-           any(0 < f for f in self.nonpositive_constraints) or \
+        if any(0 < f for f in self.nonpositive_constraints) or \
            any(0 < f or f < 0 for f in self.linear_constraints) or \
            any(0 < f or f < 0 for f in self.quadratic_constraints) or \
            any(r == 0 for r in self.nonzero_constraints):
@@ -507,20 +498,19 @@ class BraidSolver:
         return self.is_valid() and self.sigma.is_identity()
 
     def reduce(self):
-        self.constraints.row_reduce_zero_constraints()
-        self.simplify_sigma()
+        self.reduce_constraints()
         zeros = set()
         for f in self.constraints.nonpositive_constraints:
             if 0 <= f:
                 zeros.update(f.get_variables())
         if zeros:
             self.set_variables_to_zero(zeros)
-            self.constraints.row_reduce_zero_constraints()
-            self.simplify_sigma()
+            self.reduce_constraints()
         self.constraints.remove_vacuous_constraints()
 
-    def simplify_sigma(self):
-        for var, substitution in self.constraints.pivots:
+    def reduce_constraints(self):
+        variable_substitutions = self.constraints.simplify()
+        for var, substitution in variable_substitutions:
             for i in self.sigma:
                 self.sigma[i] = self.sigma[i].set_variable(var, substitution)
 
@@ -530,7 +520,6 @@ class BraidSolver:
             self.constraints.quadratic_constraints = {
                 f.set_variable(var, substitution) for f in self.constraints.quadratic_constraints
             }
-        self.constraints.pivots = []
 
     def set_variables_to_zero(self, variables):
         self.constraints.nonpositive_constraints = {
