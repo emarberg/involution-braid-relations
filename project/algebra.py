@@ -910,6 +910,15 @@ class CoxeterGraph:
         s += '\n\n' + ', '.join([str(i) + '^* = ' + str(self.star(i)) for i in self.generators])
         return s
 
+    def get_max_involution_word_length(self, limit=1000):
+        max_len = 0
+        e = CoxeterWord(self)
+        while e.right_descents != set(self.generators) and max_len < limit:
+            i = next(iter(set(self.generators) - e.right_descents))
+            e = e.demazure_conjugate(i)
+            max_len += 1
+        return max_len
+
     @staticmethod
     def A(n, star=None):
         edges = [(i, i+1, 3) for i in range(1, n)]
@@ -1418,7 +1427,18 @@ class CoxeterWord:
     def __len__(self):
         return len(self.word)
 
-    def to_involution_word(self):
+    def demazure_conjugate(self, i):
+        if i not in self.graph.generators:
+            raise InvalidInputException(self, i, 'demazure_conjugate')
+        ans = self
+        if i not in self.right_descents:
+            ans = ans * i
+        j = self.graph.star(i)
+        if j not in ans.left_descents:
+            ans = j * ans
+        return ans
+
+    def to_involution(self):
         new = CoxeterWord(self.graph)
         for i in self.word:
             alpha = Root(self.graph, self.graph.star(i))
@@ -1440,7 +1460,7 @@ class CoxeterWord:
                     if word[i:i+m] == self.graph.get_braid(s, t):
                         new_word = word[:i] + self.graph.get_braid(t, s) + word[i+m:]
                         next_to_add.add(new_word)
-            to_add = next_to_add.difference(ans)
+            to_add = next_to_add - ans
         return ans
 
     def copy(self):

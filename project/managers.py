@@ -1,3 +1,4 @@
+from collections import defaultdict
 import time
 import itertools
 
@@ -210,6 +211,12 @@ class BraidSolver:
         return len(self.sigma)
 
     def __repr__(self):
+        unconditional = self.get_unconditional_descent()
+        strong = self.get_strong_conditional_descent()
+        if strong:
+            strong = strong[0]
+        weak = list(self.get_weak_conditional_descents())
+
         s = '\n'
         s += 'Solver State:\n'
         s += '***************\n'
@@ -218,9 +225,9 @@ class BraidSolver:
         s += '\n'
         s += 'sigma = %s' % self.sigma
         s += '\n'
-        s += '      unconditional descent: %s\n' % str(self.get_unconditional_descent())
-        s += ' strong conditional descent: %s\n' % str(self.get_strong_conditional_descent())
-        s += '  weak conditional descents: %s\n' % list(self.get_weak_conditional_descents())
+        s += '      unconditional descent: %s\n' % unconditional
+        s += ' strong conditional descent: %s\n' % strong
+        s += '  weak conditional descents: %s\n' % weak
         s += str(self.constraints)
         s += '***************\n'
         return s
@@ -248,8 +255,8 @@ class BraidSolver:
     def get_unconditional_descent(self):
         descents_to_avoid = self.word_s.left_descents | self.word_t.left_descents
         unconditional = \
-            list(self.sigma.unconditional_descents.intersection(descents_to_avoid)) + \
-            list(self.sigma.unconditional_descents.difference(descents_to_avoid))
+            list(self.sigma.unconditional_descents & descents_to_avoid) + \
+            list(self.sigma.unconditional_descents - descents_to_avoid)
         if unconditional:
             return unconditional[0]
         return None
@@ -266,7 +273,7 @@ class BraidSolver:
 
     def get_weak_conditional_descents(self):
         descents_to_avoid = self.word_s.left_descents | self.word_t.left_descents
-        return self.sigma.weak_conditional_descents.difference(descents_to_avoid)
+        return self.sigma.weak_conditional_descents - descents_to_avoid
 
     def is_quadratic_constraint_factorable(self):
         if self.constraints.quadratic_constraints:
@@ -486,8 +493,8 @@ class BraidSolver:
         return True
 
     def is_valid_involution_word_pair(self):
-        x = self.word_s.to_involution_word()
-        y = self.word_t.to_involution_word()
+        x = self.word_s.to_involution()
+        y = self.word_t.to_involution()
         return x.is_reduced and y.is_reduced and x.left_action == y.left_action
 
     def is_final(self):
@@ -547,7 +554,7 @@ class SolverQueue:
         else:
             self.queue = [BraidSolver(coxeter_graph, s, t)]
         self.sufficient_relations = set()
-        self.minimal_relations = None
+        self.minimal_relations = []
         self.verbose_level = verbose_level
 
     def __len__(self):
@@ -665,15 +672,15 @@ class SolverQueue:
             finalized += [(w + u[i:], w + v[i:])]
         return finalized
 
-    def _print_status(self, string):
-        self._print(string, self.VERBOSE_LEVEL_LOW)
+    def _print_status(self, string, end=None):
+        self._print(string, end=end, level=self.VERBOSE_LEVEL_LOW)
 
-    def _print_verbose(self, string):
-        self._print(string, self.VERBOSE_LEVEL_HIGH)
+    def _print_verbose(self, string, end=None):
+        self._print(string, end=end, level=self.VERBOSE_LEVEL_HIGH)
 
-    def _print(self, string, level=VERBOSE_LEVEL_MEDIUM):
+    def _print(self, string, end=None, level=VERBOSE_LEVEL_MEDIUM):
         if level <= self.verbose_level:
-            print(string)
+            print(string, end=end)
 
     def next(self):
         if len(self) == 0:
@@ -741,3 +748,43 @@ class SolverQueue:
 
         self._print_status('')
         self._print_status('Total duration: %s seconds' % (t2-t0))
+
+    def sanity_check(self, upper_length=1000):
+        t0 = time.time()
+        max_length = self.graph.get_max_involution_word_length(upper_length)
+        self._check_minimal_relations(max_length)
+        t1 = time.time()
+
+        self._print('')
+        self._print_status('Duration: %s seconds' % (t1 - t0))
+
+    def _check_minimal_relations(self, max_length):
+        self._print('Checking that minimal relations generate the atoms of any twisted involution.')
+        self._print('(This will only work if the Coxeter system is finite.)')
+        self._print('')
+
+        self._print('  * Relations preserve atoms: ', end='')
+        for a, b in self.minimal_relations:
+            y = CoxeterWord(self.graph, a).to_involution()
+            z = CoxeterWord(self.graph, b).to_involution()
+            if y.left_action != z.left_action:
+                self._print('no')
+                return
+        self._print('yes')
+
+        next_level = {CoxeterWord(self.graph): {CoxeterTransform(self.graph)}}
+        for length in range(max_length + 1):
+            self._print('  * Relations span atoms of length %s/%s: ' % (length, max_length), end='')
+            for involution, atoms in next_level.items():
+                word = next(iter(atoms)).minimal_reduced_word
+                if len(self.get_inverse_atoms(self.minimal_relations, word)) < len(atoms):
+                    self._print('no')
+                    return
+            self._print('yes')
+
+            current_level = next_level
+            next_level = defaultdict(set)
+            for involution, atoms in current_level.items():
+                for i in set(self.graph.generators) - involution.right_descents:
+                    next_involution = involution.demazure_conjugate(i)
+                    next_level[next_involution] |= {w*i for w in atoms if i not in w.right_descents}

@@ -13,6 +13,7 @@ def get_arguments():
         choices=['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', '2A', '2D', '2E', '2F', '2G']
     )
     parser.add_argument('--rank', type=int, help='rank of (twisted) Coxeter system')
+    parser.add_argument('--sanity-check', dest='do_sanity_check', action='store_true')
     parser.add_argument(
         '--verbosity',
         type=int,
@@ -23,7 +24,7 @@ def get_arguments():
     return parser.parse_args()
 
 
-def main(coxeter_type, rank, verbosity):
+def main(coxeter_type, rank, verbosity, do_sanity_check=False):
     # reverse '2A', '2D', etc., to be 'A2', 'D2', and so on
     try:
         reversed_coxeter_type = ''.join(reversed(coxeter_type))
@@ -33,8 +34,14 @@ def main(coxeter_type, rank, verbosity):
     else:
         q = SolverQueue(g, verbose_level=verbosity)
         q.go()
+        if do_sanity_check:
+            q._print_status('')
+            q._print_status('')
+            q._print_status('Step 3. Verifying minimal relations (optional sanity check).')
+            q._print_status('')
+            q.sanity_check()
 
 
 if __name__ == '__main__':
     args = get_arguments()
-    main(args.type, args.rank, args.verbosity)
+    main(args.type, args.rank, args.verbosity, args.do_sanity_check)

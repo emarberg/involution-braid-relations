@@ -704,10 +704,10 @@ class TestCoxeterWord:
         ((0, 2), (0, 2)),
         ((1, 0, 1, 0), (0, 1, 0, 1, 0))
     ])
-    def test_to_involution_word(self, word, involution_word):
+    def test_to_involution(self, word, involution_word):
         g = CoxeterGraph.B(3)
         w = CoxeterWord(g, word)
-        assert w.to_involution_word().word == involution_word
+        assert w.to_involution().word == involution_word
 
     def test_get_reduced_words(self):
         g = CoxeterGraph.B(3)

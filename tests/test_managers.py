@@ -24,9 +24,8 @@ from project.managers import (
 @pytest.mark.parametrize("tup, expected", [
     ((), ()),
     ((1,), (1,)),
-    ((1, 2), (2, 1))
+    ((1, 2), (2, 1)),
     ((1, 2, 3), (3, 2, 1)),
-    ((1, 2, 3, 4), (4, 3, 2, 1))
 ])
 def test_reverse_tuple(tup, expected):
     assert reverse_tuple(tup) == expected
@@ -256,7 +255,7 @@ class TestSolverQueue:
         q = SolverQueue(g, verbose_level=SolverQueue.VERBOSE_LEVEL_HIGH)
         assert {(state.s, state.t) for state in q.queue} == {(1, 2), (1, 3), (2, 3)}
         assert q.sufficient_relations == set()
-        assert q.minimal_relations is None
+        assert q.minimal_relations == []
 
         q.go()
         assert q.sufficient_relations == {
