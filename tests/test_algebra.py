@@ -1013,15 +1013,16 @@ class TestPolynomial:
         assert F.get_variables() == {ord('x'), ord('y'), ord('z')}
 
     @pytest.mark.parametrize("f, expected", [
-        (Polynomial(), True),
-        (Polynomial(1), True),
-        (Polynomial(QuadraticNumber.sqrt(2)), True),
-        (X + QuadraticNumber.sqrt(2)*Y, True),
-        (X*Y, False),
-        (Y**2, False),
+        (Polynomial(), 0),
+        (Polynomial(1), 0),
+        (Polynomial(QuadraticNumber.sqrt(2)), 0),
+        (X + QuadraticNumber.sqrt(2)*Y, 1),
+        (X*Y, 2),
+        (Y**2, 2),
+        (Polynomial({0: -1}), None)
     ])
-    def test_is_degree_one(self, f, expected):
-        assert f.is_degree_one() == expected
+    def test_degree(self, f, expected):
+        assert f.degree() == expected
 
     @pytest.mark.parametrize("f, variable, value, expected", [
         (Polynomial(), 'x', 1, 0),

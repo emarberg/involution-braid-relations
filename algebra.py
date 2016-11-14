@@ -476,6 +476,14 @@ class Monomial:
             s += base
         return s
 
+    def degree(self):
+        deg = 0
+        for e in self.exponents.values():
+            if e < 0:
+                return None
+            deg += e
+        return deg
+
     @classmethod
     def string_to_index(cls, s):
         if s.isalpha() and len(s) == 1:
@@ -675,13 +683,14 @@ class Polynomial(VectorMixin, NumberMixin):
             except:
                 raise Exception('Cannot factor `%s`' % str(self))
 
-    def is_degree_one(self):
+    def degree(self):
+        monomial_degrees = {0}
         for monomial in self.coefficients:
-            if len(monomial.exponents) > 1:
-                return False
-            if any(e != 1 for i, e in monomial.exponents.items()):
-                return False
-        return True
+            monomial_degrees.add(monomial.degree())
+        if None in monomial_degrees:
+            return None
+        else:
+            return max(monomial_degrees)
 
     def is_constant(self):
         return list(self.coefficients.keys()) in [[], [Monomial()]]

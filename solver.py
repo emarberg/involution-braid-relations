@@ -17,21 +17,22 @@ from utils import reverse_tuple
 class ConstraintsManager:
     def __init__(self):
         self.pivots = []
-        # list of linear Polynomials which must be <= 0
-        self.nonpositive_constraints = set()
-        # list of linear Polynomials which must be == 0
-        self.zero_constraints = set()
-        # list of Roots which must be != 0
-        self.nonzero_constraints = set()
+        # list of linear Polynomials which must be -= 0
+        self.linear_constraints = set()
         # list of quadratic Polynomials which must be == 0
         self.quadratic_constraints = set()
+        # list of linear Polynomials which must be <= 0
+        self.nonpositive_constraints = set()
+        # list of Roots which must be != 0
+        self.nonzero_constraints = set()
 
     def __eq__(self, other):
         return \
             ConstraintsManager == type(other) and \
             self.pivots == other.pivots and \
+            self.linear_constraints == other.linear_constraints and \
+            self.quadratic_constraints == other.quadratic_constraints and \
             self.nonpositive_constraints == other.nonpositive_constraints and \
-            self.zero_constraints == other.zero_constraints and \
             self.nonzero_constraints == other.nonzero_constraints and \
             self.quadratic_constraints == other.quadratic_constraints
 
@@ -39,7 +40,7 @@ class ConstraintsManager:
         other = ConstraintsManager()
         other.pivots = self.pivots.copy()
         other.nonpositive_constraints = self.nonpositive_constraints.copy()
-        other.zero_constraints = self.zero_constraints.copy()
+        other.linear_constraints = self.linear_constraints.copy()
         other.nonzero_constraints = self.nonzero_constraints.copy()
         other.quadratic_constraints = self.quadratic_constraints.copy()
         return other
@@ -54,10 +55,13 @@ class ConstraintsManager:
         elif type(constraint) != Polynomial:
             raise Exception('Constraint cannot be of type `%s`' % type(constraint))
 
-        if constraint.is_degree_one():
-            self.zero_constraints.add(constraint)
-        else:
+        degree = constraint.degree()
+        if degree in [0, 1]:
+            self.linear_constraints.add(constraint)
+        elif degree == 2:
             self.quadratic_constraints.add(constraint)
+        else:
+            raise Exception('Nonlinear constraint is not quadratic: %s' % constraint)
 
     def add_nonpositive_constraint(self, constraint):
         if type(constraint) == Root:
@@ -79,8 +83,8 @@ class ConstraintsManager:
 
     def row_reduce_zero_constraints(self):
         degenerate_constraints = set()
-        while self.zero_constraints:
-            row = self.zero_constraints.pop()
+        while self.linear_constraints:
+            row = self.linear_constraints.pop()
             variables = row.get_variables()
             if not variables:
                 if row != 0:
@@ -104,11 +108,11 @@ class ConstraintsManager:
             self.pivots.append((var, substitution))
             self.row_reduce_by_pivot(var, substitution)
 
-        self.zero_constraints = degenerate_constraints
+        self.linear_constraints = degenerate_constraints
 
     def row_reduce_by_pivot(self, var, substitution):
-        self.zero_constraints = {
-            c for c in self.reduced_row_generator(var, substitution, self.zero_constraints)
+        self.linear_constraints = {
+            c for c in self.reduced_row_generator(var, substitution, self.linear_constraints)
             if c != 0
         }
         self.nonpositive_constraints = {
@@ -130,8 +134,8 @@ class ConstraintsManager:
                 yield constraint
 
     def remove_vacuous_constraints(self):
-        self.zero_constraints = {
-            f for f in self.zero_constraints
+        self.linear_constraints = {
+            f for f in self.linear_constraints
             if not (f == 0)
         }
         self.nonpositive_constraints = {
@@ -166,7 +170,7 @@ class ConstraintsManager:
             s += '%s. 0 >= %s\n' % (pad(i), c)
             i += 1
 
-        for c in self.zero_constraints:
+        for c in self.linear_constraints:
             s += '%s. 0 == %s\n' % (pad(i), c)
             i += 1
 
@@ -186,7 +190,7 @@ class ConstraintsManager:
     def is_valid(self):
         if any(0 < f for _, f in self.pivots) or \
            any(0 < f for f in self.nonpositive_constraints) or \
-           any(0 < f or f < 0 for f in self.zero_constraints) or \
+           any(0 < f or f < 0 for f in self.linear_constraints) or \
            any(0 < f or f < 0 for f in self.quadratic_constraints) or \
            any(r == 0 for r in self.nonzero_constraints):
             return False
@@ -532,8 +536,8 @@ class BraidSolver:
         self.constraints.nonpositive_constraints = {
             f.set_variables_to_zero(variables) for f in self.constraints.nonpositive_constraints
         }
-        self.constraints.zero_constraints = {
-            f.set_variables_to_zero(variables) for f in self.constraints.zero_constraints
+        self.constraints.linear_constraints = {
+            f.set_variables_to_zero(variables) for f in self.constraints.linear_constraints
         }
         self.constraints.nonzero_constraints = {
             r.set_variables_to_zero(variables) for r in self.constraints.nonzero_constraints
@@ -590,7 +594,7 @@ class SolverQueue:
             i += 1
         self.queue.insert(i, child)
 
-    def _root_multiplicities(self):
+    def root_multiplicities(self):
         d = {}
         for state in self.queue:
             l = len(state.sigma)
@@ -600,7 +604,7 @@ class SolverQueue:
         else:
             return ' '.join([str(ell) + '^' + str(mul) for ell, mul in sorted(d.items())])
 
-    def _word_multiplicities(self):
+    def word_multiplicities(self):
         e = {}
         for state in self.queue:
             l = len(state.word_s)
@@ -703,9 +707,9 @@ class SolverQueue:
             self._print_verbose('-----------')
             self._print_verbose(self.queue[0])
 
-            children, descr = self.queue[0].branch()
+            children, description = self.queue[0].branch()
             self.queue = self.queue[1:]
-            self._print(descr)
+            self._print(description)
 
             self._print_verbose('')
             self._print_verbose('-------------')
@@ -713,45 +717,46 @@ class SolverQueue:
             self._print_verbose('-------------')
             self._update(children)
             self._print('States in queue                  : %s' % len(self))
-            self._print('Multiplicities by non-blank roots: %s' % self._root_multiplicities())
-            self._print('Multiplicities by word length    : %s' % self._word_multiplicities())
+            self._print('Multiplicities by non-blank roots: %s' % self.root_multiplicities())
+            self._print('Multiplicities by word length    : %s' % self.word_multiplicities())
             self._print('Final states                     : %s' % len(self.final))
 
     def go(self):
         self._print_status('Step 1. Finding sufficient relations.')
 
-        t1 = time.time()
+        t0 = time.time()
         while len(self) > 0:
             self.next()
-        t2 = time.time()
+        final = sorted(self.final, key=lambda x: (len(x[0]), x))
+        t1 = time.time()
 
         self._print_status('')
-        self._print_status('Duration: %s seconds' % (t2-t1))
-
-        final = sorted(self.final, key=lambda x: (len(x[0]), x))
+        self._print_status('Duration: %s seconds' % (t1-t0))
         self._print_status('')
         self._print_status('-----------------------')
         self._print_status('Twisted Coxeter system:')
         self._print_status('-----------------------')
         self._print_status(self.graph)
-
         self._print_status('')
         self._print_status('---------------------')
         self._print_status('Sufficient relations:')
         self._print_status('---------------------')
         for u, v in final:
             self._print_status('%s <---> %s' % (u, v))
-
         self._print_status('')
         self._print_status('')
         self._print_status('Step 2. Finding minimal sufficient relations.')
-        self.minimal = self.minimize_relations(final)
-        self._print_status('')
-        self._print_status('Duration: %s seconds' % (time.time()-t2))
 
+        self.minimal = self.minimize_relations(final)
+        t2 = time.time()
+
+        self._print_status('')
+        self._print_status('Duration: %s seconds' % (t2-t1))
         self._print_status('')
         self._print_status('-----------------------------')
         self._print_status('Minimal sufficient relations:')
         self._print_status('-----------------------------')
         for u, v in self.minimal:
             self._print_status('%s <---> %s' % (u, v))
+        self._print_status('')
+        self._print_status('Total duration: %s seconds' % (t2-t0))
