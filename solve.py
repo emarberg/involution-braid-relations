@@ -12,8 +12,17 @@ def get_arguments():
         help='type of (twisted) Coxeter system',
         choices=['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', '2A', '2D', '2E', '2F', '2G']
     )
-    parser.add_argument('--rank', type=int, help='rank of (twisted) Coxeter system')
-    parser.add_argument('--sanity-check', dest='do_sanity_check', action='store_true')
+    parser.add_argument(
+        '--rank',
+        type=int,
+        help='rank of Coxeter system'
+    )
+    parser.add_argument(
+        '--sanity-check',
+        dest='do_sanity_check',
+        action='store_true',
+        help='verify relations after constructing them (an optional sanity check)'
+    )
     parser.add_argument(
         '--verbosity',
         type=int,
@@ -24,7 +33,7 @@ def get_arguments():
     return parser.parse_args()
 
 
-def main(coxeter_type, rank, verbosity, do_sanity_check=False):
+def main(coxeter_type, rank, verbosity, do_sanity_check):
     # reverse '2A', '2D', etc., to be 'A2', 'D2', and so on
     try:
         reversed_coxeter_type = ''.join(reversed(coxeter_type))
