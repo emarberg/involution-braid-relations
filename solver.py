@@ -216,7 +216,7 @@ class BraidSolver:
             self.constraints == other.constraints
 
     def __len__(self):
-        return len(self.word_s)
+        return len(self.sigma)
 
     def __repr__(self):
         s = '\n'
@@ -314,8 +314,8 @@ class BraidSolver:
 
         unconditional = self.get_unconditional_descent()
         if unconditional:
-            children, iterations = self._get_children_from_unconditional_descents()
-            return children, 'unconditional descent, depth=%s' % iterations
+            children = self._get_children_from_unconditional_descents(unconditional)
+            return children, 'unconditional descent'
 
         strong = self.get_strong_conditional_descent()
         if strong:
@@ -364,40 +364,39 @@ class BraidSolver:
             children.append(child)
         return children
 
-    def _get_children_from_unconditional_descents(self):
-        children, current, iterations = [], [self], 0
+    def _get_children_from_unconditional_descents(self, descent):
+        current = self._get_children_from_next_unconditional_descent(descent)
+        children = []
         while current:
             new = []
             for state in current:
                 state.reduce()
-                if not state.is_valid():
-                    continue
-                descent = state.get_unconditional_descent()
-                if descent:
-                    new += state._get_children_from_next_unconditional_descent(descent)
-                else:
-                    children.append(state)
+                if state.is_valid():
+                    descent = state.get_unconditional_descent()
+                    if descent:
+                        new += state._get_children_from_next_unconditional_descent(descent)
+                    else:
+                        children.append(state)
             current = new
-            iterations += 1
-        return children, iterations
-
-    def _get_children_from_next_unconditional_descent(self, i):
-        children = []
-        if self.sigma[i].is_constant():
-            commutes = self.sigma[i] == Root(self.graph, self.graph.star(i), -1)
-            children.append(self._branch_from_descent(i, translate=commutes))
-        else:
-            children.append(self._branch_from_descent(i, True))
-            children.append(self._branch_from_descent(i, False))
         return children
 
-    def _get_children_from_strong_conditional_descents(self, i, nonzero_root):
+    def _get_children_from_next_unconditional_descent(self, descent):
+        children = []
+        if self.sigma[descent].is_constant():
+            commutes = self.sigma[descent] == Root(self.graph, self.graph.star(descent), -1)
+            children.append(self._branch_from_descent(descent, translate=commutes))
+        else:
+            children.append(self._branch_from_descent(descent, True))
+            children.append(self._branch_from_descent(descent, False))
+        return children
+
+    def _get_children_from_strong_conditional_descents(self, descent, nonzero_root):
         constraints = [(j, f) for (j, f) in nonzero_root]
 
-        child_a = self._branch_from_descent(i, True)
+        child_a = self._branch_from_descent(descent, True)
         child_a.constraints.add_nonzero_constraint(nonzero_root)
 
-        child_b = self._branch_from_descent(i, False)
+        child_b = self._branch_from_descent(descent, False)
         child_b.constraints.add_nonzero_constraint(nonzero_root)
 
         child_c = self.copy()
@@ -461,18 +460,11 @@ class BraidSolver:
         return children
 
     def is_valid(self):
-        if not self.are_descents_valid():
-            return False
-        # invalid if word_s or word_t is not reduced
-        if not self.word_s.is_reduced or not self.word_t.is_reduced:
-            return False
-        if not self.is_sigma_valid():
-            return False
-        # ignore if any cannot be satisfied
-        if not self.constraints.is_valid():
-            return False
-
-        return True
+        return \
+            self.are_descents_valid() and \
+            self.word_s.is_reduced and self.word_t.is_reduced and \
+            self.is_sigma_valid() and \
+            self.constraints.is_valid()
 
     def are_descents_valid(self):
         """
