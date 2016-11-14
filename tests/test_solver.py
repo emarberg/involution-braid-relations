@@ -1,11 +1,11 @@
 import pytest
-import numpy as np
 
-from utils import (
+from project.utils import (
+    reverse_tuple,
     InvalidInputException
 )
 
-from algebra import (
+from project.algebra import (
     QuadraticNumber,
     RationalNumber,
     Monomial,
@@ -14,9 +14,22 @@ from algebra import (
     Root
 )
 
-from solver import (
-    ConstraintsManager
+from project.managers import (
+    ConstraintsManager,
+    BraidSolver,
+    SolverQueue
 )
+
+
+@pytest.mark.parametrize("tup, expected", [
+    ((), ()),
+    ((1,), (1,)),
+    ((1, 2), (2, 1))
+    ((1, 2, 3), (3, 2, 1)),
+    ((1, 2, 3, 4), (4, 3, 2, 1))
+])
+def test_reverse_tuple(tup, expected):
+    assert reverse_tuple(tup) == expected
 
 
 class TestConstraintsManager:
@@ -220,3 +233,53 @@ class TestConstraintsManager:
         assert manager.nonpositive_constraints == {1}
         assert manager.nonzero_constraints == {Root(g)}
         assert not manager.is_valid()
+
+
+class TestSolverQueue:
+    def test_braid_solver_constructor_errors(self):
+        g = CoxeterGraph.A(3)
+
+        # input (s, t) must both be in g.generators
+        try:
+            BraidSolver(g, s=0, t=1)
+        except Exception as e:
+            assert type(e) == InvalidInputException
+        else:
+            assert False
+
+    def test_go(self):
+        g = CoxeterGraph.A(3)
+        q = SolverQueue(g, 1, 3, verbose_level=SolverQueue.VERBOSE_LEVEL_HIGH)
+        q.go()
+        assert q.sufficient_relations == set() and q.minimal_relations == []
+
+        q = SolverQueue(g, verbose_level=SolverQueue.VERBOSE_LEVEL_HIGH)
+        assert {(state.s, state.t) for state in q.queue} == {(1, 2), (1, 3), (2, 3)}
+        assert q.sufficient_relations == set()
+        assert q.minimal_relations is None
+
+        q.go()
+        assert q.sufficient_relations == {
+            ((1, 2), (2, 1)),
+            ((2, 3), (3, 2))
+        }
+        assert q.minimal_relations == [
+            ((1, 2), (2, 1)),
+            ((2, 3), (3, 2))
+        ]
+
+        g = CoxeterGraph.A2(3)
+        q = SolverQueue(g, verbose_level=SolverQueue.VERBOSE_LEVEL_HIGH)
+        q.go()
+        assert q.sufficient_relations == {
+            ((1,), (3,)),
+            ((2, 1, 2, 3), (2, 1, 3, 2)),
+            ((2, 3, 1, 2), (2, 3, 2, 1))
+        }
+        assert q.minimal_relations == [
+            ((1,), (3,)),
+            ((2, 1, 2, 3), (2, 1, 3, 2))
+        ]
+
+        # check that the following does not cause any errors
+        q.next()

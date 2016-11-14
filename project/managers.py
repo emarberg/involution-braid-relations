@@ -1,7 +1,7 @@
 import time
 import itertools
 
-from algebra import (
+from project.algebra import (
     CoxeterTransform,
     CoxeterWord,
     Monomial,
@@ -11,7 +11,8 @@ from algebra import (
     Root,
     RootTransform
 )
-from utils import (
+
+from project.utils import (
     reverse_tuple,
     InvalidInputException
 )
@@ -194,7 +195,7 @@ class BraidSolver:
             self.word_t = CoxeterWord(coxeter_graph)
             self.constraints = ConstraintsManager()
         else:
-            raise Exception('Invalid inputs `s = %s`, `t = %s` in BraidSolver' % (s, t))
+            raise InvalidInputException(self, (s, t))
 
     def __eq__(self, other):
         return \
@@ -545,8 +546,8 @@ class SolverQueue:
             ]
         else:
             self.queue = [BraidSolver(coxeter_graph, s, t)]
-        self.final = set()
-        self.minimal = None
+        self.sufficient_relations = set()
+        self.minimal_relations = None
         self.verbose_level = verbose_level
 
     def __len__(self):
@@ -555,14 +556,13 @@ class SolverQueue:
     def _update(self, children):
         added = False
         for child in children:
-            if child in self.queue:
-                continue
-            self._print_verbose(child)
-            if child.is_final():
-                self._add_final(child)
-            else:
-                self._insert(child)
-                added = True
+            if child not in self.queue:
+                self._print_verbose(child)
+                if child.is_final():
+                    self._add_final(child)
+                else:
+                    self._insert(child)
+                    added = True
         if not added:
             self._print_verbose('\n(no states added)\n')
 
@@ -596,9 +596,9 @@ class SolverQueue:
         u = tuple(child.word_s.word)
         v = tuple(child.word_t.word)
         if u < v:
-            self.final.add((u, v))
+            self.sufficient_relations.add((u, v))
         else:
-            self.final.add((v, u))
+            self.sufficient_relations.add((v, u))
 
     def get_inverse_atoms(self, relations, start_word):
         start = CoxeterTransform.from_word(self.graph, reverse_tuple(start_word))
@@ -650,7 +650,7 @@ class SolverQueue:
                     return self._finalize_relations(candidate)
                 else:
                     self._print("       Does not span.")
-        raise Exception('Error in `SolverQueue._finalize_necessary_relations`: returning None')
+        raise Exception('Error in SolverQueue._finalize_necessary_relations: returning None')
 
     def _finalize_relations(self, relations):
         finalized = []
@@ -697,7 +697,7 @@ class SolverQueue:
             self._print('States in queue                  : %s' % len(self))
             self._print('Multiplicities by non-blank roots: %s' % self.root_multiplicities())
             self._print('Multiplicities by word length    : %s' % self.word_multiplicities())
-            self._print('Final states                     : %s' % len(self.final))
+            self._print('Final states                     : %s' % len(self.sufficient_relations))
 
     def go(self):
         self._print_status('Step 1. Finding sufficient relations.')
@@ -705,7 +705,7 @@ class SolverQueue:
         t0 = time.time()
         while len(self) > 0:
             self.next()
-        final = sorted(self.final, key=lambda x: (len(x[0]), x))
+        sufficient = sorted(self.sufficient_relations, key=lambda x: (len(x[0]), x))
         t1 = time.time()
 
         self._print_status('')
@@ -715,17 +715,19 @@ class SolverQueue:
         self._print_status('Twisted Coxeter system:')
         self._print_status('-----------------------')
         self._print_status(self.graph)
+
         self._print_status('')
         self._print_status('---------------------')
         self._print_status('Sufficient relations:')
         self._print_status('---------------------')
-        for u, v in final:
+        for u, v in sufficient:
             self._print_status('%s <---> %s' % (u, v))
+
         self._print_status('')
         self._print_status('')
         self._print_status('Step 2. Finding minimal sufficient relations.')
 
-        self.minimal = self.minimize_relations(final)
+        self.minimal_relations = self.minimize_relations(sufficient)
         t2 = time.time()
 
         self._print_status('')
@@ -734,7 +736,8 @@ class SolverQueue:
         self._print_status('-----------------------------')
         self._print_status('Minimal sufficient relations:')
         self._print_status('-----------------------------')
-        for u, v in self.minimal:
+        for u, v in self.minimal_relations:
             self._print_status('%s <---> %s' % (u, v))
+
         self._print_status('')
         self._print_status('Total duration: %s seconds' % (t2-t0))

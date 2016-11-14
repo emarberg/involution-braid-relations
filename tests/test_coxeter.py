@@ -1,11 +1,11 @@
 import pytest
 import numpy as np
 
-from utils import (
+from project.utils import (
     InvalidInputException
 )
 
-from algebra import (
+from project.algebra import (
     QuadraticNumber,
     RationalNumber,
     Polynomial,

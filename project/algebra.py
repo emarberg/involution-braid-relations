@@ -1,6 +1,6 @@
 import numpy as np
 
-from utils import (
+from project.utils import (
     reverse_tuple,
     IndeterminatePowerException,
     InvalidInputException,

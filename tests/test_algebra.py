@@ -1,12 +1,12 @@
 import pytest
 
-from utils import (
+from project.utils import (
     IndeterminatePowerException,
     InvalidInputException,
     ZeroDivisionException
 )
 
-from algebra import (
+from project.algebra import (
     Monomial,
     Polynomial,
     PrimeFactorization,
