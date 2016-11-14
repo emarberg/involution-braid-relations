@@ -19,7 +19,7 @@ from utils import (
 
 class ConstraintsManager:
     def __init__(self):
-        # list of linear Polynomials which must be -= 0
+        # list of linear Polynomials which must be == 0
         self.linear_constraints = set()
         # list of quadratic Polynomials which must be == 0
         self.quadratic_constraints = set()
@@ -79,7 +79,10 @@ class ConstraintsManager:
             self.nonpositive_constraints.add(constraint)
 
     def add_nonzero_constraint(self, root):
-        self.nonzero_constraints.add(root)
+        if type(root) == Root:
+            self.nonzero_constraints.add(root)
+        else:
+            raise InvalidInputException(self, root, 'add_nonzero_constraint')
 
     def simplify(self):
         variable_substitutions = []
@@ -110,30 +113,22 @@ class ConstraintsManager:
             self.apply_variable_substitution(var, substitution)
 
         self.linear_constraints = degenerate_constraints
+        self.remove_vacuous_constraints()
         return variable_substitutions
 
     def apply_variable_substitution(self, var, substitution):
         self.linear_constraints = {
-            c for c in self.reduced_constraints(var, substitution, self.linear_constraints)
-            if c != 0
+            f.set_variable(var, substitution) for f in self.linear_constraints
         }
         self.nonpositive_constraints = {
-            c for c in self.reduced_constraints(var, substitution, self.nonpositive_constraints)
-            if not (c <= 0)
+            f.set_variable(var, substitution) for f in self.nonpositive_constraints
         }
-
-    @classmethod
-    def reduced_constraints(cls, var, substitution, old_constraints):
-        for constraint in old_constraints:
-            c = constraint[var]
-            if c != 0:
-                new_constraint = constraint + c*substitution
-                # note that since new_subst was assigned to newly created in previous line,
-                # the following deletion does not affect any other existing polynomial.
-                new_constraint[var] = 0
-                yield new_constraint
-            else:
-                yield constraint
+        self.nonzero_constraints = {
+            r.set_variable(var, substitution) for r in self.nonzero_constraints
+        }
+        self.quadratic_constraints = {
+            f.set_variable(var, substitution) for f in self.quadratic_constraints
+        }
 
     def remove_vacuous_constraints(self):
         self.linear_constraints = {
@@ -180,12 +175,12 @@ class ConstraintsManager:
             return s
 
     def is_valid(self):
-        if any(0 < f for f in self.nonpositive_constraints) or \
-           any(0 < f or f < 0 for f in self.linear_constraints) or \
-           any(0 < f or f < 0 for f in self.quadratic_constraints) or \
-           any(r == 0 for r in self.nonzero_constraints):
-            return False
-        return True
+        return not (
+            any(0 < f for f in self.nonpositive_constraints) or
+            any(0 < f or f < 0 for f in self.linear_constraints) or
+            any(0 < f or f < 0 for f in self.quadratic_constraints) or
+            any(r == 0 for r in self.nonzero_constraints)
+        )
 
 
 class BraidSolver:
@@ -498,28 +493,22 @@ class BraidSolver:
         return self.is_valid() and self.sigma.is_identity()
 
     def reduce(self):
-        self.reduce_constraints()
-        zeros = set()
-        for f in self.constraints.nonpositive_constraints:
-            if 0 <= f:
-                zeros.update(f.get_variables())
-        if zeros:
-            self.set_variables_to_zero(zeros)
+        while True:
             self.reduce_constraints()
-        self.constraints.remove_vacuous_constraints()
+            new_zero_constraints = {
+                f for f in self.constraints.nonpositive_constraints
+                if 0 <= f and not f.is_constant()
+            }
+            if len(new_zero_constraints) == 0:
+                break
+            for f in new_zero_constraints:
+                self.constraints.add_zero_constraint(f)
 
     def reduce_constraints(self):
         variable_substitutions = self.constraints.simplify()
         for var, substitution in variable_substitutions:
             for i in self.sigma:
                 self.sigma[i] = self.sigma[i].set_variable(var, substitution)
-
-            self.constraints.nonzero_constraints = {
-                r.set_variable(var, substitution) for r in self.constraints.nonzero_constraints
-            }
-            self.constraints.quadratic_constraints = {
-                f.set_variable(var, substitution) for f in self.constraints.quadratic_constraints
-            }
 
     def set_variables_to_zero(self, variables):
         self.constraints.nonpositive_constraints = {
