@@ -34,21 +34,15 @@ def get_arguments():
 
 
 def main(coxeter_type, rank, verbosity, do_sanity_check):
-    # reverse '2A', '2D', etc., to be 'A2', 'D2', and so on
     try:
+        # reverse '2A', '2D', etc., to be 'A2', 'D2', and so on
         reversed_coxeter_type = ''.join(reversed(coxeter_type))
         g = getattr(CoxeterGraph, reversed_coxeter_type)(rank)
     except:
         print('Invalid type and rank: (%s, %s)' % (coxeter_type, rank))
     else:
         q = SolverQueue(g, verbose_level=verbosity)
-        q.go()
-        if do_sanity_check:
-            q._print_status('')
-            q._print_status('')
-            q._print_status('Step 3. Verifying minimal relations (optional sanity check).')
-            q._print_status('')
-            q.sanity_check()
+        q.go(do_sanity_check)
 
 
 if __name__ == '__main__':

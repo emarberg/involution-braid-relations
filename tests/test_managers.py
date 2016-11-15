@@ -59,6 +59,7 @@ class TestConstraintsManager:
         manager.add_zero_constraint(e)
         assert e in manager.quadratic_constraints
 
+        # zero contraints must be linear or quadratic Polynomials
         try:
             manager.add_zero_constraint(f)
         except Exception as exc:
@@ -111,9 +112,12 @@ class TestConstraintsManager:
         manager.nonpositive_constraints = set()
         assert len(manager.nonpositive_constraints) == 0
 
+        # check that adding Root as nonpositive constraint introduces constraint for each coeff
         manager.add_nonpositive_constraint(r)
         assert manager.nonpositive_constraints == {a, d, e}
 
+        # check that if nonpositive constraints contains bothx and -x,
+        # then x gets added as a zero constraints
         manager.add_nonpositive_constraint(-e)
         assert -e in manager.quadratic_constraints
 
@@ -125,6 +129,7 @@ class TestConstraintsManager:
         manager.add_nonpositive_constraint(a)
         manager.add_nonpositive_constraint(d)
         manager.add_nonpositive_constraint(d + e)
+        # since a <= b < c and d + e <= d, we should observe only the following constraints:
         assert manager.nonpositive_constraints == {c, d}
 
     def test_add_nonzero_constraint(self):
@@ -139,6 +144,7 @@ class TestConstraintsManager:
         manager.add_nonzero_constraint(r)
         assert manager.nonzero_constraints == {r}
 
+        # input to manager.add_nonzero_constraint must be a Root
         try:
             manager.add_nonzero_constraint(c)
         except Exception as exc:
@@ -156,7 +162,7 @@ class TestConstraintsManager:
         manager.add_nonzero_constraint(Root(CoxeterGraph.A(5), 1, Polynomial('y')))
         assert str(manager) != ''
 
-    def test_copy(self):
+    def test_eq(self):
         manager = ConstraintsManager()
         a = 12
         b = RationalNumber(7, 8)
@@ -213,6 +219,7 @@ class TestConstraintsManager:
         assert manager.nonzero_constraints == set()
 
     def test_simplify(self):
+        """Tests for method of ConstraintsManager which reduces various constraints."""
         g = CoxeterGraph.A(5)
         x = Polynomial('x')
         y = Polynomial('y')
@@ -248,10 +255,13 @@ class TestSolverQueue:
 
     def test_go(self):
         g = CoxeterGraph.A(3)
+
+        # test algorithm where trivial output is expected
         q = SolverQueue(g, 1, 3, verbose_level=SolverQueue.VERBOSE_LEVEL_HIGH)
         q.go()
         assert q.sufficient_relations == set() and q.minimal_relations == []
 
+        # test algorithm in small case where nontrivial output is expected
         q = SolverQueue(g, verbose_level=SolverQueue.VERBOSE_LEVEL_HIGH)
         assert {(state.s, state.t) for state in q.queue} == {(1, 2), (1, 3), (2, 3)}
         assert q.sufficient_relations == set()
@@ -267,6 +277,7 @@ class TestSolverQueue:
             ((2, 3), (3, 2))
         ]
 
+        # test algorithm in small twisted case
         g = CoxeterGraph.A2(3)
         q = SolverQueue(g, verbose_level=SolverQueue.VERBOSE_LEVEL_HIGH)
         q.go()
