@@ -216,10 +216,9 @@ class BraidSolver:
 
     def __repr__(self):
         unconditional = self.get_unconditional_descent()
-        strong = self.get_strong_conditional_descent()
-        if strong:
-            strong = strong[0]
-        # weak = list(self.get_weak_conditional_descents())
+        conditional = self.get_conditional_descent()
+        if conditional:
+            conditional = conditional[0]
 
         s = '\n'
         s += 'Solver State:\n'
@@ -229,9 +228,8 @@ class BraidSolver:
         s += '\n'
         s += 'sigma = %s' % self.sigma
         s += '\n'
-        s += '      unconditional descent: %s\n' % unconditional
-        s += ' strong conditional descent: %s\n' % strong
-        # s += '  weak conditional descents: %s\n' % weak
+        s += 'unconditional descent: %s\n' % unconditional
+        s += 'conditional descent  : %s\n' % conditional
         s += str(self.constraints)
         s += '----------------------------------------------------------------\n'
         return s
@@ -265,7 +263,7 @@ class BraidSolver:
             return unconditional[0]
         return None
 
-    def get_strong_conditional_descent(self):
+    def get_conditional_descent(self):
         for i in self.sigma:
             root = Root(self.graph)
             for j, f in self.sigma[i]:
@@ -274,10 +272,6 @@ class BraidSolver:
             if root != 0:
                 return i, root
         return None
-
-    # def get_weak_conditional_descents(self):
-    #     descents_to_avoid = self.word_s.left_descents | self.word_t.left_descents
-    #     return self.sigma.weak_conditional_descents - descents_to_avoid
 
     def is_quadratic_constraint_factorable(self):
         if self.constraints.quadratic_constraints:
@@ -319,16 +313,11 @@ class BraidSolver:
             children = self._get_children_from_unconditional_descent(unconditional)
             return children, 'unconditional descent'
 
-        strong = self.get_strong_conditional_descent()
-        if strong:
-            descent, nonpositive_root = strong
-            children = self._get_children_from_strong_conditional_descent(descent, nonpositive_root)
-            return children, 'strong conditional descent'
-
-        # weak = self.get_weak_conditional_descents()
-        # if weak:
-        #     children = self._get_children_from_weak_conditional_descents(weak)
-        #     return children, 'weak conditional descents'
+        conditional = self.get_conditional_descent()
+        if conditional:
+            descent, nonpositive_root = conditional
+            children = self._get_children_from_conditional_descent(descent, nonpositive_root)
+            return children, 'conditional descent'
 
         if self.sigma.is_constant() and not self.sigma.is_complete():
             return self._get_children_from_new_descent(), 'new descent'
@@ -365,22 +354,6 @@ class BraidSolver:
         return children
 
     def _get_children_from_unconditional_descent(self, descent):
-    #     current = self._branch_from_unconditional_descent(descent)
-    #     children = []
-    #     while current:
-    #         new = []
-    #         for state in current:
-    #             state.reduce()
-    #             if state.is_valid():
-    #                 descent = state.get_unconditional_descent()
-    #                 if descent:
-    #                     new += state._branch_from_unconditional_descent(descent)
-    #                 else:
-    #                     children.append(state)
-    #         current = new
-    #     return children
-    #
-    # def _branch_from_unconditional_descent(self, descent):
         children = []
         if self.sigma[descent].is_constant():
             commutes = (self.sigma[descent] == Root(self.graph, self.graph.star(descent), -1))
@@ -390,9 +363,9 @@ class BraidSolver:
             children.append(self._branch_from_descent(descent, commutes=False))
         return children
 
-    def _get_children_from_strong_conditional_descent(self, descent, nonpositive_root):
+    def _get_children_from_conditional_descent(self, descent, nonpositive_root):
         """
-        Returns list of three children constructed from a 'strong conditional descent'.
+        Returns list of three children constructed from a 'conditional descent'.
 
         The input `descent` is an element of self.graph.generators and the input `nonpositive_root`
         is the "nonpositive part" of self.sigma[descent]: the Root formed from a linear
@@ -418,14 +391,6 @@ class BraidSolver:
             child_c.constraints.add_zero_constraint(f)
 
         return [child_a, child_b, child_c]
-
-    # def _get_children_from_weak_conditional_descents(self, descents):
-    #     children = []
-    #     for i in descents:
-    #         children.append(self._branch_from_descent(i, True))
-    #         children.append(self._branch_from_descent(i, False))
-    #         children.append(self._branch_from_descent(i, descent=False))
-    #     return children
 
     def _branch_from_descent(self, i, commutes=True, descent=True):
         alpha = Root(self.graph, self.graph.star(i))
@@ -520,40 +485,11 @@ class BraidSolver:
         return self.is_valid() and self.sigma.is_identity()
 
     def reduce(self):
-    #     """Reduce constraints repeatedly as long as reduction alters state."""
-    #     while True:
-    #         self.reduce_constraints()
-    #         new_zero_constraints = {
-    #             f for f in self.constraints.nonpositive_constraints
-    #             if 0 <= f and not f.is_constant()
-    #         }
-    #         if len(new_zero_constraints) == 0:
-    #             break
-    #         for f in new_zero_constraints:
-    #             self.constraints.add_zero_constraint(f)
-    #
-    # def reduce_constraints(self):
         """Reduce constraints and apply resulting simplifications to self.sigma."""
         variable_substitutions = self.constraints.simplify()
         for var, substitution in variable_substitutions:
             for i in self.sigma:
                 self.sigma[i] = self.sigma[i].set_variable(var, substitution)
-
-    # def set_variables_to_zero(self, variables):
-    #     self.constraints.nonpositive_constraints = {
-    #         f.set_variables_to_zero(variables) for f in self.constraints.nonpositive_constraints
-    #     }
-    #     self.constraints.linear_constraints = {
-    #         f.set_variables_to_zero(variables) for f in self.constraints.linear_constraints
-    #     }
-    #     self.constraints.nonzero_constraints = {
-    #         r.set_variables_to_zero(variables) for r in self.constraints.nonzero_constraints
-    #     }
-    #     self.constraints.quadratic_constraints = {
-    #         f.set_variables_to_zero(variables) for f in self.constraints.quadratic_constraints
-    #     }
-    #     for i in self.sigma:
-    #         self.sigma[i] = self.sigma[i].set_variables_to_zero(variables)
 
 
 class SolverQueue:
