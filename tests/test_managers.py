@@ -258,7 +258,7 @@ class TestSolverQueue:
 
         # test algorithm where trivial output is expected
         q = SolverQueue(g, 1, 3, verbose_level=SolverQueue.VERBOSE_LEVEL_HIGH)
-        q.go()
+        q.go(do_sanity_check=True)
         assert q.sufficient_relations == set() and q.minimal_relations == []
 
         # test algorithm in small case where nontrivial output is expected
@@ -280,7 +280,7 @@ class TestSolverQueue:
         # test algorithm in small twisted case
         g = CoxeterGraph.A2(3)
         q = SolverQueue(g, verbose_level=SolverQueue.VERBOSE_LEVEL_HIGH)
-        q.go()
+        q.go(do_sanity_check=True)
         assert q.sufficient_relations == {
             ((1,), (3,)),
             ((2, 1, 2, 3), (2, 1, 3, 2)),

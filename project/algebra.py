@@ -733,13 +733,13 @@ class Polynomial(VectorMixin, NumberMixin):
                 new[monomial] += coeff
         return new
 
-    def set_variables_to_zero(self, variables):
-        """Input `variables` should be set of integers."""
-        new = Polynomial()
-        for i, v in self:
-            if set(i.exponents.keys()).isdisjoint(set(variables)):
-                new[i] = v
-        return new
+    # def set_variables_to_zero(self, variables):
+    #     """Input `variables` should be set of integers."""
+    #     new = Polynomial()
+    #     for i, v in self:
+    #         if set(i.exponents.keys()).isdisjoint(set(variables)):
+    #             new[i] = v
+    #     return new
 
 
 class CoxeterGraph:
@@ -1089,14 +1089,14 @@ class Root(VectorMixin, NumberMixin):
             return False
         return True
 
-    def set_variables_to_zero(self, variables):
-        new = Root(self.graph)
-        for i, v in self:
-            if type(v) == Polynomial:
-                v = v.set_variables_to_zero(variables)
-            if v != 0:
-                new.coefficients[i] = v
-        return new
+    # def set_variables_to_zero(self, variables):
+    #     new = Root(self.graph)
+    #     for i, v in self:
+    #         if type(v) == Polynomial:
+    #             v = v.set_variables_to_zero(variables)
+    #         if v != 0:
+    #             new.coefficients[i] = v
+    #     return new
 
     def set_variable(self, variable, value):
         new = Root(self.graph)

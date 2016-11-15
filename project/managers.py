@@ -87,6 +87,10 @@ class ConstraintsManager:
             raise InvalidInputException(self, root, 'add_nonzero_constraint')
 
     def simplify(self):
+        """
+        Row reduce linear constaints and eliminate resulting pivot variables from all constraints.
+        Returns list of (Monomial, Polynomial) pairs giving pivot variable substitutions.
+        """
         variable_substitutions = []
         degenerate_constraints = set()
         while self.linear_constraints:
@@ -215,11 +219,11 @@ class BraidSolver:
         strong = self.get_strong_conditional_descent()
         if strong:
             strong = strong[0]
-        weak = list(self.get_weak_conditional_descents())
+        # weak = list(self.get_weak_conditional_descents())
 
         s = '\n'
         s += 'Solver State:\n'
-        s += '***************\n'
+        s += '----------------------------------------------------------------\n'
         s += 's = %s, word_s = %s\n' % (self.s, self.word_s)
         s += 't = %s, word_t = %s\n' % (self.t, self.word_t)
         s += '\n'
@@ -227,9 +231,9 @@ class BraidSolver:
         s += '\n'
         s += '      unconditional descent: %s\n' % unconditional
         s += ' strong conditional descent: %s\n' % strong
-        s += '  weak conditional descents: %s\n' % weak
+        # s += '  weak conditional descents: %s\n' % weak
         s += str(self.constraints)
-        s += '***************\n'
+        s += '----------------------------------------------------------------\n'
         return s
 
     def copy(self):
@@ -271,9 +275,9 @@ class BraidSolver:
                 return i, root
         return None
 
-    def get_weak_conditional_descents(self):
-        descents_to_avoid = self.word_s.left_descents | self.word_t.left_descents
-        return self.sigma.weak_conditional_descents - descents_to_avoid
+    # def get_weak_conditional_descents(self):
+    #     descents_to_avoid = self.word_s.left_descents | self.word_t.left_descents
+    #     return self.sigma.weak_conditional_descents - descents_to_avoid
 
     def is_quadratic_constraint_factorable(self):
         if self.constraints.quadratic_constraints:
@@ -294,59 +298,60 @@ class BraidSolver:
         children = [child for child in children if child.is_valid()]
 
         t3 = time.time()
-        descr = '\n'
-        descr += 'BRANCHING: %s\n' % label
-        descr += '  CONSTRUCT: %s seconds\n' % (t1-t0)
-        descr += '  REDUCTION: %s seconds\n' % (t2-t1)
-        descr += '  VALIDITY : %s seconds' % (t3-t2)
-        return children, descr
+        description = '\n'
+        description += 'BRANCHING: %s\n' % label
+        description += '  CONSTRUCT: %s seconds\n' % (t1-t0)
+        description += '  REDUCTION: %s seconds\n' % (t2-t1)
+        description += '  VALIDITY : %s seconds' % (t3-t2)
+        return children, description
 
     def _get_children(self):
         children = []
 
         if len(self.sigma) == 0:
-            return self._get_children_first_iteration(), 'first iteration'
+            return self._get_first_children(), 'first iteration'
 
         if self.is_quadratic_constraint_factorable():
             return self._get_children_from_quadratic_constraint(), 'reducing quadratic constraint'
 
         unconditional = self.get_unconditional_descent()
         if unconditional:
-            children = self._get_children_from_unconditional_descents(unconditional)
+            children = self._get_children_from_unconditional_descent(unconditional)
             return children, 'unconditional descent'
 
         strong = self.get_strong_conditional_descent()
         if strong:
-            descent, inversion = strong
-            children = self._get_children_from_strong_conditional_descents(descent, inversion)
+            descent, nonpositive_root = strong
+            children = self._get_children_from_strong_conditional_descent(descent, nonpositive_root)
             return children, 'strong conditional descent'
 
-        weak = self.get_weak_conditional_descents()
-        if weak:
-            children = self._get_children_from_weak_conditional_descents(weak)
-            return children, 'weak conditional descents'
+        # weak = self.get_weak_conditional_descents()
+        # if weak:
+        #     children = self._get_children_from_weak_conditional_descents(weak)
+        #     return children, 'weak conditional descents'
 
         if self.sigma.is_constant() and not self.sigma.is_complete():
             return self._get_children_from_new_descent(), 'new descent'
 
         raise Exception('Current state does not match any branching rule: %s' % self)
 
-    def _get_children_first_iteration(self):
+    def _extend_words(self, is_fixer):
         gens = [self.s, self.t]
+        for i in range(self.get_semiorder(is_fixer=False)):
+            self.word_s.extend_left(gens[i % 2])
+            self.word_t.extend_left(gens[(i+1) % 2])
+
+    def _get_first_children(self):
         alpha = Root(self.graph, self.graph.star(self.s))
         beta = Root(self.graph, self.graph.star(self.t))
 
         fixer = BraidSolver(self.graph, self.s, self.t)
         fixer.sigma = RootTransform(self.graph, {self.s: alpha, self.t: beta})
-        for i in range(self.get_semiorder(is_fixer=True)):
-            fixer.word_s.extend_left(gens[i % 2])
-            fixer.word_t.extend_left(gens[(i+1) % 2])
+        fixer._extend_words(is_fixer=True)
 
         transposer = BraidSolver(self.graph, self.s, self.t)
         transposer.sigma = RootTransform(self.graph, {self.s: beta, self.t: alpha})
-        for i in range(self.get_semiorder(is_fixer=False)):
-            transposer.word_s.extend_left(gens[i % 2])
-            transposer.word_t.extend_left(gens[(i+1) % 2])
+        transposer._extend_words(is_fixer=False)
 
         return [fixer, transposer]
 
@@ -359,57 +364,73 @@ class BraidSolver:
             children.append(child)
         return children
 
-    def _get_children_from_unconditional_descents(self, descent):
-        current = self._get_children_from_next_unconditional_descent(descent)
-        children = []
-        while current:
-            new = []
-            for state in current:
-                state.reduce()
-                if state.is_valid():
-                    descent = state.get_unconditional_descent()
-                    if descent:
-                        new += state._get_children_from_next_unconditional_descent(descent)
-                    else:
-                        children.append(state)
-            current = new
-        return children
-
-    def _get_children_from_next_unconditional_descent(self, descent):
+    def _get_children_from_unconditional_descent(self, descent):
+    #     current = self._branch_from_unconditional_descent(descent)
+    #     children = []
+    #     while current:
+    #         new = []
+    #         for state in current:
+    #             state.reduce()
+    #             if state.is_valid():
+    #                 descent = state.get_unconditional_descent()
+    #                 if descent:
+    #                     new += state._branch_from_unconditional_descent(descent)
+    #                 else:
+    #                     children.append(state)
+    #         current = new
+    #     return children
+    #
+    # def _branch_from_unconditional_descent(self, descent):
         children = []
         if self.sigma[descent].is_constant():
-            commutes = self.sigma[descent] == Root(self.graph, self.graph.star(descent), -1)
-            children.append(self._branch_from_descent(descent, translate=commutes))
+            commutes = (self.sigma[descent] == Root(self.graph, self.graph.star(descent), -1))
+            children.append(self._branch_from_descent(descent, commutes=commutes))
         else:
-            children.append(self._branch_from_descent(descent, True))
-            children.append(self._branch_from_descent(descent, False))
+            children.append(self._branch_from_descent(descent, commutes=True))
+            children.append(self._branch_from_descent(descent, commutes=False))
         return children
 
-    def _get_children_from_strong_conditional_descents(self, descent, nonzero_root):
-        constraints = [(j, f) for (j, f) in nonzero_root]
+    def _get_children_from_strong_conditional_descent(self, descent, nonpositive_root):
+        """
+        Returns list of three children constructed from a 'strong conditional descent'.
 
-        child_a = self._branch_from_descent(descent, True)
-        child_a.constraints.add_nonzero_constraint(nonzero_root)
+        The input `descent` is an element of self.graph.generators and the input `nonpositive_root`
+        is the "nonpositive part" of self.sigma[descent]: the Root formed from a linear
+        combination of simple roots by omitting all summands except those whose coefficients
+        are constrained to be nonpositive. The value of `nonpositive_root` is determined by
+        `descent`, and it is assumed that this value is not identically zero.
 
-        child_b = self._branch_from_descent(descent, False)
-        child_b.constraints.add_nonzero_constraint(nonzero_root)
+        Since `nonpositive_root` is nontrivial, we may either assume that `descent` is a descent
+        of self.sigma, or that the additional constraint `nonpositive_root == 0` holds.
+        The returned child states are constructed according to this alternative.
+        """
+        # in this child, `descent` is a commuting descent of sigma
+        child_a = self._branch_from_descent(descent, commutes=True)
+        child_a.constraints.add_nonzero_constraint(nonpositive_root)
 
+        # in this child, `descent` is a non-commuting descent of sigma
+        child_b = self._branch_from_descent(descent, commutes=False)
+        child_b.constraints.add_nonzero_constraint(nonpositive_root)
+
+        # in last child, `descent` is not a descent of sigma, so nonpositive_root must be 0
         child_c = self.copy()
-        for _, f in constraints:
+        for _, f in nonpositive_root:
             child_c.constraints.add_zero_constraint(f)
 
         return [child_a, child_b, child_c]
 
-    def _get_children_from_weak_conditional_descents(self, descents):
-        children = []
-        for i in descents:
-            children.append(self._branch_from_descent(i, True))
-            children.append(self._branch_from_descent(i, False))
-            children.append(self._branch_from_descent(i, descent=False))
-        return children
+    # def _get_children_from_weak_conditional_descents(self, descents):
+    #     children = []
+    #     for i in descents:
+    #         children.append(self._branch_from_descent(i, True))
+    #         children.append(self._branch_from_descent(i, False))
+    #         children.append(self._branch_from_descent(i, descent=False))
+    #     return children
 
-    def _branch_from_descent(self, i, translate=True, descent=True):
+    def _branch_from_descent(self, i, commutes=True, descent=True):
+        alpha = Root(self.graph, self.graph.star(i))
         beta = self.sigma[i]
+
         new = self.copy()
         if not descent:
             new.constraints.add_nonpositive_constraint(-beta)
@@ -417,26 +438,25 @@ class BraidSolver:
             new.constraints.add_nonpositive_constraint(beta)
             new.word_s.extend_left(i)
             new.word_t.extend_left(i)
-
-            alpha = Root(new.graph, new.graph.star(i))
-            if translate:
-                new.constraints.add_zero_constraint(beta + alpha)
+            if commutes:
+                new.constraints.add_zero_constraint(alpha + beta)
                 new.sigma = new.sigma * i
             else:
-                new.constraints.add_nonzero_constraint(beta + alpha)
+                new.constraints.add_nonzero_constraint(alpha + beta)
                 new.sigma = self.graph.star(i) * new.sigma * i
         return new
 
     def _get_children_from_new_descent(self):
         g = self.graph
-        children = []
-
-        candidates = [
+        # exclude the descents which will not given rise to valid states
+        candidate_descents = [
             i for i in g.generators
             if i not in self.sigma and any(g.get_order(i, j) != 2 for j in self.sigma)
         ]
-        for i in candidates:
-            # add child with new weak descent i
+
+        children = []
+        for i in candidate_descents:
+            # add child with new descent i
             child = self.copy()
             child.clear_constraints()
             child.sigma[i] = sum([-Polynomial({j: 1})*Root(g, j) for j in g.generators])
@@ -446,7 +466,7 @@ class BraidSolver:
                 )
             children.append(child)
 
-        # add child with no new weak descents
+        # add child with no new descents
         child = self.copy()
         for i in g.generators:
             if i not in child.sigma:
@@ -455,6 +475,7 @@ class BraidSolver:
         return children
 
     def is_valid(self):
+        """Return True if current state could be parent of final state for a braid relation."""
         return \
             self.are_descents_valid() and \
             self.word_s.is_reduced and self.word_t.is_reduced and \
@@ -464,8 +485,8 @@ class BraidSolver:
     def are_descents_valid(self):
         """
         Returns False if word_s and word_t share a right descent, or have (distinct)
-        right descents with product of order greater than m_st. These cases may be excluded
-        by induction.
+        right descents with product of order greater than m_st. These cases may be
+        excluded by induction.
         """
         if not self.word_s.right_descents.isdisjoint(self.word_t.right_descents):
             return False
@@ -490,6 +511,7 @@ class BraidSolver:
         return True
 
     def is_valid_involution_word_pair(self):
+        """Return True if self.word_s and self.word_t are involution words for same element."""
         x = self.word_s.to_involution()
         y = self.word_t.to_involution()
         return x.is_reduced and y.is_reduced and x.left_action == y.left_action
@@ -498,38 +520,40 @@ class BraidSolver:
         return self.is_valid() and self.sigma.is_identity()
 
     def reduce(self):
-        while True:
-            self.reduce_constraints()
-            new_zero_constraints = {
-                f for f in self.constraints.nonpositive_constraints
-                if 0 <= f and not f.is_constant()
-            }
-            if len(new_zero_constraints) == 0:
-                break
-            for f in new_zero_constraints:
-                self.constraints.add_zero_constraint(f)
-
-    def reduce_constraints(self):
+    #     """Reduce constraints repeatedly as long as reduction alters state."""
+    #     while True:
+    #         self.reduce_constraints()
+    #         new_zero_constraints = {
+    #             f for f in self.constraints.nonpositive_constraints
+    #             if 0 <= f and not f.is_constant()
+    #         }
+    #         if len(new_zero_constraints) == 0:
+    #             break
+    #         for f in new_zero_constraints:
+    #             self.constraints.add_zero_constraint(f)
+    #
+    # def reduce_constraints(self):
+        """Reduce constraints and apply resulting simplifications to self.sigma."""
         variable_substitutions = self.constraints.simplify()
         for var, substitution in variable_substitutions:
             for i in self.sigma:
                 self.sigma[i] = self.sigma[i].set_variable(var, substitution)
 
-    def set_variables_to_zero(self, variables):
-        self.constraints.nonpositive_constraints = {
-            f.set_variables_to_zero(variables) for f in self.constraints.nonpositive_constraints
-        }
-        self.constraints.linear_constraints = {
-            f.set_variables_to_zero(variables) for f in self.constraints.linear_constraints
-        }
-        self.constraints.nonzero_constraints = {
-            r.set_variables_to_zero(variables) for r in self.constraints.nonzero_constraints
-        }
-        self.constraints.quadratic_constraints = {
-            f.set_variables_to_zero(variables) for f in self.constraints.quadratic_constraints
-        }
-        for i in self.sigma:
-            self.sigma[i] = self.sigma[i].set_variables_to_zero(variables)
+    # def set_variables_to_zero(self, variables):
+    #     self.constraints.nonpositive_constraints = {
+    #         f.set_variables_to_zero(variables) for f in self.constraints.nonpositive_constraints
+    #     }
+    #     self.constraints.linear_constraints = {
+    #         f.set_variables_to_zero(variables) for f in self.constraints.linear_constraints
+    #     }
+    #     self.constraints.nonzero_constraints = {
+    #         r.set_variables_to_zero(variables) for r in self.constraints.nonzero_constraints
+    #     }
+    #     self.constraints.quadratic_constraints = {
+    #         f.set_variables_to_zero(variables) for f in self.constraints.quadratic_constraints
+    #     }
+    #     for i in self.sigma:
+    #         self.sigma[i] = self.sigma[i].set_variables_to_zero(variables)
 
 
 class SolverQueue:
@@ -558,15 +582,15 @@ class SolverQueue:
     def __len__(self):
         return len(self.queue)
 
+    def _print(self, string, end=None, level=VERBOSE_LEVEL_MEDIUM):
+        if level <= self.verbose_level:
+            print(string, end=end)
+
     def _print_status(self, string, end=None):
         self._print(string, end=end, level=self.VERBOSE_LEVEL_LOW)
 
     def _print_verbose(self, string, end=None):
         self._print(string, end=end, level=self.VERBOSE_LEVEL_HIGH)
-
-    def _print(self, string, end=None, level=VERBOSE_LEVEL_MEDIUM):
-        if level <= self.verbose_level:
-            print(string, end=end)
 
     def _update(self, children):
         """Add new states from input list `children` to self.queue or to self.final."""
@@ -583,6 +607,7 @@ class SolverQueue:
             self._print_verbose('\n(no states added)\n')
 
     def _insert(self, child):
+        """Insert child into queue so as to preserve ordering by length."""
         i = 0
         while i < len(self.queue) and len(self.queue[i]) < len(child):
             i += 1
@@ -597,18 +622,19 @@ class SolverQueue:
             self.sufficient_relations.add((v, u))
 
     def next(self):
-        """Pop first state from queue, then append the valid states which are its children."""
+        """Pop first state from queue, compute its children, then append these to the queue."""
         if len(self) == 0:
             self._print('Queue is empty')
         else:
+            next_state = self.queue.pop(0)
+
             self._print_verbose('')
             self._print_verbose('-----------')
             self._print_verbose('Next state:')
             self._print_verbose('-----------')
-            self._print_verbose(self.queue[0])
+            self._print_verbose(next_state)
 
-            children, description = self.queue[0].branch()
-            self.queue = self.queue[1:]
+            children, description = next_state.branch()
             self._print(description)
 
             self._print_verbose('')
@@ -629,7 +655,7 @@ class SolverQueue:
         if not d:
             return '0'
         else:
-            return ' '.join([str(ell) + '^' + str(mul) for ell, mul in sorted(d.items())])
+            return ' '.join(['%s^%s' % (ell, mul) for ell, mul in sorted(d.items())])
 
     def word_multiplicities(self):
         """Returns string with multiplicities of lengths of word_s/t fields in queue states."""
@@ -639,7 +665,7 @@ class SolverQueue:
         if not e:
             return '0'
         else:
-            return ' '.join([str(ell) + '^' + str(mul) for ell, mul in sorted(e.items())])
+            return ' '.join(['%s^%s' % (ell, mul) for ell, mul in sorted(e.items())])
 
     def go(self, do_sanity_check=False):
         self._print_status('Step 1. Finding sufficient relations.')
@@ -702,7 +728,7 @@ class SolverQueue:
     def minimize_relations(self, final):
         """
         Given set of relations `final` which span all sets of atoms,
-        computes minimial subset with same spanning property.
+        computes minimial subset which still spans; also cleans up these relations a little.
         """
         necessary, redundant = self._get_necessary_relations(final)
         rest = [x for x in final if x not in necessary and x not in redundant]
@@ -826,7 +852,7 @@ class SolverQueue:
 
         next_level = {CoxeterWord(g): {CoxeterTransform(g)}}
         for length in range(max_length + 1):
-            # check that the equivalence class of each atom with the current length
+            # check that the equivalence class of each atom of current length
             # generated by our relations gives all atoms for the corresponding involution
             self._print('  * Relations span atoms of length %s/%s: ' % (length, max_length), end='')
             for involution, atoms in next_level.items():

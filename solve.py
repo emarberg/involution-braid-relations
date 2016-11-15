@@ -33,7 +33,7 @@ def get_arguments():
     return parser.parse_args()
 
 
-def main(coxeter_type, rank, verbosity, do_sanity_check):
+def solve(coxeter_type, rank, verbosity, do_sanity_check):
     try:
         # reverse '2A', '2D', etc., to be 'A2', 'D2', and so on
         reversed_coxeter_type = ''.join(reversed(coxeter_type))
@@ -42,9 +42,9 @@ def main(coxeter_type, rank, verbosity, do_sanity_check):
         print('Invalid type and rank: (%s, %s)' % (coxeter_type, rank))
     else:
         q = SolverQueue(g, verbose_level=verbosity)
-        q.go(do_sanity_check)
+        q.go(do_sanity_check=do_sanity_check)
 
 
 if __name__ == '__main__':
     args = get_arguments()
-    main(args.type, args.rank, args.verbosity, args.do_sanity_check)
+    solve(args.type, args.rank, args.verbosity, args.do_sanity_check)

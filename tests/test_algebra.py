@@ -1070,15 +1070,15 @@ class TestPolynomial:
         else:
             assert False
 
-    @pytest.mark.parametrize("f, variables, expected", [
-        (Polynomial(), {ord('x'), ord('y')}, 0),
-        (X + 3, {ord('x')}, 3),
-        (X + 3, {ord('y')}, X + 3),
-        (X + 3, {ord('x'), ord('y')}, 3),
-        (X + Y + 1, {ord('x'), ord('y')}, 1)
-    ])
-    def test_set_variable_to_zero(self, f, variables, expected):
-        assert f.set_variables_to_zero(variables) == expected
+    # @pytest.mark.parametrize("f, variables, expected", [
+    #     (Polynomial(), {ord('x'), ord('y')}, 0),
+    #     (X + 3, {ord('x')}, 3),
+    #     (X + 3, {ord('y')}, X + 3),
+    #     (X + 3, {ord('x'), ord('y')}, 3),
+    #     (X + Y + 1, {ord('x'), ord('y')}, 1)
+    # ])
+    # def test_set_variable_to_zero(self, f, variables, expected):
+    #     assert f.set_variables_to_zero(variables) == expected
 
     @pytest.mark.parametrize("f, expected", [
         (X*Y, False),

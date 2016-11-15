@@ -218,9 +218,11 @@ class TestRoot:
 
         one = Root(g, 1)
         assert one.coefficients == {1: 1}
+        assert 1 in one and 2 not in one
 
         nonzero = Root(g, 1, Polynomial('x'))
         assert nonzero.coefficients == {1: Polynomial('x')}
+        assert 1 in one and 2 not in one
 
         # second argument to root constructor must belong of g.generators
         try:
@@ -322,7 +324,7 @@ class TestRoot:
             assert False
 
     def test_set_variables(self):
-        """Tests for Root.set_variable and Root.set_variables_to_zero methods."""
+        """Tests for Root.set_variable method."""
         x = Polynomial({0: 1})
         y = Polynomial({1: 1})
 
@@ -333,12 +335,12 @@ class TestRoot:
 
         assert a.set_variable(0, 3) == Root(g, 1, 3)
         assert a.set_variable(1, 3) == a
-        assert a.set_variable(0, 0) == a.set_variables_to_zero({0}) == Root(g)
+        assert a.set_variable(0, 0) == Root(g)
 
         assert (a + b + c).set_variable(0, 1) == Root(g, 1) + b + (1 + y)*Root(g, 3)
-        assert (a + b + c).set_variables_to_zero({0}) == (Root(g, 2) + Root(g, 3))*y
-        assert (a + b + c).set_variables_to_zero({1}) == (Root(g, 1) + Root(g, 3))*x
-        assert (a + b + c).set_variables_to_zero({0, 1}) == 0
+        # assert (a + b + c).set_variables_to_zero({0}) == (Root(g, 2) + Root(g, 3))*y
+        # assert (a + b + c).set_variables_to_zero({1}) == (Root(g, 1) + Root(g, 3))*x
+        # assert (a + b + c).set_variables_to_zero({0, 1}) == 0
 
     def test_add(self):
         g = CoxeterGraph.F(4)
@@ -395,6 +397,11 @@ class TestRoot:
 
         # v +/- s is 'valid' since its coeff of alpha_3 is x - 1, which is neither < 0 or > 0
         assert (v + s).is_valid() and (v - s).is_valid()
+
+    def test_repr(self):
+        g = CoxeterGraph.A(5)
+        r = Root(g)
+        assert str(r) == '0'
 
 
 class TestRootTransform:
@@ -784,5 +791,34 @@ class TestCoxeterWord:
             CoxeterWord(g).__rmul__(CoxeterWord(h))
         except Exception as e:
             assert type(e) == InvalidInputException
+        else:
+            assert False
+
+    def test_demazure_conjugate(self):
+        g = CoxeterGraph.A(5)
+        e = CoxeterWord(g)
+
+        e = e.demazure_conjugate(1)
+        assert e.word == (1,)
+
+        e = e.demazure_conjugate(1)
+        assert e.word == (1,)
+
+        e = e.demazure_conjugate(2)
+        assert e.word == (2, 1, 2)
+
+        e = e.demazure_conjugate(2)
+        assert e.word == (2, 1, 2)
+
+        g = CoxeterGraph.A2(5)
+        e = CoxeterWord(g)
+
+        e = e.demazure_conjugate(1)
+        assert e.word == (5, 1)
+
+        try:
+            e.demazure_conjugate(0)
+        except Exception as exc:
+            assert type(exc) == InvalidInputException
         else:
             assert False
