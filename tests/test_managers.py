@@ -11,6 +11,7 @@ from project.algebra import (
     Monomial,
     Polynomial,
     CoxeterGraph,
+    CoxeterTransform,
     Root
 )
 
@@ -329,3 +330,26 @@ class TestBraidQueue:
 
         # check that the following does not cause any errors
         q.next()
+
+    def test_get_next_level_of_involutions_to_atoms(self):
+        g = CoxeterGraph.A(2)
+
+        level = BraidQueue._get_next_level_of_involutions_to_atoms(g)
+        assert level == {CoxeterTransform(g): {CoxeterTransform(g)}}
+
+        level = BraidQueue._get_next_level_of_involutions_to_atoms(g, level)
+        assert level == {
+            CoxeterTransform.from_word(g, (1,)): {CoxeterTransform.from_word(g, (1,))},
+            CoxeterTransform.from_word(g, (2,)): {CoxeterTransform.from_word(g, (2,))}
+        }
+
+        level = BraidQueue._get_next_level_of_involutions_to_atoms(g, level)
+        assert level == {
+            CoxeterTransform.from_word(g, (1, 2, 1)): {
+                CoxeterTransform.from_word(g, (1, 2)),
+                CoxeterTransform.from_word(g, (2, 1))
+            },
+        }
+
+        level = BraidQueue._get_next_level_of_involutions_to_atoms(g, level)
+        assert level == {}

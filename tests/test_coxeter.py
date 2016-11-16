@@ -671,6 +671,29 @@ class TestCoxeterTransform:
         assert a.multiply_up((2, 3)) is None
         assert a.span_by_right_relations(relations) == {a, b, c}
 
+    def test_demazure_conjugate(self):
+        g = CoxeterGraph.A(5)
+        e = CoxeterTransform(g)
+
+        e = e.demazure_conjugate(1)
+        assert e.minimal_reduced_word == (1,)
+
+        e = e.demazure_conjugate(2)
+        assert e.minimal_reduced_word == (1, 2, 1)
+
+        g = CoxeterGraph.A2(5)
+        e = CoxeterTransform(g)
+
+        e = e.demazure_conjugate(1)
+        assert e.minimal_reduced_word == (5, 1)
+
+        try:
+            e.demazure_conjugate(0)
+        except Exception as exc:
+            assert type(exc) == InvalidInputException
+        else:
+            assert False
+
 
 class TestCoxeterWord:
     def test_init(self):
@@ -791,34 +814,5 @@ class TestCoxeterWord:
             CoxeterWord(g).__rmul__(CoxeterWord(h))
         except Exception as e:
             assert type(e) == InvalidInputException
-        else:
-            assert False
-
-    def test_demazure_conjugate(self):
-        g = CoxeterGraph.A(5)
-        e = CoxeterWord(g)
-
-        e = e.demazure_conjugate(1)
-        assert e.word == (1,)
-
-        e = e.demazure_conjugate(1)
-        assert e.word == (1,)
-
-        e = e.demazure_conjugate(2)
-        assert e.word == (2, 1, 2)
-
-        e = e.demazure_conjugate(2)
-        assert e.word == (2, 1, 2)
-
-        g = CoxeterGraph.A2(5)
-        e = CoxeterWord(g)
-
-        e = e.demazure_conjugate(1)
-        assert e.word == (5, 1)
-
-        try:
-            e.demazure_conjugate(0)
-        except Exception as exc:
-            assert type(exc) == InvalidInputException
         else:
             assert False
