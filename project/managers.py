@@ -20,6 +20,13 @@ from project.utils import (
 
 
 class ConstraintsManager:
+
+    """
+    Objects of this class represent a set constraints, given by equalities and inequalities
+    involving (mostly linear) polynomials. The class provides methods to simplify such
+    constraints, and to determine when they are impossible to simultaneously satisfy.
+    """
+
     def __init__(self):
         # list of linear Polynomials which must be == 0
         self.linear_constraints = set()
@@ -48,6 +55,10 @@ class ConstraintsManager:
         return other
 
     def add_zero_constraint(self, constraint):
+        """
+        Add input Polynomial `constraint` to linear or quadratic constraints accordingly.
+        If input is a Root, do the same for all of its coefficients.
+        """
         if type(constraint) == Root:
             for v in constraint.coefficients.values():
                 self.add_zero_constraint(v)
@@ -66,6 +77,11 @@ class ConstraintsManager:
             raise InvalidInputException(self, constraint, 'add_zero_constraint')
 
     def add_nonpositive_constraint(self, constraint):
+        """
+        Add input Polynomial `constraint` to nonpositive constraints. If -constraint
+        is already in this set, then we call `add_zero_constraint` with `constraint` as input.
+        If input is a Root, do the same for all of its coefficients.
+        """
         if type(constraint) == Root:
             for v in constraint.coefficients.values():
                 self.add_nonpositive_constraint(v)
@@ -95,25 +111,22 @@ class ConstraintsManager:
         degenerate_constraints = set()
         while self.linear_constraints:
             row = self.linear_constraints.pop()
+
+            # find nonzero indeterminate x_i appearing in row, or continue if row == 0
             variables = row.get_variables()
             if not variables:
                 if row != 0:
                     degenerate_constraints.add(row)
                 continue
-
             var = Monomial({variables.pop(): 1})
             substitution = -row / row[var]
             substitution[var] = 0
 
+            # apply new variable substitution to all previous ones
             for i in range(len(variable_substitutions)):
-                prev_var, prev_subst = variable_substitutions[i]
-                c = prev_subst[var]
-                if c != 0:
-                    new_subst = prev_subst + c*substitution
-                    # note that since new_subst was assigned to newly created in previous line,
-                    # the following deletion does not affect any other existing polynomial.
-                    new_subst[var] = 0
-                    variable_substitutions[i] = (prev_var, new_subst)
+                prev_var, subst = variable_substitutions[i]
+                new_subst = subst.set_variable(var, substitution)
+                variable_substitutions[i] = (prev_var, new_subst)
 
             variable_substitutions.append((var, substitution))
             self.apply_variable_substitution(var, substitution)
@@ -183,6 +196,7 @@ class ConstraintsManager:
     def is_valid(self):
         return not (
             any(0 < f for f in self.nonpositive_constraints) or
+            # we do not check f != 0 since want to determine if f has all positive/negative coeffs
             any(0 < f or f < 0 for f in self.linear_constraints) or
             any(0 < f or f < 0 for f in self.quadratic_constraints) or
             any(r == 0 for r in self.nonzero_constraints)
@@ -221,7 +235,7 @@ class PartialBraid:
             conditional = conditional[0]
 
         s = '\n'
-        s += 'State:\n'
+        s += 'PartialBraid data:\n'
         s += '----------------------------------------------------------------\n'
         s += 's = %s, word_s = %s\n' % (self.s, self.word_s)
         s += 't = %s, word_t = %s\n' % (self.t, self.word_t)
@@ -481,7 +495,7 @@ class PartialBraid:
         y = self.word_t.to_involution()
         return x.is_reduced and y.is_reduced and x.left_action == y.left_action
 
-    def is_final(self):
+    def is_leaf(self):
         return self.is_valid() and self.sigma.is_identity()
 
     def reduce(self):
@@ -494,12 +508,25 @@ class PartialBraid:
 
 class BraidQueue:
 
+    """
+    Class implementing a queue for storing PartialBraid objects.
+
+    The queue is processed by popping the first PartialBraid, computing its children,
+    and then either adding these back into the queue or (when children are leaves)
+    converting to a involution braid relation. See methods `next` and `go`.
+
+    Once all processing is done, the class has methods which can be used to compute
+    the minimal spanning subset of a sufficient set of involution braid relations,
+    and to do some sanity checks.
+    """
+
     VERBOSE_LEVEL_NONE = 0
     VERBOSE_LEVEL_LOW = 1
     VERBOSE_LEVEL_MEDIUM = 2
     VERBOSE_LEVEL_HIGH = 3
 
     def __init__(self, coxeter_graph, s=None, t=None, verbose_level=VERBOSE_LEVEL_MEDIUM):
+        """Inputs `s` and `t` should be elements of `coxeter_graph.generators`."""
         self.graph = coxeter_graph
 
         # if s or t is not provided, initialize queue with all pairs of generators (s, t)
@@ -534,8 +561,8 @@ class BraidQueue:
         for child in children:
             if child not in self.queue:
                 self._print_verbose(child)
-                if child.is_final():
-                    self._add_final(child)
+                if child.is_leaf():
+                    self._add_to_sufficient_relations(child)
                 else:
                     self._insert(child)
                     added = True
@@ -549,7 +576,8 @@ class BraidQueue:
             i += 1
         self.queue.insert(i, child)
 
-    def _add_final(self, child):
+    def _add_to_sufficient_relations(self, child):
+        """Convert PartialBraid `child` to pair of words and add to self.sufficient_relations."""
         u = tuple(child.word_s.word)
         v = tuple(child.word_t.word)
         if u < v:
@@ -604,6 +632,11 @@ class BraidQueue:
             return ' '.join(['%s^%s' % (ell, mul) for ell, mul in sorted(e.items())])
 
     def go(self, do_sanity_check=False):
+        """
+        Process all states in queue to find sufficient spanning relations,
+        then reduce these to a minimal set, then (optionally) check that
+        minimal relations generate all sets of involution words.
+        """
         self._print_status('Step 1. Finding sufficient relations.')
         t0 = time.time()
         while len(self) > 0:
@@ -768,13 +801,13 @@ class BraidQueue:
     @classmethod
     def _get_next_level_of_involutions_to_atoms(cls, graph, current_level=None):
         """
-        Returns dictionary mapping nvolutions of a fixed length to their sets of atoms.
+        Returns dictionary mapping involutions of a fixed rank to their sets of atoms.
 
         The input `current_level` should be a dictionary whose keys are the CoxeterTransforms
         giving all (twisted) involutions of some rank k, and whose values are the sets of
         CoxeterTransforms which are the atoms of each involution.
 
-        The method returns a dictionary of the same type but whose keys correspond to the
+        The method returns a dictionary of the same type but whose keys are the
         involutions of rank k+1.
         """
         if current_level is None:

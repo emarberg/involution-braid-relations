@@ -50,6 +50,7 @@ class RationalNumber(NumberMixin):
         return True
 
     def __hash__(self):
+        """If self is an integer, its hash is the same as the corresponding int."""
         if self.is_integer():
             return hash(self.numerator)
         else:
