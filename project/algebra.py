@@ -904,7 +904,7 @@ class CoxeterGraph:
 
     def get_max_involution_word_length(self, limit=1000):
         max_len = 0
-        e = CoxeterWord(self)
+        e = CoxeterTransform(self)
         while e.right_descents != set(self.generators) and max_len < limit:
             i = next(iter(set(self.generators) - e.right_descents))
             e = e.demazure_conjugate(i)
@@ -1377,6 +1377,15 @@ class CoxeterTransform(RootTransform):
             to_add = next_add
         return generated
 
+    def demazure_conjugate(self, i):
+        if i not in self.graph.generators:
+            raise InvalidInputException(self, i, 'demazure_conjugate')
+        j = self.graph.star(i)
+        ans = j * self * i
+        if ans == self:
+            ans = self * i
+        return ans
+
 
 class CoxeterWord:
     def __init__(self, coxeter_graph, word=()):
@@ -1409,17 +1418,6 @@ class CoxeterWord:
 
     def __len__(self):
         return len(self.word)
-
-    def demazure_conjugate(self, i):
-        if i not in self.graph.generators:
-            raise InvalidInputException(self, i, 'demazure_conjugate')
-        ans = self
-        if i not in self.right_descents:
-            ans = ans * i
-        j = self.graph.star(i)
-        if j not in ans.left_descents:
-            ans = j * ans
-        return ans
 
     def to_involution(self):
         new = CoxeterWord(self.graph)

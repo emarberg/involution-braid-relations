@@ -273,12 +273,12 @@ class TestPartialBraid:
 
 
 class TestBraidQueue:
-    def test_go(self):
+    def test_A3(self):
         g = CoxeterGraph.A(3)
 
         # test algorithm where trivial output is expected
         q = BraidQueue(g, 1, 3, verbose_level=BraidQueue.VERBOSE_LEVEL_HIGH)
-        q.go(do_sanity_check=True)
+        q.go()
         assert q.sufficient_relations == set() and q.minimal_relations == []
 
         # test algorithm in small case where nontrivial output is expected
@@ -297,9 +297,10 @@ class TestBraidQueue:
             ((2, 3), (3, 2))
         ]
 
+    def test_B3(self):
         g = CoxeterGraph.B(3)
-        q = BraidQueue(g, verbose_level=BraidQueue.VERBOSE_LEVEL_HIGH)
-        q.go(do_sanity_check=True)
+        q = BraidQueue(g, verbose_level=BraidQueue.VERBOSE_LEVEL_LOW)
+        q.go()
         assert q.sufficient_relations == {
             ((1, 2), (2, 1)),
             ((0, 1, 0), (1, 0, 1)),
@@ -311,9 +312,10 @@ class TestBraidQueue:
             ((0, 1, 2, 0, 1, 0), (0, 1, 2, 1, 0, 1))
         ]
 
-        # test algorithm in small twisted case
+    def test_2A3(self):
+        # Test algorithm in small twisted case
         g = CoxeterGraph.A2(3)
-        q = BraidQueue(g, verbose_level=BraidQueue.VERBOSE_LEVEL_HIGH)
+        q = BraidQueue(g, verbose_level=BraidQueue.VERBOSE_LEVEL_LOW)
         q.go(do_sanity_check=True)
         assert q.sufficient_relations == {
             ((1,), (3,)),
