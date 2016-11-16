@@ -1,7 +1,7 @@
 import argparse
 
 from project.algebra import CoxeterGraph
-from project.managers import SolverQueue
+from project.managers import BraidQueue
 
 
 def get_arguments():
@@ -41,7 +41,7 @@ def solve(coxeter_type, rank, verbosity, do_sanity_check):
     except:
         print('Invalid type and rank: (%s, %s)' % (coxeter_type, rank))
     else:
-        q = SolverQueue(g, verbose_level=verbosity)
+        q = BraidQueue(g, verbose_level=verbosity)
         q.go(do_sanity_check=do_sanity_check)
 
 

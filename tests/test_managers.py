@@ -16,8 +16,8 @@ from project.algebra import (
 
 from project.managers import (
     ConstraintsManager,
-    BraidSolver,
-    SolverQueue
+    PartialBraid,
+    BraidQueue
 )
 
 
@@ -241,28 +241,48 @@ class TestConstraintsManager:
         assert not manager.is_valid()
 
 
-class TestSolverQueue:
-    def test_braid_solver_constructor_errors(self):
+class TestPartialBraid:
+    def test_partial_braid_constructor_errors(self):
         g = CoxeterGraph.A(3)
 
         # input (s, t) must both be in g.generators
         try:
-            BraidSolver(g, s=0, t=1)
+            PartialBraid(g, s=0, t=1)
         except Exception as e:
             assert type(e) == InvalidInputException
         else:
             assert False
 
+    @pytest.mark.parametrize("m, is_fixer, expected", [
+        (5, True, (1, 2, 1)),
+        (5, False, (1, 2, 1)),
+        (6, True, (2, 1, 2, 1)),
+        (6, False, (1, 2, 1)),
+    ])
+    def test_extend_words(self, m, is_fixer, expected):
+        g = CoxeterGraph([(1, 2, m)])
+
+        state = PartialBraid(g, 1, 2)
+        assert state.word_s.word == () and state.word_s.word == ()
+
+        state._extend_words(is_fixer)
+        assert state.word_s.word == expected
+
+        other = tuple(map(lambda i: 3-i, expected))
+        assert state.word_t.word == other
+
+
+class TestBraidQueue:
     def test_go(self):
         g = CoxeterGraph.A(3)
 
         # test algorithm where trivial output is expected
-        q = SolverQueue(g, 1, 3, verbose_level=SolverQueue.VERBOSE_LEVEL_HIGH)
+        q = BraidQueue(g, 1, 3, verbose_level=BraidQueue.VERBOSE_LEVEL_HIGH)
         q.go(do_sanity_check=True)
         assert q.sufficient_relations == set() and q.minimal_relations == []
 
         # test algorithm in small case where nontrivial output is expected
-        q = SolverQueue(g, verbose_level=SolverQueue.VERBOSE_LEVEL_HIGH)
+        q = BraidQueue(g, verbose_level=BraidQueue.VERBOSE_LEVEL_HIGH)
         assert {(state.s, state.t) for state in q.queue} == {(1, 2), (1, 3), (2, 3)}
         assert q.sufficient_relations == set()
         assert q.minimal_relations == []
@@ -277,9 +297,23 @@ class TestSolverQueue:
             ((2, 3), (3, 2))
         ]
 
+        g = CoxeterGraph.B(3)
+        q = BraidQueue(g, verbose_level=BraidQueue.VERBOSE_LEVEL_HIGH)
+        q.go(do_sanity_check=True)
+        assert q.sufficient_relations == {
+            ((1, 2), (2, 1)),
+            ((0, 1, 0), (1, 0, 1)),
+            ((0, 1, 2, 0, 1, 0), (0, 1, 2, 1, 0, 1))
+        }
+        assert q.minimal_relations == [
+            ((1, 2), (2, 1)),
+            ((0, 1, 0), (1, 0, 1)),
+            ((0, 1, 2, 0, 1, 0), (0, 1, 2, 1, 0, 1))
+        ]
+
         # test algorithm in small twisted case
         g = CoxeterGraph.A2(3)
-        q = SolverQueue(g, verbose_level=SolverQueue.VERBOSE_LEVEL_HIGH)
+        q = BraidQueue(g, verbose_level=BraidQueue.VERBOSE_LEVEL_HIGH)
         q.go(do_sanity_check=True)
         assert q.sufficient_relations == {
             ((1,), (3,)),

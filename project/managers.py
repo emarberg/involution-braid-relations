@@ -189,7 +189,7 @@ class ConstraintsManager:
         )
 
 
-class BraidSolver:
+class PartialBraid:
     def __init__(self, coxeter_graph, s, t):
         if s in coxeter_graph.generators and t in coxeter_graph.generators:
             self.graph = coxeter_graph
@@ -204,7 +204,7 @@ class BraidSolver:
 
     def __eq__(self, other):
         return \
-            BraidSolver == type(other) and \
+            PartialBraid == type(other) and \
             self.graph == other.graph and \
             self.sigma == other.sigma and \
             self.word_s.left_action == other.word_s.left_action and \
@@ -221,7 +221,7 @@ class BraidSolver:
             conditional = conditional[0]
 
         s = '\n'
-        s += 'Solver State:\n'
+        s += 'State:\n'
         s += '----------------------------------------------------------------\n'
         s += 's = %s, word_s = %s\n' % (self.s, self.word_s)
         s += 't = %s, word_t = %s\n' % (self.t, self.word_t)
@@ -235,7 +235,7 @@ class BraidSolver:
         return s
 
     def copy(self):
-        other = BraidSolver(self.graph, self.s, self.t)
+        other = PartialBraid(self.graph, self.s, self.t)
         other.sigma = self.sigma.copy()
         other.word_s = self.word_s.copy()
         other.word_t = self.word_t.copy()
@@ -245,7 +245,7 @@ class BraidSolver:
     def clear_constraints(self):
         self.constraints = ConstraintsManager()
 
-    def get_semiorder(self, is_fixer=True):
+    def get_semiorder(self, is_fixer):
         m = self.graph.get_order(self.s, self.t)
         if m % 2 != 0:
             return (m+1)//2
@@ -293,10 +293,10 @@ class BraidSolver:
 
         t3 = time.time()
         description = '\n'
-        description += 'BRANCHING: %s\n' % label
-        description += '  CONSTRUCT: %s seconds\n' % (t1-t0)
-        description += '  REDUCTION: %s seconds\n' % (t2-t1)
-        description += '  VALIDITY : %s seconds' % (t3-t2)
+        description += 'BRANCHING TYPE: %s\n' % label
+        description += '  Time for construction : %s seconds\n' % (t1-t0)
+        description += '  Time for reduction    : %s seconds\n' % (t2-t1)
+        description += '  Time to check validity: %s seconds' % (t3-t2)
         return children, description
 
     def _get_children(self):
@@ -326,7 +326,7 @@ class BraidSolver:
 
     def _extend_words(self, is_fixer):
         gens = [self.s, self.t]
-        for i in range(self.get_semiorder(is_fixer=False)):
+        for i in range(self.get_semiorder(is_fixer)):
             self.word_s.extend_left(gens[i % 2])
             self.word_t.extend_left(gens[(i+1) % 2])
 
@@ -334,11 +334,11 @@ class BraidSolver:
         alpha = Root(self.graph, self.graph.star(self.s))
         beta = Root(self.graph, self.graph.star(self.t))
 
-        fixer = BraidSolver(self.graph, self.s, self.t)
+        fixer = PartialBraid(self.graph, self.s, self.t)
         fixer.sigma = RootTransform(self.graph, {self.s: alpha, self.t: beta})
         fixer._extend_words(is_fixer=True)
 
-        transposer = BraidSolver(self.graph, self.s, self.t)
+        transposer = PartialBraid(self.graph, self.s, self.t)
         transposer.sigma = RootTransform(self.graph, {self.s: beta, self.t: alpha})
         transposer._extend_words(is_fixer=False)
 
@@ -492,7 +492,7 @@ class BraidSolver:
                 self.sigma[i] = self.sigma[i].set_variable(var, substitution)
 
 
-class SolverQueue:
+class BraidQueue:
 
     VERBOSE_LEVEL_NONE = 0
     VERBOSE_LEVEL_LOW = 1
@@ -505,11 +505,11 @@ class SolverQueue:
         # if s or t is not provided, initialize queue with all pairs of generators (s, t)
         if not s or not t:
             self.queue = [
-                BraidSolver(coxeter_graph, s, t)
+                PartialBraid(coxeter_graph, s, t)
                 for s in coxeter_graph.generators for t in coxeter_graph.generators if s < t
             ]
         else:
-            self.queue = [BraidSolver(coxeter_graph, s, t)]
+            self.queue = [PartialBraid(coxeter_graph, s, t)]
 
         self.sufficient_relations = set()
         self.minimal_relations = []
@@ -643,7 +643,7 @@ class SolverQueue:
             self._print_status('%s <---> %s' % (u, v))
 
         self._print_status('')
-        self._print_status('Total duration: %s seconds' % (t2-t0))
+        self._print_status('Total duration: %s + %s = %s seconds' % (t1-t0, t2-t1, t2-t0))
 
         # sanity check will print out no output if verbose_level is too low, so we return
         if self.verbose_level < self.VERBOSE_LEVEL_LOW or not do_sanity_check:
@@ -742,7 +742,7 @@ class SolverQueue:
                     return self._finalize_relations(candidate)
                 else:
                     self._print("       Does not span.")
-        raise Exception('Error in SolverQueue._finalize_necessary_relations: returning None')
+        raise Exception('Error in BraidQueue._finalize_necessary_relations: returning None')
 
     def _finalize_relations(self, relations):
         """
