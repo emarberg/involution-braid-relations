@@ -906,7 +906,7 @@ class CoxeterGraph:
     def get_max_involution_word_length(self, limit=1000):
         max_len = 0
         e = CoxeterTransform(self)
-        while e.right_descents != set(self.generators) and max_len < limit:
+        while e.right_descents != set(self.generators) and (limit is None or max_len < limit):
             i = next(iter(set(self.generators) - e.right_descents))
             e = e.demazure_conjugate(i)
             max_len += 1

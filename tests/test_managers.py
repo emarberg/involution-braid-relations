@@ -388,3 +388,22 @@ class TestBraidQueue:
 
         level = BraidQueue._get_next_level_of_involutions_to_atoms(g, level)
         assert level == {}
+
+    def test_sanity_check(self):
+        g = CoxeterGraph.B(3)
+        q = BraidQueue(g)
+
+        q.minimal_relations = [((0, 1), (1, 0)), ((1, 2), (2, 1))]
+        try:
+            q.sanity_check(None)
+        except Exception as e:
+            assert str(e) == 'Error: minimal relations do not preserve all sets of atoms.'
+
+        q.minimal_relations = [((0, 1, 0), (1, 0, 1)), ((1, 2), (2, 1))]
+        try:
+            q.sanity_check(None)
+        except Exception as e:
+            assert str(e) == 'Error: minimal relations fail to span all sets of atoms.'
+
+        q.minimal_relations += [((0, 1, 2, 0, 1, 0), (0, 1, 2, 1, 0, 1))]
+        q.sanity_check(None)
