@@ -12,6 +12,7 @@ from project.algebra import (
     Polynomial,
     CoxeterGraph,
     CoxeterTransform,
+    CoxeterWord,
     Root,
     RootTransform
 )
@@ -306,6 +307,29 @@ class TestPartialBraid:
 
         state.constraints.nonpositive_constraints.add(x - 1)
         assert state.get_conditional_descent() == (2, (x - 1) * (Root(g, 1) + Root(g, 3)))
+
+    def test_is_sigma_valid(self):
+        g = CoxeterGraph.A(3)
+        state = PartialBraid(g, s=1, t=2)
+
+        state.sigma = RootTransform(g, {1: Root(g, 1) - Root(g, 2)})
+        assert not state._is_sigma_valid()
+
+        state.sigma = RootTransform(g, {
+            1: Root(g, 3),
+            2: Root(g, 2),
+            3: Root(g, 1)
+        })
+        assert not state._is_sigma_valid()
+
+        state.sigma = RootTransform.identity(g)
+        state.word_s = CoxeterWord(g, (1, 2))
+        state.word_t = CoxeterWord(g, (3, 2))
+        assert not state._is_sigma_valid()
+
+        state.word_s = CoxeterWord(g, (1, 2))
+        state.word_t = CoxeterWord(g, (2, 1))
+        assert state._is_sigma_valid()
 
 
 class TestBraidQueue:
