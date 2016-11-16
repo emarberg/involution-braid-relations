@@ -857,6 +857,15 @@ class CoxeterGraph:
         else:
             return self.orders.get((i, j), 2)
 
+    def get_semiorder(self, i, j, generators_are_fixed):
+        m = self.get_order(i, j)
+        if m % 2 != 0:
+            return (m+1)//2
+        elif generators_are_fixed:
+            return m//2 + 1
+        else:
+            return m//2
+
     def eval_bilinear(self, i, j):
         """Returns -cos(pi/m_ij)."""
         m = self.get_order(i, j)

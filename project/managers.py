@@ -257,17 +257,27 @@ class PartialBraid:
         other.constraints = self.constraints.copy()
         return other
 
-    def clear_constraints(self):
+    def _clear_constraints(self):
         self.constraints = ConstraintsManager()
 
-    def get_semiorder(self, is_fixer):
-        m = self.graph.get_order(self.s, self.t)
-        if m % 2 != 0:
-            return (m+1)//2
-        elif is_fixer:
-            return m//2 + 1
-        else:
-            return m//2
+    def branch(self):
+        t0 = time.time()
+        children, label = self._get_children()
+
+        t1 = time.time()
+        for child in children:
+            child.reduce()
+
+        t2 = time.time()
+        children = [child for child in children if child.is_valid()]
+
+        t3 = time.time()
+        description = '\n'
+        description += 'BRANCHING TYPE: %s\n' % label
+        description += '  Time for construction : %s seconds\n' % (t1-t0)
+        description += '  Time for reduction    : %s seconds\n' % (t2-t1)
+        description += '  Time to check validity: %s seconds' % (t3-t2)
+        return children, description
 
     def get_unconditional_descent(self):
         descents_to_avoid = self.word_s.left_descents | self.word_t.left_descents
@@ -290,31 +300,12 @@ class PartialBraid:
             if nonpositive_part != 0:
                 return i, nonpositive_part
 
-    def is_quadratic_constraint_factorable(self):
+    def _is_quadratic_constraint_factorable(self):
         if self.constraints.quadratic_constraints:
             c = next(iter(self.constraints.quadratic_constraints))
             return c.is_factorable()
         else:
             return False
-
-    def branch(self):
-        t0 = time.time()
-        children, label = self._get_children()
-
-        t1 = time.time()
-        for child in children:
-            child.reduce()
-
-        t2 = time.time()
-        children = [child for child in children if child.is_valid()]
-
-        t3 = time.time()
-        description = '\n'
-        description += 'BRANCHING TYPE: %s\n' % label
-        description += '  Time for construction : %s seconds\n' % (t1-t0)
-        description += '  Time for reduction    : %s seconds\n' % (t2-t1)
-        description += '  Time to check validity: %s seconds' % (t3-t2)
-        return children, description
 
     def _get_children(self):
         children = []
@@ -322,7 +313,7 @@ class PartialBraid:
         if len(self.sigma) == 0:
             return self._get_first_children(), 'first iteration'
 
-        if self.is_quadratic_constraint_factorable():
+        if self._is_quadratic_constraint_factorable():
             return self._get_children_from_quadratic_constraint(), 'reducing quadratic constraint'
 
         unconditional = self.get_unconditional_descent()
@@ -341,9 +332,12 @@ class PartialBraid:
 
         raise Exception('Current state does not match any branching rule: %s' % self)
 
+    def _get_semiorder(self, is_fixer):
+        return self.graph.get_semiorder(self.s, self.t, is_fixer)
+
     def _extend_words(self, is_fixer):
         gens = [self.s, self.t]
-        for i in range(self.get_semiorder(is_fixer)):
+        for i in range(self._get_semiorder(is_fixer)):
             self.word_s.extend_left(gens[i % 2])
             self.word_t.extend_left(gens[(i+1) % 2])
 
@@ -440,7 +434,7 @@ class PartialBraid:
         for i in candidate_descents:
             # add child with new descent i
             child = self.copy()
-            child.clear_constraints()
+            child._clear_constraints()
             child.sigma[i] = sum([-Polynomial({j: 1})*Root(g, j) for j in g.generators])
             for j in child.sigma:
                 child.constraints.add_zero_constraint(
