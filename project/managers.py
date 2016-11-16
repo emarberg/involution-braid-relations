@@ -196,7 +196,8 @@ class ConstraintsManager:
     def is_valid(self):
         return not (
             any(0 < f for f in self.nonpositive_constraints) or
-            # we do not check f != 0 since want to determine if f has all positive/negative coeffs
+            # we do not check f != 0 since this would be true for any nontrivial polynomial;
+            # instead, we want to determine if f has all positive/negative coeffs
             any(0 < f or f < 0 for f in self.linear_constraints) or
             any(0 < f or f < 0 for f in self.quadratic_constraints) or
             any(r == 0 for r in self.nonzero_constraints)
@@ -270,22 +271,24 @@ class PartialBraid:
 
     def get_unconditional_descent(self):
         descents_to_avoid = self.word_s.left_descents | self.word_t.left_descents
-        unconditional = \
-            list(self.sigma.unconditional_descents & descents_to_avoid) + \
-            list(self.sigma.unconditional_descents - descents_to_avoid)
-        if unconditional:
-            return unconditional[0]
-        return None
+        unconditional = self.sigma.unconditional_descents
+
+        intersection = unconditional & descents_to_avoid
+        if intersection:
+            return intersection.pop()
+
+        difference = unconditional - descents_to_avoid
+        if difference:
+            return difference.pop()
 
     def get_conditional_descent(self):
         for i in self.sigma:
-            root = Root(self.graph)
+            nonpositive_part = Root(self.graph)
             for j, f in self.sigma[i]:
                 if f <= 0 or any(f <= g for g in self.constraints.nonpositive_constraints):
-                    root += Root(self.graph, j, f)
-            if root != 0:
-                return i, root
-        return None
+                    nonpositive_part += Root(self.graph, j, f)
+            if nonpositive_part != 0:
+                return i, nonpositive_part
 
     def is_quadratic_constraint_factorable(self):
         if self.constraints.quadratic_constraints:
@@ -456,12 +459,12 @@ class PartialBraid:
     def is_valid(self):
         """Return True if current state could be parent of final state for a braid relation."""
         return \
-            self.are_descents_valid() and \
+            self._are_descents_valid() and \
             self.word_s.is_reduced and self.word_t.is_reduced and \
-            self.is_sigma_valid() and \
+            self._is_sigma_valid() and \
             self.constraints.is_valid()
 
-    def are_descents_valid(self):
+    def _are_descents_valid(self):
         """
         Returns False if word_s and word_t share a right descent, or have (distinct)
         right descents with product of order greater than m_st. These cases may be
@@ -475,7 +478,7 @@ class PartialBraid:
                 return False
         return True
 
-    def is_sigma_valid(self):
+    def _is_sigma_valid(self):
         # invalid if sigma sends any root to 0 or non-negative/positive combination of simple roots
         if any(not root.is_valid() for root in self.sigma.values()):
             return False
@@ -485,15 +488,11 @@ class PartialBraid:
             if not self.sigma.is_identity():
                 return False
             # invalid if word_s and word_t are not involution words for the same element
-            if not self.is_valid_involution_word_pair():
+            x = self.word_s.to_involution()
+            y = self.word_t.to_involution()
+            if not (x.is_reduced and y.is_reduced and x.left_action == y.left_action):
                 return False
         return True
-
-    def is_valid_involution_word_pair(self):
-        """Return True if self.word_s and self.word_t are involution words for same element."""
-        x = self.word_s.to_involution()
-        y = self.word_t.to_involution()
-        return x.is_reduced and y.is_reduced and x.left_action == y.left_action
 
     def is_leaf(self):
         return self.is_valid() and self.sigma.is_identity()
@@ -512,8 +511,8 @@ class BraidQueue:
     Class implementing a queue for storing PartialBraid objects.
 
     The queue is processed by popping the first PartialBraid, computing its children,
-    and then either adding these back into the queue or (when children are leaves)
-    converting to a involution braid relation. See methods `next` and `go`.
+    and then either adding each of these back into the queue or, when a child is a leaf,
+    converting it to a involution braid relation. See methods `next` and `go`.
 
     Once all processing is done, the class has methods which can be used to compute
     the minimal spanning subset of a sufficient set of involution braid relations,
@@ -829,7 +828,7 @@ class BraidQueue:
         max_length = self.graph.get_max_involution_word_length(upper_length)
 
         self._print('Checking that minimal relations generate the atoms of any twisted involution.')
-        self._print('(This will only work if the Coxeter system is finite, and is quite slow.)')
+        self._print('(This will only work if the Coxeter system is finite, and can be slow.)')
         self._print('')
 
         # first check that minimal relations are involution words for same twisted involution

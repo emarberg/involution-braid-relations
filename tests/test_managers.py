@@ -12,7 +12,8 @@ from project.algebra import (
     Polynomial,
     CoxeterGraph,
     CoxeterTransform,
-    Root
+    Root,
+    RootTransform
 )
 
 from project.managers import (
@@ -271,6 +272,40 @@ class TestPartialBraid:
 
         other = tuple(map(lambda i: 3-i, expected))
         assert state.word_t.word == other
+
+    def test_get_unconditional_descent(self):
+        g = CoxeterGraph.A(3)
+        state = PartialBraid(g, s=1, t=2)
+        state._extend_words(True)
+
+        state.sigma = RootTransform(g, {1: -Root(g, 1), 3: -Root(g, 3)})
+        assert state.get_unconditional_descent() == 1
+
+        state.sigma = RootTransform(g, {1: Root(g, 1), 3: -Root(g, 3, 1 + Polynomial('x'))})
+        assert state.get_unconditional_descent() == 3
+
+        state.sigma = RootTransform(g, {1: Root(g, 1), 3: -Root(g, 3, Polynomial('x'))})
+        assert state.get_unconditional_descent() is None
+
+    def test_get_conditional_descent(self):
+        x = Polynomial('x')
+        g = CoxeterGraph.A(3)
+        state = PartialBraid(g, s=1, t=2)
+
+        state.sigma = RootTransform(g, {1: -Root(g, 1), 3: -Root(g, 3)})
+        assert state.get_conditional_descent() == (1, -Root(g, 1))
+
+        state.sigma = RootTransform(g, {1: -Root(g, 1) + Root(g, 2) - Root(g, 3, x)})
+        assert state.get_conditional_descent() == (1, -Root(g, 1) - Root(g, 3, x))
+
+        state.sigma = RootTransform(g, {
+            1: (1 - x) * Root(g, 2),
+            2: (x - 1) * (Root(g, 1) - Root(g, 2) + Root(g, 3))
+        })
+        assert state.get_conditional_descent() is None
+
+        state.constraints.nonpositive_constraints.add(x - 1)
+        assert state.get_conditional_descent() == (2, (x - 1) * (Root(g, 1) + Root(g, 3)))
 
 
 class TestBraidQueue:
