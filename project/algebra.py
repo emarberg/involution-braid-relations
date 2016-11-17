@@ -1053,7 +1053,7 @@ class CoxeterGraph:
             0==1--2--...--(n-1)==n
 
         """
-        assert n >= 4
+        assert n >= 3
         edges = [(i, i+1, 3) for i in range(1, n-1)] + [(0, 1, 4)] + [(n-1, n, 4)]
         return CoxeterGraph(edges, star=star)
 

@@ -143,7 +143,6 @@ class TestCoxeterGraph:
         returning boolean properties of these systems.
         """
         a5 = CoxeterGraph.A(5)
-        A5 = CoxeterGraph.A_tilde(5)
         b6 = CoxeterGraph.B(6)
         d7 = CoxeterGraph.D(7)
         e6 = CoxeterGraph.E(6)
@@ -156,6 +155,16 @@ class TestCoxeterGraph:
         i = CoxeterGraph([(1, 2, np.infty)])
         j = CoxeterGraph([(1, 2, 7)])
 
+        A5 = CoxeterGraph.A_tilde(5)
+        B6 = CoxeterGraph.B_tilde(6)
+        C6 = CoxeterGraph.C_tilde(6)
+        D6 = CoxeterGraph.D_tilde(6)
+        E6 = CoxeterGraph.E_tilde(6)
+        E7 = CoxeterGraph.E_tilde(7)
+        E8 = CoxeterGraph.E_tilde(8)
+        F4 = CoxeterGraph.F_tilde(4)
+        G2 = CoxeterGraph.G_tilde(2)
+
         a5_twist = CoxeterGraph.A2(5)
         b2_twist = CoxeterGraph.B2(2)
         d7_twist = CoxeterGraph.D2(7)
@@ -163,8 +172,9 @@ class TestCoxeterGraph:
         f4_twist = CoxeterGraph.F2(4)
         g2_twist = CoxeterGraph.G2(2)
 
-        simply_laced = [a5, a5_twist, A5, d7, d7_twist, e6, e6_twist, e7, e8]
-        crystallographic = simply_laced + [b2_twist, b6, f4, f4_twist, g2, g2_twist]
+        simply_laced = [a5, a5_twist, A5, d7, d7_twist, e6, e6_twist, e7, e8, E6, E7, E8, D6]
+        crystallographic = \
+            simply_laced + [b2_twist, b6, f4, f4_twist, g2, g2_twist, B6, C6, F4, G2]
         quadratic = crystallographic + [h3, h4, i]
         combined = quadratic + [j]
         for g in combined:
