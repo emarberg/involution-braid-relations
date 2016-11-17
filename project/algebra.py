@@ -932,6 +932,11 @@ class CoxeterGraph:
         return CoxeterGraph.A(n, star=star)
 
     @staticmethod
+    def B2(n=2):
+        assert n == 2
+        return CoxeterGraph([(0, 1, 4)], star=[(0, 1)])
+
+    @staticmethod
     def B(n):
         """
         Dynkin diagram labeling is:
@@ -978,7 +983,7 @@ class CoxeterGraph:
         return CoxeterGraph(edges, star=star)
 
     @staticmethod
-    def E2(n):
+    def E2(n=6):
         assert n == 6
         star = [(1, 6), (2, 5), (3, 3), (4, 4)]
         return CoxeterGraph.E(n, star=star)

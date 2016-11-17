@@ -10,7 +10,7 @@ def get_arguments():
         '--type',
         type=str,
         help='type of (twisted) Coxeter system',
-        choices=['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', '2A', '2D', '2E', '2F', '2G']
+        choices=['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', '2A', '2B', '2D', '2E', '2F', '2G']
     )
     parser.add_argument(
         '--rank',

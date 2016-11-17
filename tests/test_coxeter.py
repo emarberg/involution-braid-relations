@@ -157,13 +157,14 @@ class TestCoxeterGraph:
         j = CoxeterGraph([(1, 2, 7)])
 
         a5_twist = CoxeterGraph.A2(5)
+        b2_twist = CoxeterGraph.B2(2)
         d7_twist = CoxeterGraph.D2(7)
         e6_twist = CoxeterGraph.E2(6)
         f4_twist = CoxeterGraph.F2(4)
         g2_twist = CoxeterGraph.G2(2)
 
         simply_laced = [a5, a5_twist, A5, d7, d7_twist, e6, e6_twist, e7, e8]
-        crystallographic = simply_laced + [b6, f4, f4_twist, g2, g2_twist]
+        crystallographic = simply_laced + [b2_twist, b6, f4, f4_twist, g2, g2_twist]
         quadratic = crystallographic + [h3, h4, i]
         combined = quadratic + [j]
         for g in combined:

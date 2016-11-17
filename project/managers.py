@@ -403,23 +403,20 @@ class PartialBraid:
 
         return [child_a, child_b, child_c]
 
-    def _branch_from_descent(self, i, commutes=True, descent=True):
+    def _branch_from_descent(self, i, commutes=True):
         alpha = Root(self.graph, self.graph.star(i))
         beta = self.sigma[i]
 
         new = self.copy()
-        if not descent:
-            new.constraints.add_nonpositive_constraint(-beta)
+        new.constraints.add_nonpositive_constraint(beta)
+        new.word_s.extend_left(i)
+        new.word_t.extend_left(i)
+        if commutes:
+            new.constraints.add_zero_constraint(alpha + beta)
+            new.sigma = new.sigma * i
         else:
-            new.constraints.add_nonpositive_constraint(beta)
-            new.word_s.extend_left(i)
-            new.word_t.extend_left(i)
-            if commutes:
-                new.constraints.add_zero_constraint(alpha + beta)
-                new.sigma = new.sigma * i
-            else:
-                new.constraints.add_nonzero_constraint(alpha + beta)
-                new.sigma = self.graph.star(i) * new.sigma * i
+            new.constraints.add_nonzero_constraint(alpha + beta)
+            new.sigma = self.graph.star(i) * new.sigma * i
         return new
 
     def _get_children_from_new_descent(self):
