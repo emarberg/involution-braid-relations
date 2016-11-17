@@ -619,7 +619,7 @@ class TestMonomial:
 
     @pytest.mark.parametrize("i, expected", [
         (None, {}),
-        ('x', {ord('x'): 1}),
+        ('x', {'x': 1}),
         (12, {12: 1}),
         ({1: 1, 3: 1}, {1: 1, 3: 1}),
         ({1: 1, 3: 1, 4: 0}, {1: 1, 3: 1}),
@@ -638,12 +638,13 @@ class TestMonomial:
         """Test conversion of Monomial to str."""
         assert str(Monomial()) == '1'
         assert str(Monomial('x')) == 'x'
-        assert str(Monomial(-1)) == 'y_1'
-        assert str(Monomial({0: 1, 1: 2, 2: 3})) == 'x_0x_1^2x_2^3'
+        assert str(Monomial(-1)) == 'x[-1]'
+        assert str(Monomial('-1')) == "x['-1']"
+        assert str(Monomial({0: 1, 1: 2, 2: 3})) == 'x[0] x[1]^2 x[2]^3'
 
     def test_eq(self):
         """Test == operator for Monomials."""
-        assert Monomial('x') == Monomial(ord('x'))
+        assert Monomial(1) != Monomial('1')
         assert Monomial() == 1 == RationalNumber(1) == QuadraticNumber(1) == Polynomial(1)
 
     def test_lt(self):
@@ -657,9 +658,9 @@ class TestMonomial:
         assert x[1] == 0
 
     @pytest.mark.parametrize("m, n, expected", [
-        ('x', 'y', {ord('x'): 1, ord('y'): 1}),
-        ('x', 'x', {ord('x'): 2}),
-        ('x', None, {ord('x'): 1}),
+        ('x', 'y', {'x': 1, 'y': 1}),
+        ('x', 'x', {'x': 2}),
+        ('x', None, {'x': 1}),
         ({0: 1, 1: 2, 2: 3}, {1: 1, 2: 2, 3: 3}, {0: 1, 1: 3, 2: 5, 3: 3}),
         ({0: 1, 1: 2}, {0: -1, 1: -1}, {1: 1}),
     ])
@@ -671,7 +672,7 @@ class TestMonomial:
 
     @pytest.mark.parametrize("n, e, expected", [
         ('x', 0, {}),
-        ('x', 5, {ord('x'): 5}),
+        ('x', 5, {'x': 5}),
         ({0: 1, 1: 2}, 3, {0: 3, 1: 6}),
         ({0: 1, 1: 2}, -3, {0: -3, 1: -6}),
         (None, 12, {}),
@@ -681,9 +682,10 @@ class TestMonomial:
         assert (n**e).exponents == expected
 
     @pytest.mark.parametrize("i", [
+        {0: 1, 1: '1'},
         {0: 1, 'x': 2},
-        0.0,
-        'abc',
+        {1, 2, 3},
+        'x[1]'
     ])
     def test_constructor_errors(self, i):
         """Test error handling of invalid arguments passed to Monomial constructor."""
@@ -866,7 +868,7 @@ class TestPolynomial:
 
         assert f[1] == -7
         assert f['x'] == 2
-        assert f[{ord('x'): 3}] == 3
+        assert f[{'x': 3}] == 3
         assert f[Monomial('x')] == 2
 
     @pytest.mark.parametrize("a, b, expected", [
@@ -926,9 +928,8 @@ class TestPolynomial:
     @pytest.mark.parametrize("i", [
         Polynomial(0),
         1.0,
-        'abc',
-        {'a': 1},
-        Polynomial(10)
+        Polynomial(10),
+        'x[1]'
     ])
     def test_constructor_errors(self, i):
         """Test error handling of invalid arguments passed to Polynomial constructor."""
@@ -1004,13 +1005,13 @@ class TestPolynomial:
 
     def test_get_variables(self):
         assert Polynomial().get_variables() == set()
-        assert Polynomial('x').get_variables() == {ord('x')}
+        assert Polynomial('x').get_variables() == {'x'}
 
         f = Polynomial('x')
         g = Polynomial('y')
         h = Polynomial('z')
         F = QuadraticNumber.sqrt(2) + 3 + 5*f**2*g + g**7*h + h**2*f
-        assert F.get_variables() == {ord('x'), ord('y'), ord('z')}
+        assert F.get_variables() == {'x', 'y', 'z'}
 
     @pytest.mark.parametrize("f, expected", [
         (Polynomial(), 0),
@@ -1028,10 +1029,8 @@ class TestPolynomial:
         (Polynomial(), 'x', 1, 0),
         (Polynomial(1), 'x', 0, 1),
         (X, 'x', 3, 3),
-        (X, ord('x'), 3, 3),
         (X, Monomial('x'), 3, 3),
-        (X**2, 'x', X + Y,
-         X**2 + 2*X*Y + Y**2)
+        (X**2, 'x', X + Y, X**2 + 2*X*Y + Y**2)
     ])
     def test_set_variable(self, f, variable, value, expected):
         assert f.set_variable(variable, value) == expected
@@ -1048,7 +1047,7 @@ class TestPolynomial:
 
         # if variable is string, must be valid input to Monomial
         try:
-            Polynomial('y').set_variable('abc', 0)
+            Polynomial('y').set_variable({'abc'}, 0)
         except Exception as e:
             assert type(e) == InvalidInputException
         else:
@@ -1098,9 +1097,9 @@ class TestPolynomial:
         else:
             monic_root_a, monic_root_b = tuple(factors)
 
-        leading_coeff = f[{ord('x'): 2}]
+        leading_coeff = f[{'x': 2}]
         if leading_coeff == 0:
-            leading_coeff = f[{ord('x'): 1}]
+            leading_coeff = f[{'x': 1}]
             assert f == leading_coeff * monic_root_a
         else:
             assert f == leading_coeff * monic_root_a * monic_root_b

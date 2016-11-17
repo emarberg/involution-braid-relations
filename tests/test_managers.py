@@ -226,18 +226,23 @@ class TestConstraintsManager:
         g = CoxeterGraph.A(5)
         x = Polynomial('x')
         y = Polynomial('y')
+        z = Polynomial('z')
         manager = ConstraintsManager()
 
         manager.add_zero_constraint(x + y - 2)
         manager.add_zero_constraint(x - y + 2)
-        manager.add_zero_constraint(y)
+        manager.add_zero_constraint(y + z)
         manager.add_nonpositive_constraint(3 - y)
         manager.add_zero_constraint(x + y**2)
         manager.add_nonzero_constraint(Root(g, 1, x))
 
         variable_substitutions = set(manager.simplify())
-        assert variable_substitutions == {(Monomial('x'), 0), (Monomial('y'), 2)}
-        assert manager.linear_constraints == {2}
+        assert variable_substitutions == {
+            (Monomial('x'), 0),
+            (Monomial('y'), 2),
+            (Monomial('z'), -2)
+        }
+        assert manager.linear_constraints == set()
         assert manager.quadratic_constraints == {4}
         assert manager.nonpositive_constraints == {1}
         assert manager.nonzero_constraints == {Root(g)}

@@ -424,18 +424,25 @@ class Monomial:
     def __init__(self, exponents=None):
         if exponents is None:
             self.exponents = {}
-        elif type(exponents) == str:
+        else:
             try:
-                e = Monomial.string_to_index(exponents)
+                assert exponents != '' and type(exponents) in [str, int, dict]
+
+                if type(exponents) != dict:
+                    self.exponents = {exponents: 1}
+                else:
+                    self.exponents = {i: e for i, e in exponents.items() if e != 0}
+
+                assert not any(type(e) != int for e in self.exponents.values())
+
+                all_ints = all(type(i) == int for i in self.exponents.keys())
+                all_strs = all(type(i) == str for i in self.exponents.keys())
+                assert all_ints or all_strs
+                if all_strs:
+                    # don't allow indices like 'x[...]' since leads to ambiguous str conversion
+                    assert not any(s.startswith('x[') and s.endswith(']') for s in self.exponents)
             except:
                 raise InvalidInputException(self, exponents)
-            self.exponents = {e: 1}
-        elif type(exponents) == int:
-            self.exponents = {exponents: 1}
-        elif type(exponents) != dict or not all(type(i) == int for i in exponents):
-            raise InvalidInputException(self, exponents)
-        else:
-            self.exponents = {i: e for i, e in exponents.items() if e != 0}
 
     def __eq__(self, other):
         if type(other) != Monomial:
@@ -469,13 +476,13 @@ class Monomial:
     def __repr__(self):
         if not self.exponents:
             return '1'
-        s = ''
+        terms = []
         for i, e in sorted(self.exponents.items()):
             base = self.index_to_string(i)
             if e != 1:
                 base = base + '^' + str(e)
-            s += base
-        return s
+            terms += [base]
+        return ' '.join(terms)
 
     def degree(self):
         deg = 0
@@ -486,27 +493,21 @@ class Monomial:
         return deg
 
     @classmethod
-    def string_to_index(cls, s):
-        if s.isalpha() and len(s) == 1:
-            return ord(s)
+    def index_to_string(cls, i):
+        s = str(i)
+        try:
+            int(i)
+        except:
+            return s
         else:
-            raise InvalidInputException(Monomial(), s, method='string_to_index')
-
-    @classmethod
-    def index_to_string(cls, n):
-        if ord('a') <= n <= ord('z') or ord('A') <= n <= ord('Z'):
-            return chr(n)
-        elif n < 0:
-            return 'y_' + str(-n)
-        else:
-            return 'x_' + str(n)
+            return 'x[%s]' % repr(i)
 
 
 class Polynomial(VectorMixin, NumberMixin):
     def __init__(self, i=None):
         if i is None or (type(i) in [int, RationalNumber, QuadraticNumber] and i == 0):
             self.coefficients = {}
-        elif (type(i) == str and len(i) == 1 and i.isalpha()) or type(i) == dict:
+        elif type(i) == str or type(i) == dict:
             try:
                 monomial = Monomial(i)
             except:
@@ -708,25 +709,22 @@ class Polynomial(VectorMixin, NumberMixin):
 
     def set_variable(self, variable, value):
         try:
-            if type(value) not in [int, RationalNumber, QuadraticNumber, Polynomial]:
-                raise Exception
+            assert type(value) in [int, RationalNumber, QuadraticNumber, Polynomial]
 
-            if type(variable) == int:
-                pass
-            elif type(variable) == str:
-                variable = Monomial.string_to_index(variable)
-            elif type(variable) == Monomial and list(variable.exponents.values()) == [1]:
-                variable = next(iter(variable.exponents.keys()))
-            else:
-                raise Exception
+            if type(variable) != Monomial:
+                variable = Monomial(variable)
+
+            assert list(variable.exponents.values()) == [1]
+
+            variable_index = next(iter(variable.exponents.keys()))
         except:
             raise InvalidInputException(self, (variable, value), 'set_variable')
 
         new = Polynomial()
         for monomial, coeff in self:
-            e = monomial[variable]
+            e = monomial[variable_index]
             if e != 0 and value != 0:
-                exponents = {i: e for i, e in monomial.exponents.items() if i != variable}
+                exponents = {i: e for i, e in monomial.exponents.items() if i != variable_index}
                 new += Polynomial(exponents) * coeff * (value**e)
             elif e < 0 and value == 0:
                 raise Exception('Division by zero when setting variable in `%s`' % str(self))
@@ -771,14 +769,15 @@ class CoxeterGraph:
     def _setup_generators(self, edges, generators):
         # assign sorted list of simple generator indices to self.generators
         generators_from_edges = {t[0] for t in edges} | {t[1] for t in edges}
-        if generators is not None:
-            generators = set(generators)
-            if generators_from_edges.issubset(generators):
+        try:
+            if generators is not None:
+                generators = set(generators)
+                assert generators_from_edges.issubset(generators)
                 self.generators = sorted(generators)
             else:
-                raise InvalidInputException(self, generators)
-        else:
-            self.generators = sorted(generators_from_edges)
+                self.generators = sorted(generators_from_edges)
+        except:
+            raise InvalidInputException(self, (edges, generators))
 
     def _setup_orders(self, edges):
         # construct dictionary with orders m_ij of products of simple generators
@@ -1001,14 +1000,14 @@ class CoxeterGraph:
         return CoxeterGraph.F(n, star=star)
 
     @staticmethod
-    def G(n=2):
+    def G(n=2, star=None):
         assert n == 2
-        return CoxeterGraph([(1, 2, 6)])
+        return CoxeterGraph([(1, 2, 6)], star=star)
 
     @staticmethod
     def G2(n=2):
         assert n == 2
-        return CoxeterGraph([(1, 2, 6)], star=[(1, 2)])
+        return CoxeterGraph.G(n, star=[(1, 2)])
 
     @staticmethod
     def H(n):
@@ -1027,9 +1026,103 @@ class CoxeterGraph:
         return CoxeterGraph(edges)
 
     @staticmethod
-    def A_tilde(n):
-        edges = [(i, i+1, 3) for i in range(1, n)] + [(n, 1, 3)]
+    def A_tilde(n, star=None):
+        assert n >= 2
+        edges = [(i, i+1, 3) for i in range(1, n)] + [(n, n+1, 3), (n+1, 1, 3)]
+        return CoxeterGraph(edges, star=star)
+
+    @staticmethod
+    def B_tilde(n, star=None):
+        """
+        Dynkin diagram labeling is:
+
+                           n
+                           |
+            0==1--2--...--(n-2)--(n-1)
+
+        """
+        assert n >= 3
+        edges = [(i, i+1, 3) for i in range(1, n-1)] + [(0, 1, 4)] + [(n-2, n, 3)]
+        return CoxeterGraph(edges, star=star)
+
+    @staticmethod
+    def C_tilde(n, star=None):
+        """
+        Dynkin diagram labeling is:
+
+            0==1--2--...--(n-1)==n
+
+        """
+        assert n >= 4
+        edges = [(i, i+1, 3) for i in range(1, n-1)] + [(0, 1, 4)] + [(n-1, n, 4)]
+        return CoxeterGraph(edges, star=star)
+
+    @staticmethod
+    def D_tilde(n, star=None):
+        """
+        Dynkin diagram labeling is:
+
+               0           n
+               |           |
+            1--2--3--...--(n-2)--(n-1)
+
+        """
+        assert n >= 4
+        edges = [(i, i+1, 3) for i in range(1, n-1)] + [(0, 2, 3)] + [(n-2, n, 3)]
+        return CoxeterGraph(edges, star=star)
+
+    @staticmethod
+    def E_tilde(n, star=None):
+        """
+        Dynkin diagram labelings are:
+
+                  *
+                  |
+                  3
+                  |
+            1--2--4--5--6
+
+                     3
+                     |
+            *--1--2--4--5--6--7
+
+                  3
+                  |
+            1--2--4--5--6--7--8--*
+
+        """
+        assert n in [6, 7, 8]
+        edges = [('1', '2', 3), ('2', '4', 3), ('3', '4', 3), ('4', '5', 3), ('5', '6', 3)]
+        if n == 6:
+            edges += [('3', '*', 3)]
+        elif n == 7:
+            edges += [('*', '1', 3)]
+        elif n == 8:
+            edges += [('8', '*', 3)]
+        return CoxeterGraph(edges, star=star)
+
+    @staticmethod
+    def F_tilde(n=4):
+        """
+        Dynkin diagram labeling is:
+
+            1--2==3--4--5
+
+        """
+        assert n == 4
+        edges = [(1, 2, 3), (2, 3, 4), (3, 4, 3), (4, 5, 3)]
         return CoxeterGraph(edges)
+
+    @staticmethod
+    def G_tilde(n=2):
+        """
+        Dynkin diagram labeling is:
+
+            1≡≡2--3
+
+        """
+        assert n == 2
+        return CoxeterGraph([(1, 2, 6), (2, 3, 3)])
 
 
 class Root(VectorMixin, NumberMixin):
@@ -1052,7 +1145,12 @@ class Root(VectorMixin, NumberMixin):
             return False
 
     def eval_bilinear(self, other):
-        if type(other) == int:
+        try:
+            is_generator = (other in self.graph.generators)
+        except:
+            is_generator = False
+
+        if is_generator:
             other = Root(self.graph, other)
 
         if type(other) == Root and other.graph == self.graph:
@@ -1471,21 +1569,15 @@ class CoxeterWord:
         """Append j to self.word and update other fields."""
         self.word = self.word + (j,)
         self.is_reduced = self.is_reduced and (j not in self.right_descents)
-        try:
-            self.left_action = self.left_action * j
-            self.right_action = j * self.right_action
-        except:
-            raise InvalidInputException(self, j, 'extend_right')
+        self.left_action = self.left_action * j
+        self.right_action = j * self.right_action
 
     def extend_left(self, j):
         """Prepend j to self.word and update other fields."""
         self.word = (j,) + self.word
         self.is_reduced = self.is_reduced and (j not in self.left_descents)
-        try:
-            self.left_action = j * self.left_action
-            self.right_action = self.right_action * j
-        except:
-            raise InvalidInputException(self, j, 'extend_left')
+        self.left_action = j * self.left_action
+        self.right_action = self.right_action * j
 
     def _is_valid_argument(self, other):
         return \

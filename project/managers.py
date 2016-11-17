@@ -227,7 +227,7 @@ class PartialBraid:
             self.constraints == other.constraints
 
     def __len__(self):
-        return len(self.sigma)
+        return len(self.word_s)
 
     def __repr__(self):
         unconditional = self.get_unconditional_descent()
@@ -597,8 +597,8 @@ class BraidQueue:
             self._print_verbose('-------------')
             self._update(children)
             self._print('States in queue                  : %s' % len(self))
-            self._print('Multiplicities by non-blank roots: %s' % self.root_multiplicities())
             self._print('Multiplicities by word length    : %s' % self.word_multiplicities())
+            self._print('Multiplicities by non-blank roots: %s' % self.root_multiplicities())
             self._print('Final states                     : %s' % len(self.sufficient_relations))
 
     def root_multiplicities(self):
@@ -621,15 +621,24 @@ class BraidQueue:
         else:
             return ' '.join(['%s^%s' % (ell, mul) for ell, mul in sorted(e.items())])
 
-    def go(self, do_sanity_check=False):
+    def go(self, do_sanity_check=False, limit=None):
         """
         Process all states in queue to find sufficient spanning relations,
-        then reduce these to a minimal set, then (optionally) check that
+        then reduce these to a minimal set.
+
+        If boolean input `do_sanity_check` is True, then we explicitly check that
         minimal relations generate all sets of involution words.
+
+        If integer input `limit` is provided, then we only look for relations of length
+        less than or equal to this limit. In this case, `do_sanity_check` must be True,
+        since the truncated algorithm is not guaranteed to find a sufficient set of relations.
         """
-        self._print_status('Step 1. Finding sufficient relations.')
+        if limit is not None and not do_sanity_check:
+            raise Exception('Error: `--sanity-check` is required if `--limit` is given')
+
+        self._print_status('Step 1: Finding sufficient relations.')
         t0 = time.time()
-        while len(self) > 0:
+        while len(self) > 0 and (limit is None or len(self.queue[0]) <= limit):
             self.next()
         # sort by word length, then lexicographically
         sufficient = sorted(self.sufficient_relations, key=lambda x: (len(x[0]), x))
@@ -652,7 +661,7 @@ class BraidQueue:
 
         self._print_status('')
         self._print_status('')
-        self._print_status('Step 2. Finding minimal sufficient relations.')
+        self._print_status('Step 2: Finding minimal sufficient relations.')
         self.minimal_relations = self.minimize_relations(sufficient)
         t2 = time.time()
 
@@ -668,16 +677,13 @@ class BraidQueue:
         self._print_status('')
         self._print_status('Total duration: %s + %s = %s seconds' % (t1-t0, t2-t1, t2-t0))
 
-        # sanity check will print out no output if verbose_level is too low, so we return
-        if self.verbose_level < self.VERBOSE_LEVEL_LOW or not do_sanity_check:
+        if not do_sanity_check:
             return
 
         self._print_status('')
         self._print_status('')
-        self._print_status('Step 3. Verifying minimal relations (optional sanity check).')
+        self._print_status('Step 3: Verifying minimal relations.')
         self._print_status('')
-        # our algorithm, by construction, produces a set of spanning relations, so this step
-        # just provides an extra check on the correctness of the implementation
         self.sanity_check()
         t3 = time.time()
 
@@ -810,7 +816,7 @@ class BraidQueue:
                 next_level[next_involution] |= {w*i for w in atoms if i not in w.right_descents}
         return dict(next_level)
 
-    def sanity_check(self, upper_length=1000):
+    def sanity_check(self, upper_length=100):
         """
         Checks whether self.minimal_relations span the set of atoms for any twisted involution
         whose involution length is at most upper_length, and prints out the results.
@@ -819,8 +825,12 @@ class BraidQueue:
         max_length = self.graph.get_max_involution_word_length(upper_length)
 
         self._print('Checking that minimal relations generate the atoms of any twisted involution.')
-        self._print('(This will only work if the Coxeter system is finite, and can be slow.)')
         self._print('')
+
+        if max_length == upper_length:
+            self._print('\u26A0 Coxeter group appears to be very large or infinite.')
+            self._print('  Only checking atoms up to length %s.' % max_length)
+            self._print('')
 
         # first check that minimal relations are involution words for same twisted involution
         self._print('  * Relations preserve atoms: ', end='')

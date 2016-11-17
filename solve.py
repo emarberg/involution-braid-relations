@@ -10,7 +10,9 @@ def get_arguments():
         '--type',
         type=str,
         help='type of (twisted) Coxeter system',
-        choices=['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', '2A', '2B', '2D', '2E', '2F', '2G']
+        choices=['A', 'B', 'D', 'E', 'F', 'G', 'H',
+                 '2A', '2B', '2D', '2E', '2F', '2G',
+                 'A~', 'B~', 'C~', 'D~', 'E~', 'F~', 'G~']
     )
     parser.add_argument(
         '--rank',
@@ -30,21 +32,40 @@ def get_arguments():
         default=2,
         choices=[0, 1, 2, 3]
     )
+    parser.add_argument(
+        '--limit',
+        type=int,
+        default=None,
+        help='only look for relations of length up to this (optional) limit'
+    )
     return parser.parse_args()
 
 
-def solve(coxeter_type, rank, verbosity, do_sanity_check):
+def get_coxeter_graph(coxeter_type, rank):
+    # replace 'A~' with 'A_tilde', and so on
+    if coxeter_type.endswith('~'):
+        coxeter_type = coxeter_type[:-1] + '_tilde'
+    # reverse '2A' to be 'A2', and so on
+    elif len(coxeter_type) != 1:
+        coxeter_type = ''.join(reversed(coxeter_type))
+
+    return getattr(CoxeterGraph, coxeter_type)(rank)
+
+
+def solve(coxeter_type, rank, verbosity, do_sanity_check, limit):
     try:
-        # reverse '2A', '2D', etc., to be 'A2', 'D2', and so on
-        reversed_coxeter_type = ''.join(reversed(coxeter_type))
-        g = getattr(CoxeterGraph, reversed_coxeter_type)(rank)
+        g = get_coxeter_graph(coxeter_type, rank)
     except:
         print('Invalid type and rank: (%s, %s)' % (coxeter_type, rank))
+        return
     else:
         q = BraidQueue(g, verbose_level=verbosity)
-        q.go(do_sanity_check=do_sanity_check)
+        try:
+            q.go(do_sanity_check=do_sanity_check, limit=limit)
+        except Exception as e:
+            print(e)
 
 
 if __name__ == '__main__':
     args = get_arguments()
-    solve(args.type, args.rank, args.verbosity, args.do_sanity_check)
+    solve(args.type, args.rank, args.verbosity, args.do_sanity_check, args.limit)
