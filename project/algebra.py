@@ -145,10 +145,9 @@ class RationalNumber(NumberMixin):
             return str(self.numerator)
 
 
-PRIME_FACTORIZATION_CACHE = {}
-
-
 class PrimeFactorization:
+    _factorization_cache = {}
+
     def __init__(self, i=1):
         if type(i) == int and i != 0:
             self.factorization = PrimeFactorization.get_prime_factorization(i)
@@ -209,8 +208,8 @@ class PrimeFactorization:
 
     @classmethod
     def get_prime_factorization(cls, i):
-        if i in PRIME_FACTORIZATION_CACHE:
-            return PRIME_FACTORIZATION_CACHE[i].copy()
+        if i in cls._factorization_cache:
+            return cls._factorization_cache[i].copy()
         else:
             i_input = i
             factorization = {}
@@ -224,7 +223,7 @@ class PrimeFactorization:
                 N = [a for a in N[1:] if a <= abs(i) and a % p != 0]
             if i_input < 0:
                 factorization[-1] = 1
-            PRIME_FACTORIZATION_CACHE[i_input] = factorization
+            cls._factorization_cache[i_input] = factorization
             return factorization.copy()
 
 
