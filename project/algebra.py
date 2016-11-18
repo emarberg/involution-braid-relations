@@ -1103,9 +1103,9 @@ class CoxeterGraph:
         if n == 6:
             edges += [('3', '*', 3)]
         elif n == 7:
-            edges += [('*', '1', 3)]
+            edges += [('6', '7', 3), ('*', '1', 3)]
         elif n == 8:
-            edges += [('8', '*', 3)]
+            edges += [('6', '7', 3), ('7', '8', 3), ('8', '*', 3)]
         return CoxeterGraph(edges, star=star)
 
     @staticmethod
