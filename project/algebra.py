@@ -985,7 +985,7 @@ class CoxeterGraph:
 
         """
         assert n in [6, 7, 8]
-        edges = [(1, 2, 3), (2, 4, 3), (3, 4, 3)] + [(i, i+1, 3) for i in range(4, n)]
+        edges = [(1, 2, 3), (2, 4, 3)] + [(i, i+1, 3) for i in range(3, n)]
         return CoxeterGraph(edges, star=star)
 
     @staticmethod
@@ -1099,13 +1099,13 @@ class CoxeterGraph:
 
         """
         assert n in [6, 7, 8]
-        edges = [('1', '2', 3), ('2', '4', 3), ('3', '4', 3), ('4', '5', 3), ('5', '6', 3)]
+        edges = [('1', '2', 3), ('2', '4', 3)] + [(str(i), str(i+1), 3) for i in range(3, n)]
         if n == 6:
             edges += [('3', '*', 3)]
         elif n == 7:
-            edges += [('6', '7', 3), ('*', '1', 3)]
+            edges += [('*', '1', 3)]
         elif n == 8:
-            edges += [('6', '7', 3), ('7', '8', 3), ('8', '*', 3)]
+            edges += [('8', '*', 3)]
         return CoxeterGraph(edges, star=star)
 
     @staticmethod
