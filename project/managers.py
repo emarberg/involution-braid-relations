@@ -358,10 +358,13 @@ class PartialBraid:
     def _get_children_from_quadratic_constraint(self):
         children = []
         constraint = next(iter(self.constraints.quadratic_constraints))
-        for factor in constraint.get_factors():
-            child = self.copy()
-            child.constraints.add_zero_constraint(factor)
-            children.append(child)
+        # if discriminant is negative then constraint has no real roots, so we return
+        # no children since all indeterminates are positive real numbers by definition
+        if constraint.get_quadratic_discriminant() >= 0:
+            for factor in constraint.get_factors():
+                child = self.copy()
+                child.constraints.add_zero_constraint(factor)
+                children.append(child)
         return children
 
     def _get_children_from_unconditional_descent(self, descent):
@@ -599,7 +602,7 @@ class BraidQueue:
             self._print('States in queue                  : %s' % len(self))
             self._print('Multiplicities by word length    : %s' % self.word_multiplicities())
             self._print('Multiplicities by non-blank roots: %s' % self.root_multiplicities())
-            self._print('Final states                     : %s' % len(self.sufficient_relations))
+            self._print('Sufficient relations             : %s' % len(self.sufficient_relations))
 
     def root_multiplicities(self):
         """Returns string with multiplicities of non-blank roots in sigma field in queue states."""
@@ -662,7 +665,7 @@ class BraidQueue:
         self._print_status('')
         self._print_status('')
         self._print_status('Step 2: Finding minimal sufficient relations.')
-        self.minimal_relations = self.minimize_relations(sufficient)
+        self.minimize_relations()
         t2 = time.time()
 
         self._print_status('')
@@ -690,14 +693,15 @@ class BraidQueue:
         self._print('')
         self._print_status('Sanity check duration: %s seconds' % (t3 - t2))
 
-    def minimize_relations(self, final):
+    def minimize_relations(self):
         """
-        Given set of relations `final` which span all sets of atoms,
-        computes minimial subset which still spans; also cleans up these relations a little.
+        Computes minimal subset of self.sufficient_relations which
+        generates the same equivalence classes.
         """
-        necessary, redundant = self._get_necessary_relations(final)
-        rest = [x for x in final if x not in necessary and x not in redundant]
-        return self._finalize_necessary_relations(necessary, rest)
+        sufficient = sorted(self.sufficient_relations, key=lambda x: (len(x[0]), x))
+        necessary, redundant = self._get_necessary_relations(sufficient)
+        rest = [x for x in sufficient if x not in necessary and x not in redundant]
+        self.minimal_relations = self._finalize_necessary_relations(necessary, rest)
 
     def are_atoms_connected(self, relations, start_word, target_word):
         """

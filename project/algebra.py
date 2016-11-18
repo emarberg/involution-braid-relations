@@ -639,6 +639,13 @@ class Polynomial(VectorMixin, NumberMixin):
         """Return set of integers indexing the indeterminates that appear in this polynomial."""
         return set(i for monomial in self.coefficients for i in monomial.exponents)
 
+    def get_quadratic_discriminant(self):
+        x = next(iter(self.get_variables()))
+        a = self[{x: 2}]
+        b = self[{x: 1}]
+        c = self[{}]
+        return b**2 - 4*a*c
+
     def is_factorable(self):
         if len(self.get_variables()) != 1:
             return False
