@@ -637,7 +637,7 @@ class BraidQueue:
         since the truncated algorithm is not guaranteed to find a sufficient set of relations.
         """
         if limit is not None and not do_sanity_check:
-            raise Exception('Error: `--sanity-check` is required if `--limit` is given')
+            raise Exception('Error: `--verify` is required if `--limit` is given')
 
         self._print_status('Step 1: Finding sufficient relations.')
         t0 = time.time()
@@ -691,7 +691,7 @@ class BraidQueue:
         t3 = time.time()
 
         self._print('')
-        self._print_status('Sanity check duration: %s seconds' % (t3 - t2))
+        self._print_status('Verifying relations took %s seconds' % (t3 - t2))
 
     def minimize_relations(self):
         """

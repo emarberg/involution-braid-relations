@@ -11,6 +11,11 @@ from project.utils import (
 
 
 class OperatorMixin:
+    """
+    Mixin class which helps implement polymorphic binary operations ==, <, +, *, and /
+    between int, RationalNumber, QuadraticNumber, and Polynomial objects.
+    """
+
     def __eq__(self, other):
         if type(other) == int:
             return self.eq__int(other)
