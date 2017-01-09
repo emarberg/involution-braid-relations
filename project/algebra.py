@@ -10,7 +10,57 @@ from project.utils import (
 )
 
 
-class RationalNumber(NumberMixin):
+class OperatorMixin:
+    def __eq__(self, other):
+        if type(other) == int:
+            return self.eq__int(other)
+        elif type(other) == RationalNumber:
+            return self.eq__rational_number(other)
+        elif type(other) == QuadraticNumber:
+            return self.eq__quadratic_number(other)
+        elif type(other) == Polynomial:
+            return self.eq__polynomial(other)
+        else:
+            raise self.OperatorException(other)
+
+    def eq__int(self, other):
+        raise NotImplementedError
+
+    def eq__rational_number(self, other):
+        raise NotImplementedError
+
+    def eq__quadratic_number(self, other):
+        raise NotImplementedError
+
+    def eq__polynomial(self, other):
+        raise NotImplementedError
+
+    def __add__(self, other):
+        if type(other) == int:
+            return self.add__int(other)
+        elif type(other) == RationalNumber:
+            return self.add__rational_number(other)
+        elif type(other) == QuadraticNumber:
+            return self.add__quadratic_number(other)
+        elif type(other) == Polynomial:
+            return self.add__polynomial(other)
+        else:
+            raise self.OperatorException(other)
+
+    def add__int(self, other):
+        raise NotImplementedError
+
+    def add__rational_number(self, other):
+        raise NotImplementedError
+
+    def add__quadratic_number(self, other):
+        raise NotImplementedError
+
+    def add__polynomial(self, other):
+        raise NotImplementedError
+
+
+class RationalNumber(OperatorMixin, NumberMixin):
 
     class OperatorException(Exception):
         def __init__(self, other, operator='__eq__'):
@@ -56,17 +106,17 @@ class RationalNumber(NumberMixin):
         else:
             return hash((self.numerator, self.denominator))
 
-    def __eq__(self, other):
-        if type(other) == int:
-            return self.numerator == other and self.denominator == 1
-        elif type(other) == RationalNumber:
-            return self.numerator == other.numerator and self.denominator == other.denominator
-        elif type(other) == QuadraticNumber:
-            return QuadraticNumber(self) == other
-        elif type(other) == Polynomial:
-            return Polynomial(self) == other
-        else:
-            raise RationalNumber.OperatorException(other)
+    def eq__int(self, other):
+        return self.numerator == other and self.denominator == 1
+
+    def eq__rational_number(self, other):
+        return self.numerator == other.numerator and self.denominator == other.denominator
+
+    def eq__quadratic_number(self, other):
+        return QuadraticNumber(self) == other
+
+    def eq__polynomial(self, other):
+        return Polynomial(self) == other
 
     def __lt__(self, other):
         if type(other) == int:
@@ -86,17 +136,20 @@ class RationalNumber(NumberMixin):
         else:
             return self == other or self < other
 
-    def __add__(self, other):
-        if type(other) in [QuadraticNumber, Polynomial]:
-            return other + self
-        elif type(other) == int:
-            p, q = self.numerator + other*self.denominator, self.denominator
-        elif type(other) == RationalNumber:
-            p = self.numerator*other.denominator + other.numerator*self.denominator
-            q = self.denominator*other.denominator
-        else:
-            raise RationalNumber.OperatorException(other, '__add__')
+    def add__int(self, other):
+        p, q = self.numerator + other*self.denominator, self.denominator
         return RationalNumber(p, q)
+
+    def add__rational_number(self, other):
+        p = self.numerator*other.denominator + other.numerator*self.denominator
+        q = self.denominator*other.denominator
+        return RationalNumber(p, q)
+
+    def add__quadratic_number(self, other):
+        return other + self
+
+    def add__polynomial(self, other):
+        return other + self
 
     def __mul__(self, other):
         if type(other) in [Root, QuadraticNumber, Polynomial]:
@@ -227,7 +280,7 @@ class PrimeFactorization:
             return factorization.copy()
 
 
-class QuadraticNumber(VectorMixin, NumberMixin):
+class QuadraticNumber(VectorMixin, OperatorMixin, NumberMixin):
 
     class ImaginaryComparisonException(Exception):
         def __init__(self, diff):
@@ -294,17 +347,20 @@ class QuadraticNumber(VectorMixin, NumberMixin):
         else:
             return self == other or self < other
 
-    def __add__(self, other):
-        if type(other) == Polynomial:
-            return other + self
-        elif type(other) in [int, RationalNumber]:
-            other = QuadraticNumber(other)
-        elif type(other) != QuadraticNumber:
-            raise QuadraticNumber.OperatorException(self, other, '__add__')
+    def add__int(self, other):
+        return self.add__quadratic_number(QuadraticNumber(other))
+
+    def add__rational_number(self, other):
+        return self.add__quadratic_number(QuadraticNumber(other))
+
+    def add__quadratic_number(self, other):
         keys = set(self.coefficients.keys()) | set(other.coefficients.keys())
         new = QuadraticNumber()
         new.coefficients = {i: self[i] + other[i] for i in keys if (self[i] + other[i]) != 0}
         return new
+
+    def add__polynomial(self, other):
+        return other + self
 
     def __mul__(self, other):
         if type(other) in [Root, Polynomial]:
@@ -502,7 +558,7 @@ class Monomial:
             return 'x[%s]' % repr(i)
 
 
-class Polynomial(VectorMixin, NumberMixin):
+class Polynomial(VectorMixin, OperatorMixin, NumberMixin):
     def __init__(self, i=None):
         if i is None or (type(i) in [int, RationalNumber, QuadraticNumber] and i == 0):
             self.coefficients = {}
@@ -546,11 +602,16 @@ class Polynomial(VectorMixin, NumberMixin):
 
             return hash(tuple(sorted(self.coefficients.items(), key=key)))
 
-    def __add__(self, other):
-        if type(other) in [int, RationalNumber, QuadraticNumber]:
-            other = Polynomial(other)
-        elif type(other) != Polynomial:
-            raise Polynomial.OperatorException(self, other, '__add__')
+    def add__int(self, other):
+        return self.add__polynomial(Polynomial(other))
+
+    def add__rational_number(self, other):
+        return self.add__polynomial(Polynomial(other))
+
+    def add__quadratic_number(self, other):
+        return self.add__polynomial(Polynomial(other))
+
+    def add__polynomial(self, other):
         new = Polynomial()
         keys = set(self.coefficients.keys()) | other.coefficients.keys()
         new.coefficients = {i: self[i] + other[i] for i in keys if self[i] + other[i] != 0}
