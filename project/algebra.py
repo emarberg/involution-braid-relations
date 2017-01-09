@@ -129,6 +129,36 @@ class OperatorMixin:
         """Evaluates self * other under assumption that type(other) is Root."""
         return other * self
 
+    def __truediv__(self, other):
+        if other == 0:
+            raise ZeroDivisionException(self)
+        elif type(other) == int:
+            return self.truediv__int(other)
+        elif type(other) == RationalNumber:
+            return self.truediv__rational_number(other)
+        elif type(other) == QuadraticNumber:
+            return self.truediv__quadratic_number(other)
+        elif type(other) == Polynomial:
+            return self.truediv__polynomial(other)
+        else:
+            raise self.OperatorException(other, '__truediv__')
+
+    def truediv__int(self, other):
+        """Evaluates self * other under assumption that type(other) is int."""
+        raise NotImplementedError
+
+    def truediv__rational_number(self, other):
+        """Evaluates self * other under assumption that type(other) is RationalNumber."""
+        raise NotImplementedError
+
+    def truediv__quadratic_number(self, other):
+        """Evaluates self * other under assumption that type(other) is QuadraticNumber."""
+        raise NotImplementedError
+
+    def truediv__polynomial(self, other):
+        """Evaluates self * other under assumption that type(other) is Polynomial."""
+        raise NotImplementedError
+
 
 class RationalNumber(OperatorMixin, NumberMixin):
 
@@ -235,13 +265,18 @@ class RationalNumber(OperatorMixin, NumberMixin):
     def mul__polynomial(self, other):
         return other.mul__rational_number(self)
 
-    def __truediv__(self, other):
-        if type(other) == QuadraticNumber:
-            return QuadraticNumber(self) / other
-        elif type(other) == Polynomial and other.is_constant():
+    def truediv__int(self, other):
+        return RationalNumber(self, other)
+
+    def truediv__rational_number(self, other):
+        return RationalNumber(self, other)
+
+    def truediv__quadratic_number(self, other):
+        return QuadraticNumber(self).truediv__quadratic_number(other)
+
+    def truediv__polynomial(self, other):
+        if other.is_constant():
             return self / other.get_constant_part()
-        elif type(other) in [int, RationalNumber]:
-            return RationalNumber(self, other)
         else:
             raise RationalNumber.OperatorException(other, '__truediv__')
 
@@ -466,20 +501,23 @@ class QuadraticNumber(VectorMixin, OperatorMixin, NumberMixin):
                 return 1 / super(QuadraticNumber, self).__pow__(-exponent)
         return super(QuadraticNumber, self).__pow__(exponent)
 
-    def __truediv__(self, other):
-        if other == 0:
-            raise ZeroDivisionException(self)
-        elif type(other) not in [int, RationalNumber, QuadraticNumber]:
-            raise QuadraticNumber.OperatorException(self, other, '__truediv__')
+    def truediv__int(self, other):
+        return self.mul__rational_number(RationalNumber(1, other))
+
+    def truediv__rational_number(self, other):
+        return self.mul__rational_number(RationalNumber(1, other))
+
+    def truediv__quadratic_number(self, other):
         if self == 0:
             return QuadraticNumber(0)
-        elif type(other) in [int, RationalNumber]:
-            return self * RationalNumber(1, other)
         elif other.is_rational():
             return self / other.get_rational_part()
         else:
             conjugate = other.conjugate()
             return (self * conjugate) / (other * conjugate)
+
+    def truediv__polynomial(self, other):
+        raise QuadraticNumber.OperatorException(self, other, '__truediv__')
 
     def __rtruediv__(self, other):
         conjugate = self.conjugate()
@@ -726,17 +764,22 @@ class Polynomial(VectorMixin, OperatorMixin, NumberMixin):
         else:
             return super(Polynomial, self).__pow__(other)
 
-    def __truediv__(self, other):
-        if type(other) == Polynomial and other.is_constant():
-            other = other[1]
+    def truediv__int(self, other):
+        return self.truediv__helper(QuadraticNumber(other))
 
-        if type(other) not in [int, RationalNumber, QuadraticNumber]:
+    def truediv__rational_number(self, other):
+        return self.truediv__helper(QuadraticNumber(other))
+
+    def truediv__quadratic_number(self, other):
+        return self.truediv__helper(other)
+
+    def truediv__polynomial(self, other):
+        if other.is_constant():
+            return self / other[1]
+        else:
             raise Polynomial.OperatorException(self, other, '__truediv__')
-        elif other == 0:
-            raise ZeroDivisionException(self)
-        elif type(other) in [int, RationalNumber]:
-            other = QuadraticNumber(other)
 
+    def truediv__helper(self, other):
         new = Polynomial()
         for i, v in self:
             new[i] = v/other

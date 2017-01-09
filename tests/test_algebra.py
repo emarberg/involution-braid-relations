@@ -941,7 +941,7 @@ class TestPolynomial:
             assert False
 
     @pytest.mark.parametrize("divisor", [
-        0.0,
+        0.1,
         Polynomial('x')
     ])
     def test_division_errors(self, divisor):
@@ -955,6 +955,7 @@ class TestPolynomial:
 
     @pytest.mark.parametrize("divisor", [
         0,
+        0.0,
         RationalNumber(0),
         QuadraticNumber(0),
         Polynomial(0)
