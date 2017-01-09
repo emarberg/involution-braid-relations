@@ -95,6 +95,40 @@ class OperatorMixin:
         """Evaluates self + other under assumption that type(other) is Polynomial."""
         raise NotImplementedError
 
+    def __mul__(self, other):
+        if type(other) == int:
+            return self.mul__int(other)
+        elif type(other) == RationalNumber:
+            return self.mul__rational_number(other)
+        elif type(other) == QuadraticNumber:
+            return self.mul__quadratic_number(other)
+        elif type(other) == Polynomial:
+            return self.mul__polynomial(other)
+        elif type(other) == Root:
+            return self.mul__root(other)
+        else:
+            raise self.OperatorException(other, '__mul__')
+
+    def mul__int(self, other):
+        """Evaluates self * other under assumption that type(other) is int."""
+        raise NotImplementedError
+
+    def mul__rational_number(self, other):
+        """Evaluates self * other under assumption that type(other) is RationalNumber."""
+        raise NotImplementedError
+
+    def mul__quadratic_number(self, other):
+        """Evaluates self * other under assumption that type(other) is QuadraticNumber."""
+        raise NotImplementedError
+
+    def mul__polynomial(self, other):
+        """Evaluates self * other under assumption that type(other) is Polynomial."""
+        raise NotImplementedError
+
+    def mul__root(self, other):
+        """Evaluates self * other under assumption that type(other) is Root."""
+        return other * self
+
 
 class RationalNumber(OperatorMixin, NumberMixin):
 
@@ -182,21 +216,24 @@ class RationalNumber(OperatorMixin, NumberMixin):
         return RationalNumber(p, q)
 
     def add__quadratic_number(self, other):
-        return other + self
+        return other.add__rational_number(self)
 
     def add__polynomial(self, other):
-        return other + self
+        return other.add__rational_number(self)
 
-    def __mul__(self, other):
-        if type(other) in [Root, QuadraticNumber, Polynomial]:
-            return other * self
-        elif type(other) == int:
-            p, q = self.numerator*other, self.denominator
-        elif type(other) == RationalNumber:
-            p, q = self.numerator*other.numerator, self.denominator*other.denominator
-        else:
-            raise RationalNumber.OperatorException(other, '__mul__')
+    def mul__int(self, other):
+        p, q = self.numerator*other, self.denominator
         return RationalNumber(p, q)
+
+    def mul__rational_number(self, other):
+        p, q = self.numerator*other.numerator, self.denominator*other.denominator
+        return RationalNumber(p, q)
+
+    def mul__quadratic_number(self, other):
+        return other.mul__rational_number(self)
+
+    def mul__polynomial(self, other):
+        return other.mul__rational_number(self)
 
     def __truediv__(self, other):
         if type(other) == QuadraticNumber:
@@ -398,15 +435,15 @@ class QuadraticNumber(VectorMixin, OperatorMixin, NumberMixin):
         return new
 
     def add__polynomial(self, other):
-        return other + self
+        return other.add__quadratic_number(self)
 
-    def __mul__(self, other):
-        if type(other) in [Root, Polynomial]:
-            return other * self
-        elif type(other) in [int, RationalNumber]:
-            other = QuadraticNumber(other)
-        elif type(other) != QuadraticNumber:
-            raise QuadraticNumber.OperatorException(self, other, '__mul__')
+    def mul__int(self, other):
+        return self.mul__quadratic_number(QuadraticNumber(other))
+
+    def mul__rational_number(self, other):
+        return self.mul__quadratic_number(QuadraticNumber(other))
+
+    def mul__quadratic_number(self, other):
         new = QuadraticNumber()
         for factors_1, coeff_1 in other:
             for factors_2, coeff_2 in self:
@@ -415,6 +452,9 @@ class QuadraticNumber(VectorMixin, OperatorMixin, NumberMixin):
                 coeff = coeff_1 * coeff_2 * factors.get_truncated_square_root()
                 new[square_free] += coeff
         return new
+
+    def mul__polynomial(self, other):
+        return other.mul__quadratic_number(self)
 
     def __pow__(self, exponent):
         if type(exponent) == int:
@@ -664,13 +704,16 @@ class Polynomial(VectorMixin, OperatorMixin, NumberMixin):
         new.coefficients = {i: self[i] + other[i] for i in keys if self[i] + other[i] != 0}
         return new
 
-    def __mul__(self, other):
-        if type(other) == Root:
-            return other * self
-        elif type(other) in [int, RationalNumber, QuadraticNumber]:
-            other = Polynomial(other)
-        elif type(other) != Polynomial:
-            raise Polynomial.OperatorException(self, other, '__mul__')
+    def mul__int(self, other):
+        return self.mul__polynomial(Polynomial(other))
+
+    def mul__rational_number(self, other):
+        return self.mul__polynomial(Polynomial(other))
+
+    def mul__quadratic_number(self, other):
+        return self.mul__polynomial(Polynomial(other))
+
+    def mul__polynomial(self, other):
         new = Polynomial()
         for monomial_1, coeff_1 in other:
             for monomial_2, coeff_2 in self:
