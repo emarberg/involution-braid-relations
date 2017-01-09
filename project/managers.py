@@ -424,7 +424,7 @@ class PartialBraid:
 
     def _get_children_from_new_descent(self):
         g = self.graph
-        # exclude the descents which will not given rise to valid states
+        # exclude the descents which will not give rise to valid states
         candidate_descents = [
             i for i in g.generators
             if i not in self.sigma and any(g.get_order(i, j) != 2 for j in self.sigma)

@@ -20,10 +20,10 @@ def get_arguments():
         help='rank of Coxeter system'
     )
     parser.add_argument(
-        '--sanity-check',
+        '--verify',
         dest='do_sanity_check',
         action='store_true',
-        help='verify relations after constructing them (an optional sanity check)'
+        help='verify relations after constructing them (required if limit is set)'
     )
     parser.add_argument(
         '--verbosity',
