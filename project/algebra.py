@@ -24,15 +24,47 @@ class OperatorMixin:
             raise self.OperatorException(other)
 
     def eq__int(self, other):
+        """Evaluates self == other under assumption that type(other) is int."""
         raise NotImplementedError
 
     def eq__rational_number(self, other):
+        """Evaluates self == other under assumption that type(other) is RationalNumber."""
         raise NotImplementedError
 
     def eq__quadratic_number(self, other):
+        """Evaluates self == other under assumption that type(other) is QuadraticNumber."""
         raise NotImplementedError
 
     def eq__polynomial(self, other):
+        """Evaluates self == other under assumption that type(other) is Polynomial."""
+        raise NotImplementedError
+
+    def __lt__(self, other):
+        if type(other) == int:
+            return self.lt__int(other)
+        elif type(other) == RationalNumber:
+            return self.lt__rational_number(other)
+        elif type(other) == QuadraticNumber:
+            return self.lt__quadratic_number(other)
+        elif type(other) == Polynomial:
+            return self.lt__polynomial(other)
+        else:
+            raise self.OperatorException(other, '__lt__')
+
+    def lt__int(self, other):
+        """Evaluates self < other under assumption that type(other) is int."""
+        raise NotImplementedError
+
+    def lt__rational_number(self, other):
+        """Evaluates self <other under assumption that type(other) is RationalNumber."""
+        raise NotImplementedError
+
+    def lt__quadratic_number(self, other):
+        """Evaluates self < other under assumption that type(other) is QuadraticNumber."""
+        raise NotImplementedError
+
+    def lt__polynomial(self, other):
+        """Evaluates self < other under assumption that type(other) is Polynomial."""
         raise NotImplementedError
 
     def __add__(self, other):
@@ -45,18 +77,22 @@ class OperatorMixin:
         elif type(other) == Polynomial:
             return self.add__polynomial(other)
         else:
-            raise self.OperatorException(other)
+            raise self.OperatorException(other, '__add__')
 
     def add__int(self, other):
+        """Evaluates self + other under assumption that type(other) is int."""
         raise NotImplementedError
 
     def add__rational_number(self, other):
+        """Evaluates self + other under assumption that type(other) is RationalNumber."""
         raise NotImplementedError
 
     def add__quadratic_number(self, other):
+        """Evaluates self + other under assumption that type(other) is QuadraticNumber."""
         raise NotImplementedError
 
     def add__polynomial(self, other):
+        """Evaluates self + other under assumption that type(other) is Polynomial."""
         raise NotImplementedError
 
 
@@ -118,17 +154,17 @@ class RationalNumber(OperatorMixin, NumberMixin):
     def eq__polynomial(self, other):
         return Polynomial(self) == other
 
-    def __lt__(self, other):
-        if type(other) == int:
-            return self.numerator < other * self.denominator
-        elif type(other) == RationalNumber:
-            return self.numerator*other.denominator < other.numerator*self.denominator
-        elif type(other) == QuadraticNumber:
-            return QuadraticNumber(self) < other
-        elif type(other) == Polynomial:
-            return Polynomial(self) < other
-        else:
-            raise RationalNumber.OperatorException(other, '__lt__')
+    def lt__int(self, other):
+        return self.numerator < other * self.denominator
+
+    def lt__rational_number(self, other):
+        return self.numerator*other.denominator < other.numerator*self.denominator
+
+    def lt__quadratic_number(self, other):
+        return QuadraticNumber(self) < other
+
+    def lt__polynomial(self, other):
+        return Polynomial(self) < other
 
     def __le__(self, other):
         if type(other) == Polynomial:
@@ -317,14 +353,13 @@ class QuadraticNumber(VectorMixin, OperatorMixin, NumberMixin):
         else:
             return hash(tuple(sorted(self.coefficients.items())))
 
-    def __lt__(self, other):
-        if type(other) == Polynomial:
-            return Polynomial(self) < other
-        elif type(other) in [int, RationalNumber]:
-            other = QuadraticNumber(other)
-        elif type(other) != QuadraticNumber:
-            raise QuadraticNumber.OperatorException(self, other)
+    def lt__int(self, other):
+        return self.lt__quadratic_number(QuadraticNumber(other))
 
+    def lt__rational_number(self, other):
+        return self.lt__quadratic_number(QuadraticNumber(other))
+
+    def lt__quadratic_number(self, other):
         diff = other - self
         if diff.is_rational():
             return 0 < diff[PrimeFactorization(1)]
@@ -339,7 +374,10 @@ class QuadraticNumber(VectorMixin, OperatorMixin, NumberMixin):
         if max(len(positive_part), len(negative_part)) > 2:
             raise QuadraticNumber.IndeterminateComparisonException(negative_part, positive_part)
         else:
-            return negative_part**2 < positive_part**2
+            return (negative_part**2).lt__quadratic_number(positive_part**2)
+
+    def lt__polynomial(self, other):
+        return Polynomial(self).lt__polynomial(other)
 
     def __le__(self, other):
         if type(other) == Polynomial:
@@ -581,12 +619,21 @@ class Polynomial(VectorMixin, OperatorMixin, NumberMixin):
     def is_comparable(self, other):
         return type(other) in [int, RationalNumber, QuadraticNumber, Polynomial]
 
-    def __lt__(self, other):
-        if self.is_comparable(other):
-            diff = other - self
-            return 0 < diff.get_constant_part() and all(0 < c for c in diff.coefficients.values())
-        else:
-            raise Polynomial.OperatorException(self, other, '__lt__')
+    def lt__int(self, other):
+        return self.lt__helper(other)
+
+    def lt__rational_number(self, other):
+        return self.lt__helper(other)
+
+    def lt__quadratic_number(self, other):
+        return self.lt__helper(other)
+
+    def lt__polynomial(self, other):
+        return self.lt__helper(other)
+
+    def lt__helper(self, other):
+        diff = other - self
+        return 0 < diff.get_constant_part() and all(0 < c for c in diff.coefficients.values())
 
     def __le__(self, other):
         diff = other - self
