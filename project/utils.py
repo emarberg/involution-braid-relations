@@ -66,10 +66,7 @@ class VectorMixin:
 
     @classmethod
     def is_rational_coeff(cls, v):
-        try:
-            return type(v) == int or v.is_rational()
-        except:
-            return False
+        return type(v) == int or (hasattr(v, 'is_rational') and v.is_rational())
 
     def __repr__(self):
         s = ''

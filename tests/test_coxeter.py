@@ -35,95 +35,95 @@ class TestCoxeterGraph:
         assert g.star(1) == 4 and g.star(2) == 3 and g.star(3) == 2 and g.star(4) == 1
 
         # inputs i, j to g.get_order() must both be in generators
+        e = None
         try:
             g.get_order(2, 10)
-        except Exception as e:
-            assert type(e) == InvalidInputException
-        else:
-            assert False
+        except Exception as exception:
+            e = exception
+        assert type(e) == InvalidInputException
 
+        e = None
         try:
             g.get_order(10, 2)
-        except Exception as e:
-            assert type(e) == InvalidInputException
-        else:
-            assert False
+        except Exception as exception:
+            e = exception
+        assert type(e) == InvalidInputException
 
         # input i to g.star() must be in generators
+        e = None
         try:
             g.star(10)
-        except Exception as e:
-            assert type(e) == InvalidInputException
-        else:
-            assert False
+        except Exception as exception:
+            e = exception
+        assert type(e) == InvalidInputException
 
     def test_constructor_edges_exceptions(self):
         """Test handling of errors in input `edges` for CoxeterGraph constructor."""
         # each i and j for (i, j, m) in `edges` must appear in `generators`
+        e = None
         try:
             CoxeterGraph(edges=[(1, 2, 1)], generators=[3, 4, 5])
-        except Exception as e:
-            assert type(e) == InvalidInputException
-        else:
-            assert False
+        except Exception as exception:
+            e = exception
+        assert type(e) == InvalidInputException
 
         # if (i, j, m) in `edges` has m == 1 then must have i == j
+        e = None
         try:
             CoxeterGraph(edges=[(1, 2, 1)])
-        except Exception as e:
-            assert type(e) == InvalidInputException
-        else:
-            assert False
+        except Exception as exception:
+            e = exception
+        assert type(e) == InvalidInputException
 
         # if (i, j, m) in `edges` has i == j then must have m == 1
+        e = None
         try:
             CoxeterGraph(edges=[(1, 1, 2)])
-        except Exception as e:
-            assert type(e) == InvalidInputException
-        else:
-            assert False
+        except Exception as exception:
+            e = exception
+        assert type(e) == InvalidInputException
 
         # if (i, j, m) is in `edges` then m must be an integer or infinity
+        e = None
         try:
             CoxeterGraph(edges=[(1, 2, 3.0)])
-        except Exception as e:
-            assert type(e) == InvalidInputException
-        else:
-            assert False
+        except Exception as exception:
+            e = exception
+        assert type(e) == InvalidInputException
 
         # `edges` cannot contain (i, j, m) and (j, i, n) if m != n
+        e = None
         try:
             CoxeterGraph(edges=[(1, 2, 3), (2, 1, 2)])
-        except Exception as e:
-            assert type(e) == InvalidInputException
-        else:
-            assert False
+        except Exception as exception:
+            e = exception
+        assert type(e) == InvalidInputException
 
     def test_constructor_star_exceptions(self):
         """Test handling of errors in input `star` for CoxeterGraph constructor."""
         # if (i, j) is in `star` then i and j must be generators
+        e = None
         try:
             CoxeterGraph(edges=[(1, 2, 3)], star=[(3, 4)])
-        except Exception as e:
-            assert type(e) == InvalidInputException
-        else:
-            assert False
+        except Exception as exception:
+            e = exception
+        assert type(e) == InvalidInputException
 
         # `star` cannot contain (i, j) and (j, k) if i != k
+        e = None
         try:
             CoxeterGraph(edges=[(1, 2, 3)], star=[(1, 2), (2, 2)])
-        except Exception as e:
-            assert type(e) == InvalidInputException
-        else:
-            assert False
+        except Exception as exception:
+            e = exception
+        assert type(e) == InvalidInputException
 
         # `star` must define a group automorphism
+        e = None
         try:
             CoxeterGraph(edges=[(1, 2, 3), (2, 3, 4)], star=[(1, 3)])
-        except Exception as e:
-            assert type(e) == InvalidInputException
-        else:
-            assert False
+        except Exception as exception:
+            e = exception
+        assert type(e) == InvalidInputException
 
     def test_eq(self):
         """Test == operator for CoxeterGraphs, as well as hash() implementation."""
@@ -188,12 +188,12 @@ class TestCoxeterGraph:
 
         assert h4.get_braid(1, 2) == (1, 2, 1, 2, 1)
         assert f4.get_braid(2, 3) == (2, 3, 2, 3)
+        e = None
         try:
             i.get_braid(1, 2)
-        except Exception as e:
-            assert type(e) == CoxeterGraph.GetBraidException
-        else:
-            assert False
+        except Exception as exception:
+            e = exception
+        assert type(e) == CoxeterGraph.GetBraidException
 
     def test_eval_bilinear(self):
         a5 = CoxeterGraph.A(5)
@@ -213,12 +213,12 @@ class TestCoxeterGraph:
         assert k.eval_bilinear(1, 2) == -(QuadraticNumber.sqrt(6) + QuadraticNumber.sqrt(2)) / 4
         assert i.eval_bilinear(1, 2) == -1
 
+        e = None
         try:
             j.eval_bilinear(1, 2)
-        except Exception as e:
-            assert type(e) == CoxeterGraph.EvalBilinearException
-        else:
-            assert False
+        except Exception as exception:
+            e = exception
+        assert type(e) == CoxeterGraph.EvalBilinearException
 
 
 class TestRoot:
@@ -237,12 +237,12 @@ class TestRoot:
         assert 1 in one and 2 not in one
 
         # second argument to root constructor must belong of g.generators
+        e = None
         try:
             Root(g, 0)
-        except Exception as e:
-            assert type(e) == InvalidInputException
-        else:
-            assert False
+        except Exception as exception:
+            e = exception
+        assert type(e) == InvalidInputException
 
     def test_eq(self):
         g = CoxeterGraph.B(5)
@@ -252,19 +252,19 @@ class TestRoot:
         r = Root(g)
         assert r == 0 and 0 == r
         for zero in [RationalNumber(0), QuadraticNumber(0), Polynomial(0), Root(h)]:
+            e = None
             try:
                 r == zero
-            except Exception as e:
-                assert type(e) == OperatorException
-            else:
-                assert False
+            except Exception as exception:
+                e = exception
+            assert type(e) == OperatorException
 
+            e = None
             try:
                 zero == r
-            except Exception as e:
-                assert type(e) == OperatorException
-            else:
-                assert False
+            except Exception as exception:
+                e = exception
+            assert type(e) == OperatorException
 
         # r and s are linearly independent vectors, so clearly not equal
         r = Root(g, 1)
@@ -309,31 +309,31 @@ class TestRoot:
         r = Root(g, 1)
 
         # int inputs to r.eval_bilinear or r.reflect must belong to r.graph.generators
+        e = None
         try:
             r.eval_bilinear(0)
-        except Exception as e:
-            assert type(e) == InvalidInputException
-        else:
-            assert False
+        except Exception as exception:
+            e = exception
+        assert type(e) == InvalidInputException
 
         # input to r.reflect() must belong to r.graph.generators
+        e = None
         try:
             r.reflect(0)
-        except Exception as e:
-            assert type(e) == InvalidInputException
-        else:
-            assert False
+        except Exception as exception:
+            e = exception
+        assert type(e) == InvalidInputException
 
         h = CoxeterGraph.H(4)
         u = Root(h, 1)
 
         # cannot compute r.eval_bilinear() if input Root has different CoxeterGraph
+        e = None
         try:
             r.eval_bilinear(u)
-        except Exception as e:
-            assert type(e) == InvalidInputException
-        else:
-            assert False
+        except Exception as exception:
+            e = exception
+        assert type(e) == InvalidInputException
 
     def test_set_variables(self):
         """Tests for Root.set_variable method."""
@@ -361,12 +361,12 @@ class TestRoot:
         assert (a + b).coefficients == {1: 1, 3: -1}
 
         assert a + 0 == 0 + a == a
+        e = None
         try:
             a + Root(CoxeterGraph.H(3), 3)
-        except Exception as e:
-            assert type(e) == OperatorException
-        else:
-            assert False
+        except Exception as exception:
+            e = exception
+        assert type(e) == OperatorException
 
     def test_power_error(self):
         """Test that ** operator is not implemented for Root objects."""
@@ -460,27 +460,27 @@ class TestRootTransform:
     def test_constructor_errors(self):
         # Check error handling for invalid constructor inputs.
         g = CoxeterGraph.A(5)
+        e = None
         try:
             RootTransform(g, {0: 0})
-        except Exception as e:
-            assert type(e) == InvalidInputException
-        else:
-            assert False
+        except Exception as exception:
+            e = exception
+        assert type(e) == InvalidInputException
 
+        e = None
         try:
             RootTransform(g, {1: Root(CoxeterGraph.B(5), 1)})
-        except Exception as e:
-            assert type(e) == InvalidInputException
-        else:
-            assert False
+        except Exception as exception:
+            e = exception
+        assert type(e) == InvalidInputException
 
         T = RootTransform(g, {1: -Root(g, 2), 2: Root(g, 1)})
+        e = None
         try:
             T[1] = Root(CoxeterGraph.B(5), 1)
-        except Exception as e:
-            assert type(e) == InvalidInputException
-        else:
-            assert False
+        except Exception as exception:
+            e = exception
+        assert type(e) == InvalidInputException
 
     def test_eq(self):
         g = CoxeterGraph.A(5)
@@ -520,27 +520,27 @@ class TestRootTransform:
         T = RootTransform(g, {1: Root(g, 2, 1 + Polynomial('x')), 2: Root(g, 1)})
 
         # cannot multiply by 6 since this is not a generator for the Coxeter system A5
+        e = None
         try:
             T * 6
-        except Exception as e:
-            assert type(e) == InvalidInputException
-        else:
-            assert False
+        except Exception as exception:
+            e = exception
+        assert type(e) == InvalidInputException
 
+        e = None
         try:
             6 * T
-        except Exception as e:
-            assert type(e) == InvalidInputException
-        else:
-            assert False
+        except Exception as exception:
+            e = exception
+        assert type(e) == InvalidInputException
 
         # cannot multiply by 3 since (alpha_2).reflect(3) = alpha_2 + alpha_3 and T[3] is undefined
+        e = None
         try:
             T * 3
-        except Exception as e:
-            assert type(e) == InvalidInputException
-        else:
-            assert False
+        except Exception as exception:
+            e = exception
+        assert type(e) == InvalidInputException
 
     def test_convenience_methods(self):
         """Tests for various convenience methods of RooTransform objects."""
@@ -566,12 +566,12 @@ class TestRootTransform:
         assert U.is_identity()
 
         # check (non-)conversion of RootTransform to CoxeterTransform
+        e = None
         try:
             T.to_coxeter_transform()
-        except Exception as e:
-            assert type(e) == InvalidInputException
-        else:
-            assert False
+        except Exception as exception:
+            e = exception
+        assert type(e) == InvalidInputException
 
         V = U * 1 * 2 * 3
         assert V.to_coxeter_transform().minimal_reduced_word == (1, 2, 3)
@@ -604,27 +604,27 @@ class TestCoxeterTransform:
     def test_constructor_errors(self):
         # Check error handling for invalid constructor inputs.
         g = CoxeterGraph.B(3)
+        e = None
         try:
             CoxeterTransform(g, {0: Root(g, 0)})
-        except Exception as e:
-            assert type(e) == InvalidInputException
-        else:
-            assert False
+        except Exception as exception:
+            e = exception
+        assert type(e) == InvalidInputException
 
         h = CoxeterGraph.A(3)
+        e = None
         try:
             CoxeterTransform(g, {0: Root(g, 0), 1: Root(g, 1), 2: Root(h, 2)})
-        except Exception as e:
-            assert type(e) == InvalidInputException
-        else:
-            assert False
+        except Exception as exception:
+            e = exception
+        assert type(e) == InvalidInputException
 
+        e = None
         try:
             CoxeterTransform(g, {0: Root(g, 0), 1: Root(g, 1), 2: Root(g, Polynomial('x'))})
-        except Exception as e:
-            assert type(e) == InvalidInputException
-        else:
-            assert False
+        except Exception as exception:
+            e = exception
+        assert type(e) == InvalidInputException
 
     def test_get_inverse(self):
         g = CoxeterGraph.B(3)
@@ -655,20 +655,20 @@ class TestCoxeterTransform:
         V = CoxeterTransform(g, {0: Root(g, 0), 1: Root(g, 1)})
 
         # cannot assign value which is non-constant Root
+        e = None
         try:
             V[0] = -Root(g, 0, Polynomial('x'))
-        except Exception as e:
-            assert type(e) == InvalidInputException
-        else:
-            assert False
+        except Exception as exception:
+            e = exception
+        assert type(e) == InvalidInputException
 
         # cannot assign to index which is not in g.generators
+        e = None
         try:
             V[2] = Root(g, 1)
-        except Exception as e:
-            assert type(e) == InvalidInputException
-        else:
-            assert False
+        except Exception as exception:
+            e = exception
+        assert type(e) == InvalidInputException
 
     def test_span_by_right_relations(self):
         g = CoxeterGraph.A(3)
@@ -699,12 +699,12 @@ class TestCoxeterTransform:
         e = e.demazure_conjugate(1)
         assert e.minimal_reduced_word == (5, 1)
 
+        exc = None
         try:
             e.demazure_conjugate(0)
-        except Exception as exc:
-            assert type(exc) == InvalidInputException
-        else:
-            assert False
+        except Exception as exception:
+            exc = exception
+        assert type(exc) == InvalidInputException
 
 
 class TestCoxeterWord:
@@ -786,45 +786,45 @@ class TestCoxeterWord:
         h = CoxeterGraph.A(3)
 
         # cannot multiply by non-generator 3, as g.generators = [0, 1, 2]
+        e = None
         try:
             CoxeterWord(g) * 3
-        except Exception as e:
-            assert type(e) == InvalidInputException
-        else:
-            assert False
+        except Exception as exception:
+            e = exception
+        assert type(e) == InvalidInputException
 
+        e = None
         try:
             3 * CoxeterWord(g)
-        except Exception as e:
-            assert type(e) == InvalidInputException
-        else:
-            assert False
+        except Exception as exception:
+            e = exception
+        assert type(e) == InvalidInputException
 
+        e = None
         try:
             CoxeterWord(g).extend_right(3)
-        except Exception as e:
-            assert type(e) == InvalidInputException
-        else:
-            assert False
+        except Exception as exception:
+            e = exception
+        assert type(e) == InvalidInputException
 
+        e = None
         try:
             CoxeterWord(g).extend_left(3)
-        except Exception as e:
-            assert type(e) == InvalidInputException
-        else:
-            assert False
+        except Exception as exception:
+            e = exception
+        assert type(e) == InvalidInputException
 
         # cannot multiply CoxeterWords with different CoxeterGraphs
+        e = None
         try:
             CoxeterWord(g).__mul__(CoxeterWord(h))
-        except Exception as e:
-            assert type(e) == InvalidInputException
-        else:
-            assert False
+        except Exception as exception:
+            e = exception
+        assert type(e) == InvalidInputException
 
+        e = None
         try:
             CoxeterWord(g).__rmul__(CoxeterWord(h))
-        except Exception as e:
-            assert type(e) == InvalidInputException
-        else:
-            assert False
+        except Exception as exception:
+            e = exception
+        assert type(e) == InvalidInputException

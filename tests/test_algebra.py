@@ -124,6 +124,8 @@ class TestRationalNumbers:
         (-2, RationalNumber(3, 7), RationalNumber(-14, 3)),
         (RationalNumber(3, 7), RationalNumber(-3, 7), -1),
         (RationalNumber(3, 7), RationalNumber(4, 9), RationalNumber(27, 28)),
+        (RationalNumber(3, 7), QuadraticNumber(4), RationalNumber(3, 28)),
+        (RationalNumber(3, 7), Polynomial(4), RationalNumber(3, 28)),
     ])
     def test_division(self, a, b, c):
         """Tests for  division of RationalNumbers."""

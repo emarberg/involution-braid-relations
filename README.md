@@ -38,3 +38,4 @@ python3.5 solve.py --type A~ --rank 4 --verify --limit 6
 pip3 install -r requirements/test.txt
 tox
 ```
+Review coverage by opening `htmlcov/index.html`.
