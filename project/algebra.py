@@ -196,7 +196,7 @@ class RationalNumber(OperatorMixin, NumberMixin):
             q = q * -1
             p = p * -1
         d = np.math.gcd(p, q)
-        return p//d, q//d
+        return p // d, q // d
 
     def is_integer(self):
         return self.denominator == 1
@@ -227,7 +227,7 @@ class RationalNumber(OperatorMixin, NumberMixin):
         return self.numerator < other * self.denominator
 
     def lt__rational_number(self, other):
-        return self.numerator*other.denominator < other.numerator*self.denominator
+        return self.numerator * other.denominator < other.numerator * self.denominator
 
     def lt__quadratic_number(self, other):
         return QuadraticNumber(self) < other
@@ -242,12 +242,12 @@ class RationalNumber(OperatorMixin, NumberMixin):
             return self == other or self < other
 
     def add__int(self, other):
-        p, q = self.numerator + other*self.denominator, self.denominator
+        p, q = self.numerator + other * self.denominator, self.denominator
         return RationalNumber(p, q)
 
     def add__rational_number(self, other):
-        p = self.numerator*other.denominator + other.numerator*self.denominator
-        q = self.denominator*other.denominator
+        p = self.numerator * other.denominator + other.numerator * self.denominator
+        q = self.denominator * other.denominator
         return RationalNumber(p, q)
 
     def add__quadratic_number(self, other):
@@ -257,11 +257,11 @@ class RationalNumber(OperatorMixin, NumberMixin):
         return other.add__rational_number(self)
 
     def mul__int(self, other):
-        p, q = self.numerator*other, self.denominator
+        p, q = self.numerator * other, self.denominator
         return RationalNumber(p, q)
 
     def mul__rational_number(self, other):
-        p, q = self.numerator*other.numerator, self.denominator*other.denominator
+        p, q = self.numerator * other.numerator, self.denominator * other.denominator
         return RationalNumber(p, q)
 
     def mul__quadratic_number(self, other):
@@ -359,7 +359,7 @@ class PrimeFactorization:
     def get_truncated_square_root(self):
         r = 1
         for p, e in self.factorization.items():
-            r *= p**(e//2)
+            r *= p**(e // 2)
         return r
 
     @classmethod
@@ -370,7 +370,7 @@ class PrimeFactorization:
         if abs(n) == abs(p):
             return 1
         else:
-            return 1 + cls.get_divisor_exponent(n//p, p)
+            return 1 + cls.get_divisor_exponent(n // p, p)
 
     @classmethod
     def get_prime_factorization(cls, i):
@@ -379,13 +379,13 @@ class PrimeFactorization:
         else:
             i_input = i
             factorization = {}
-            N = range(2, abs(i)+1)
+            N = range(2, abs(i) + 1)
             while N:
                 p = N[0]
                 e = cls.get_divisor_exponent(i, p)
                 if e != 0:
                     factorization[p] = e
-                    i = i//p**e
+                    i = i // p**e
                 N = [a for a in N[1:] if a <= abs(i) and a % p != 0]
             if i_input < 0:
                 factorization[-1] = 1
@@ -487,7 +487,7 @@ class QuadraticNumber(VectorMixin, OperatorMixin, NumberMixin):
         new = QuadraticNumber()
         for factors_1, coeff_1 in other:
             for factors_2, coeff_2 in self:
-                factors = factors_1*factors_2
+                factors = factors_1 * factors_2
                 square_free = factors.get_square_free_part()
                 coeff = coeff_1 * coeff_2 * factors.get_truncated_square_root()
                 new[square_free] += coeff
@@ -550,10 +550,10 @@ class QuadraticNumber(VectorMixin, OperatorMixin, NumberMixin):
         elif type(i) == QuadraticNumber:
             q = i / (3 + cls.sqrt(5))
             if q.is_rational():
-                return cls.sqrt(q) * (cls.sqrt(2) + cls.sqrt(10))/2
-            q = i / (7 + 3*cls.sqrt(5))
+                return cls.sqrt(q) * (cls.sqrt(2) + cls.sqrt(10)) / 2
+            q = i / (7 + 3 * cls.sqrt(5))
             if q.is_rational():
-                return cls.sqrt(q) * (3*cls.sqrt(2) + cls.sqrt(10))/2
+                return cls.sqrt(q) * (3 * cls.sqrt(2) + cls.sqrt(10)) / 2
         raise Exception('Cannot compute square root of `%s`' % i)
 
     def is_rational(self):
@@ -644,7 +644,7 @@ class Monomial:
         if type(other) != int:
             raise Exception('Cannot exponentiate Monomial by `%s`' % type(other))
         else:
-            return Monomial({i: self[i]*other for i in self.exponents})
+            return Monomial({i: self[i] * other for i in self.exponents})
 
     def __getitem__(self, i):
         return self.exponents.get(i, 0)
@@ -760,7 +760,7 @@ class Polynomial(VectorMixin, OperatorMixin, NumberMixin):
         new = Polynomial()
         for monomial_1, coeff_1 in other:
             for monomial_2, coeff_2 in self:
-                new[monomial_1*monomial_2] += coeff_1 * coeff_2
+                new[monomial_1 * monomial_2] += coeff_1 * coeff_2
         return new
 
     def __pow__(self, other):
@@ -787,7 +787,7 @@ class Polynomial(VectorMixin, OperatorMixin, NumberMixin):
     def truediv__helper(self, other):
         new = Polynomial()
         for i, v in self:
-            new[i] = v/other
+            new[i] = v / other
         return new
 
     def __rtruediv__(self, other):
@@ -842,7 +842,7 @@ class Polynomial(VectorMixin, OperatorMixin, NumberMixin):
         a = self[{x: 2}]
         b = self[{x: 1}]
         c = self[{}]
-        return b**2 - 4*a*c
+        return b**2 - 4 * a * c
 
     def is_factorable(self):
         if len(self.get_variables()) != 1:
@@ -853,7 +853,7 @@ class Polynomial(VectorMixin, OperatorMixin, NumberMixin):
         b = self[{x: 1}]
         c = self[{}]
 
-        return self == a*Polynomial({x: 2}) + b*Polynomial({x: 1}) + c*Polynomial({})
+        return self == a * Polynomial({x: 2}) + b * Polynomial({x: 1}) + c * Polynomial({})
 
     def get_factors(self):
         """TODO: improve this method."""
@@ -871,7 +871,7 @@ class Polynomial(VectorMixin, OperatorMixin, NumberMixin):
         c = to_quadratic_number(self[{}])
         x = Polynomial({x: 1})
 
-        if self != a*x**2 + b*x + c:
+        if self != a * x**2 + b * x + c:
             raise Exception('Cannot factor `%s`' % str(self))
 
         if a != 0:
@@ -884,8 +884,8 @@ class Polynomial(VectorMixin, OperatorMixin, NumberMixin):
             return {x, x + b}
         else:
             try:
-                r = (-b + QuadraticNumber.sqrt(b**2 - 4*c)) / 2
-                s = (-b - QuadraticNumber.sqrt(b**2 - 4*c)) / 2
+                r = (-b + QuadraticNumber.sqrt(b**2 - 4 * c)) / 2
+                s = (-b - QuadraticNumber.sqrt(b**2 - 4 * c)) / 2
                 return {x - r, x - s}
             except:
                 raise Exception('Cannot factor `%s`' % str(self))
@@ -1051,7 +1051,7 @@ class CoxeterGraph:
             return tuple(gens[t % 2] for t in range(m))
 
     def get_order(self, i, j):
-        """Return order of s_i*s_j in W."""
+        """Return order of s_i * s_j in W."""
         if i not in self.generators:
             raise InvalidInputException(self, i, 'get_order')
         elif j not in self.generators:
@@ -1064,11 +1064,11 @@ class CoxeterGraph:
     def get_semiorder(self, i, j, generators_are_fixed):
         m = self.get_order(i, j)
         if m % 2 != 0:
-            return (m+1)//2
+            return (m + 1) // 2
         elif generators_are_fixed:
-            return m//2 + 1
+            return m // 2 + 1
         else:
-            return m//2
+            return m // 2
 
     def eval_bilinear(self, i, j):
         """Returns -cos(pi/m_ij)."""
@@ -1080,13 +1080,13 @@ class CoxeterGraph:
         elif m == 3:
             return RationalNumber(-1, 2)
         elif m == 4:
-            return -QuadraticNumber.sqrt(2)/2
+            return -QuadraticNumber.sqrt(2) / 2
         elif m == 5:
-            return -(QuadraticNumber.sqrt(5) + 1)/4
+            return -(QuadraticNumber.sqrt(5) + 1) / 4
         elif m == 6:
-            return -QuadraticNumber.sqrt(3)/2
+            return -QuadraticNumber.sqrt(3) / 2
         elif m == 12:
-            return -(QuadraticNumber.sqrt(6) + QuadraticNumber.sqrt(2))/4
+            return -(QuadraticNumber.sqrt(6) + QuadraticNumber.sqrt(2)) / 4
         elif m == np.infty:
             return -1
         else:
@@ -1105,7 +1105,7 @@ class CoxeterGraph:
         entries = [str(self.get_order(i, j)) for i in self.generators for j in self.generators]
         if entries:
             max_len = max(list(map(len, entries)))
-            entries = list(map(lambda x: (max_len - len(x))*' ' + x, entries))
+            entries = list(map(lambda x: (max_len - len(x)) * ' ' + x, entries))
         n = len(self.generators)
         s = ''
         while entries:
@@ -1127,12 +1127,12 @@ class CoxeterGraph:
 
     @staticmethod
     def A(n, star=None):
-        edges = [(i, i+1, 3) for i in range(1, n)]
+        edges = [(i, i + 1, 3) for i in range(1, n)]
         return CoxeterGraph(edges, star=star)
 
     @staticmethod
     def A2(n):
-        star = [(i, n+1-i) for i in range(1, n+1)]
+        star = [(i, n + 1 - i) for i in range(1, n + 1)]
         return CoxeterGraph.A(n, star=star)
 
     @staticmethod
@@ -1149,7 +1149,7 @@ class CoxeterGraph:
 
         """
         assert 2 <= n
-        edges = [(i, i+1, 3) for i in range(1, n-1)] + [(0, 1, 4)]
+        edges = [(i, i + 1, 3) for i in range(1, n - 1)] + [(0, 1, 4)]
         return CoxeterGraph(edges)
 
     @staticmethod
@@ -1163,7 +1163,7 @@ class CoxeterGraph:
 
         """
         assert 4 <= n
-        edges = [(i, i+1, 3) for i in range(1, n-1)] + [(0, 2, 3)]
+        edges = [(i, i + 1, 3) for i in range(1, n - 1)] + [(0, 2, 3)]
         return CoxeterGraph(edges, star=star)
 
     @staticmethod
@@ -1183,7 +1183,7 @@ class CoxeterGraph:
 
         """
         assert n in [6, 7, 8]
-        edges = [(1, 2, 3), (2, 4, 3)] + [(i, i+1, 3) for i in range(3, n)]
+        edges = [(1, 2, 3), (2, 4, 3)] + [(i, i + 1, 3) for i in range(3, n)]
         return CoxeterGraph(edges, star=star)
 
     @staticmethod
@@ -1233,7 +1233,7 @@ class CoxeterGraph:
     @staticmethod
     def A_tilde(n, star=None):
         assert n >= 2
-        edges = [(i, i+1, 3) for i in range(1, n)] + [(n, n+1, 3), (n+1, 1, 3)]
+        edges = [(i, i + 1, 3) for i in range(1, n)] + [(n, n + 1, 3), (n + 1, 1, 3)]
         return CoxeterGraph(edges, star=star)
 
     @staticmethod
@@ -1247,7 +1247,7 @@ class CoxeterGraph:
 
         """
         assert n >= 3
-        edges = [(i, i+1, 3) for i in range(1, n-1)] + [(0, 1, 4)] + [(n-2, n, 3)]
+        edges = [(i, i + 1, 3) for i in range(1, n - 1)] + [(0, 1, 4)] + [(n - 2, n, 3)]
         return CoxeterGraph(edges, star=star)
 
     @staticmethod
@@ -1259,7 +1259,7 @@ class CoxeterGraph:
 
         """
         assert n >= 3
-        edges = [(i, i+1, 3) for i in range(1, n-1)] + [(0, 1, 4)] + [(n-1, n, 4)]
+        edges = [(i, i + 1, 3) for i in range(1, n - 1)] + [(0, 1, 4)] + [(n - 1, n, 4)]
         return CoxeterGraph(edges, star=star)
 
     @staticmethod
@@ -1273,7 +1273,7 @@ class CoxeterGraph:
 
         """
         assert n >= 4
-        edges = [(i, i+1, 3) for i in range(1, n-1)] + [(0, 2, 3)] + [(n-2, n, 3)]
+        edges = [(i, i + 1, 3) for i in range(1, n - 1)] + [(0, 2, 3)] + [(n - 2, n, 3)]
         return CoxeterGraph(edges, star=star)
 
     @staticmethod
@@ -1297,7 +1297,7 @@ class CoxeterGraph:
 
         """
         assert n in [6, 7, 8]
-        edges = [('1', '2', 3), ('2', '4', 3)] + [(str(i), str(i+1), 3) for i in range(3, n)]
+        edges = [('1', '2', 3), ('2', '4', 3)] + [(str(i), str(i + 1), 3) for i in range(3, n)]
         if n == 6:
             edges += [('3', '*', 3)]
         elif n == 7:
@@ -1422,7 +1422,7 @@ class Root(VectorMixin, NumberMixin):
     def __mul__(self, other):
         new = Root(self.graph)
         if other != 0:
-            new.coefficients = {i: other*self[i] for i in self.coefficients}
+            new.coefficients = {i: other * self[i] for i in self.coefficients}
         return new
 
     def __hash__(self):
@@ -1753,11 +1753,11 @@ class CoxeterWord:
             ans.update(to_add)
             next_to_add = set()
             for word in to_add:
-                for i in range(len(word)-1):
-                    s, t = word[i:i+2]
+                for i in range(len(word) - 1):
+                    s, t = word[i:i + 2]
                     m = self.graph.get_order(s, t)
-                    if word[i:i+m] == self.graph.get_braid(s, t):
-                        new_word = word[:i] + self.graph.get_braid(t, s) + word[i+m:]
+                    if word[i:i + m] == self.graph.get_braid(s, t):
+                        new_word = word[:i] + self.graph.get_braid(t, s) + word[i + m:]
                         next_to_add.add(new_word)
             to_add = next_to_add - ans
         return ans
@@ -1817,4 +1817,4 @@ class CoxeterWord:
 
     def __repr__(self):
         letters = map(str, self.word)
-        return (not self.is_reduced)*'un' + 'reduced word (' + ', '.join(letters) + ')'
+        return (not self.is_reduced) * 'un' + 'reduced word (' + ', '.join(letters) + ')'
