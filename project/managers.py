@@ -170,7 +170,7 @@ class ConstraintsManager:
         i = 1
 
         def pad(j):
-            return (3 - len(str(j)))*' ' + str(j)
+            return (3 - len(str(j))) * ' ' + str(j)
 
         for c in self.nonpositive_constraints:
             s += '%s. 0 >= %s\n' % (pad(i), c)
@@ -274,9 +274,9 @@ class PartialBraid:
         t3 = time.time()
         description = '\n'
         description += 'BRANCHING TYPE: %s\n' % label
-        description += '  Time for construction : %s seconds\n' % (t1-t0)
-        description += '  Time for reduction    : %s seconds\n' % (t2-t1)
-        description += '  Time to check validity: %s seconds' % (t3-t2)
+        description += '  Time for construction : %s seconds\n' % (t1 - t0)
+        description += '  Time for reduction    : %s seconds\n' % (t2 - t1)
+        description += '  Time to check validity: %s seconds' % (t3 - t2)
         return children, description
 
     def get_unconditional_descent(self):
@@ -308,13 +308,13 @@ class PartialBraid:
             return False
 
     def _get_children(self):
-        children = []
-
         if len(self.sigma) == 0:
-            return self._get_first_children(), 'first iteration'
+            children = self._get_first_children()
+            return children, 'first iteration'
 
         if self._is_quadratic_constraint_factorable():
-            return self._get_children_from_quadratic_constraint(), 'reducing quadratic constraint'
+            children = self._get_children_from_quadratic_constraint()
+            return children, 'reducing quadratic constraint'
 
         unconditional = self.get_unconditional_descent()
         if unconditional:
@@ -328,7 +328,8 @@ class PartialBraid:
             return children, 'conditional descent'
 
         if self.sigma.is_constant() and not self.sigma.is_complete():
-            return self._get_children_from_new_descent(), 'new descent'
+            children = self._get_children_from_new_descent()
+            return children, 'new descent'
 
         raise Exception('Current state does not match any branching rule: %s' % self)
 
@@ -339,7 +340,7 @@ class PartialBraid:
         gens = [self.s, self.t]
         for i in range(self._get_semiorder(is_fixer)):
             self.word_s.extend_left(gens[i % 2])
-            self.word_t.extend_left(gens[(i+1) % 2])
+            self.word_t.extend_left(gens[(i + 1) % 2])
 
     def _get_first_children(self):
         alpha = Root(self.graph, self.graph.star(self.s))
@@ -435,7 +436,7 @@ class PartialBraid:
             # add child with new descent i
             child = self.copy()
             child._clear_constraints()
-            child.sigma[i] = sum([-Polynomial({j: 1})*Root(g, j) for j in g.generators])
+            child.sigma[i] = sum([-Polynomial({j: 1}) * Root(g, j) for j in g.generators])
             for j in child.sigma:
                 child.constraints.add_zero_constraint(
                     child.sigma[i].eval_bilinear(child.sigma[j]) - g.eval_bilinear(i, j)
@@ -604,25 +605,22 @@ class BraidQueue:
             self._print('Multiplicities by non-blank roots: %s' % self.root_multiplicities())
             self._print('Sufficient relations             : %s' % len(self.sufficient_relations))
 
-    def root_multiplicities(self):
-        """Returns string with multiplicities of non-blank roots in sigma field in queue states."""
-        d = defaultdict(int)
+    def _get_multiplicities(self, state_to_length_fn):
+        multiplicities = defaultdict(int)
         for state in self.queue:
-            d[len(state.sigma)] += 1
-        if not d:
+            multiplicities[state_to_length_fn(state)] += 1
+        if not multiplicities:
             return '0'
         else:
-            return ' '.join(['%s^%s' % (ell, mul) for ell, mul in sorted(d.items())])
+            return ' '.join(['%s^%s' % (ell, mul) for ell, mul in sorted(multiplicities.items())])
+
+    def root_multiplicities(self):
+        """Returns string with multiplicities of non-blank roots in sigma field in queue states."""
+        return self._get_multiplicities(lambda state: len(state.sigma))
 
     def word_multiplicities(self):
         """Returns string with multiplicities of lengths of word_s/t fields in queue states."""
-        e = defaultdict(int)
-        for state in self.queue:
-            e[len(state.word_s)] += 1
-        if not e:
-            return '0'
-        else:
-            return ' '.join(['%s^%s' % (ell, mul) for ell, mul in sorted(e.items())])
+        return self._get_multiplicities(lambda state: len(state.word_s))
 
     def go(self, do_sanity_check=False, limit=None):
         """
@@ -648,7 +646,7 @@ class BraidQueue:
         t1 = time.time()
 
         self._print_status('')
-        self._print_status('Duration: %s seconds' % (t1-t0))
+        self._print_status('Duration: %s seconds' % (t1 - t0))
         self._print_status('')
         self._print_status('-----------------------')
         self._print_status('Twisted Coxeter system:')
@@ -669,7 +667,7 @@ class BraidQueue:
         t2 = time.time()
 
         self._print_status('')
-        self._print_status('Duration: %s seconds' % (t2-t1))
+        self._print_status('Duration: %s seconds' % (t2 - t1))
         self._print_status('')
         self._print_status('-----------------------------')
         self._print_status('Minimal sufficient relations:')
@@ -678,7 +676,7 @@ class BraidQueue:
             self._print_status('%s <---> %s' % (u, v))
 
         self._print_status('')
-        self._print_status('Total duration: %s + %s = %s seconds' % (t1-t0, t2-t1, t2-t0))
+        self._print_status('Total duration: %s + %s = %s seconds' % (t1 - t0, t2 - t1, t2 - t0))
 
         if not do_sanity_check:
             return
@@ -735,11 +733,11 @@ class BraidQueue:
         necessary, redundant = [], []
         for i in range(len(final)):
             t0 = time.time()
-            tag = '     * Relation %s/%s:' % (i+1, len(final))
+            tag = '     * Relation %s/%s:' % (i + 1, len(final))
 
             u, v = final[i]
             initial = [(a, b) for a, b in final[:i] if (a, b) not in redundant]
-            complement = [(a, b) for a, b in (final[:i] + final[i+1:]) if (a, b) not in redundant]
+            complement = [(a, b) for a, b in (final[:i] + final[i + 1:]) if (a, b) not in redundant]
 
             if self.are_atoms_connected(initial, u, v):
                 redundant.append((u, v))
@@ -762,7 +760,7 @@ class BraidQueue:
         """
         self._print("\n  2. Get smallest set of relations which generate all the others.")
 
-        for i in range(len(rest)+1):
+        for i in range(len(rest) + 1):
             for current in itertools.combinations(rest, i):
                 candidate = necessary + list(current)
                 self._print("     * Trying combination of relations:")
@@ -817,7 +815,7 @@ class BraidQueue:
         for involution, atoms in current_level.items():
             for i in set(graph.generators) - involution.right_descents:
                 next_involution = involution.demazure_conjugate(i)
-                next_level[next_involution] |= {w*i for w in atoms if i not in w.right_descents}
+                next_level[next_involution] |= {w * i for w in atoms if i not in w.right_descents}
         return dict(next_level)
 
     def sanity_check(self, upper_length=100):

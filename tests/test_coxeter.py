@@ -206,11 +206,11 @@ class TestCoxeterGraph:
 
         assert a5.eval_bilinear(1, 1) == 1
         assert a5.eval_bilinear(1, 3) == 0
-        assert a5.eval_bilinear(1, 2) == -RationalNumber(1)/2
-        assert b6.eval_bilinear(0, 1) == -QuadraticNumber.sqrt(2)/2
-        assert h4.eval_bilinear(1, 2) == -(QuadraticNumber.sqrt(5) + 1)/4
-        assert g2.eval_bilinear(1, 2) == -QuadraticNumber.sqrt(3)/2
-        assert k.eval_bilinear(1, 2) == -(QuadraticNumber.sqrt(6) + QuadraticNumber.sqrt(2))/4
+        assert a5.eval_bilinear(1, 2) == -RationalNumber(1) / 2
+        assert b6.eval_bilinear(0, 1) == -QuadraticNumber.sqrt(2) / 2
+        assert h4.eval_bilinear(1, 2) == -(QuadraticNumber.sqrt(5) + 1) / 4
+        assert g2.eval_bilinear(1, 2) == -QuadraticNumber.sqrt(3) / 2
+        assert k.eval_bilinear(1, 2) == -(QuadraticNumber.sqrt(6) + QuadraticNumber.sqrt(2)) / 4
         assert i.eval_bilinear(1, 2) == -1
 
         try:
@@ -292,16 +292,16 @@ class TestRoot:
         assert t.eval_bilinear(t) == t.eval_bilinear(3) == 1
 
         # <alpha_i, alpha_j> == -cos(pi / m_ij)
-        assert r.eval_bilinear(s) == r.eval_bilinear(2) == -RationalNumber(1)/2
+        assert r.eval_bilinear(s) == r.eval_bilinear(2) == -RationalNumber(1) / 2
         assert r.eval_bilinear(t) == r.eval_bilinear(3) == 0
-        assert s.eval_bilinear(r) == s.eval_bilinear(1) == -RationalNumber(1)/2
-        assert s.eval_bilinear(t) == s.eval_bilinear(3) == -QuadraticNumber.sqrt(2)/2
+        assert s.eval_bilinear(r) == s.eval_bilinear(1) == -RationalNumber(1) / 2
+        assert s.eval_bilinear(t) == s.eval_bilinear(3) == -QuadraticNumber.sqrt(2) / 2
         assert t.eval_bilinear(r) == t.eval_bilinear(1) == 0
-        assert t.eval_bilinear(s) == t.eval_bilinear(2) == -QuadraticNumber.sqrt(2)/2
+        assert t.eval_bilinear(s) == t.eval_bilinear(2) == -QuadraticNumber.sqrt(2) / 2
 
         # check that <-,-> is bilinear
-        assert (r + s).eval_bilinear(s + t) == RationalNumber(1)/2 - QuadraticNumber.sqrt(2)/2
-        assert (r + s).reflect(3) == r + s + QuadraticNumber.sqrt(2)*t
+        assert (r + s).eval_bilinear(s + t) == RationalNumber(1) / 2 - QuadraticNumber.sqrt(2) / 2
+        assert (r + s).reflect(3) == r + s + QuadraticNumber.sqrt(2) * t
 
     def test_eval_bilinear_errors(self):
         """Test error handling for various invalid inputs to Root.eval_bilinear()."""
@@ -349,7 +349,7 @@ class TestRoot:
         assert a.set_variable(1, 3) == a
         assert a.set_variable(0, 0) == Root(g)
 
-        assert (a + b + c).set_variable(0, 1) == Root(g, 1) + b + (1 + y)*Root(g, 3)
+        assert (a + b + c).set_variable(0, 1) == Root(g, 1) + b + (1 + y) * Root(g, 3)
         # assert (a + b + c).set_variables_to_zero({0}) == (Root(g, 2) + Root(g, 3))*y
         # assert (a + b + c).set_variables_to_zero({1}) == (Root(g, 1) + Root(g, 3))*x
         # assert (a + b + c).set_variables_to_zero({0, 1}) == 0
@@ -450,7 +450,7 @@ class TestRootTransform:
         assert T.strong_conditional_descents == set()
         assert T.weak_conditional_descents == {1}
 
-        T[1] += Root(g, 2, 2*Polynomial('x'))
+        T[1] += Root(g, 2, 2 * Polynomial('x'))
         # T now has no descents, although T is not trivial
         assert T.sigma == {1: Root(g, 2, 1 + Polynomial('x')), 2: Root(g, 1)}
         assert T.unconditional_descents == set()
@@ -511,7 +511,7 @@ class TestRootTransform:
 
         W = 1 * T * 1
         assert W.sigma == {
-            1: -(Root(g, 1) + Root(g, 2))*(1 + Polynomial('x')),
+            1: -(Root(g, 1) + Root(g, 2)) * (1 + Polynomial('x')),
             2: Root(g, 1, Polynomial('x')) + Root(g, 2, 1 + Polynomial('x'))
         }
 

@@ -874,7 +874,7 @@ class Polynomial(VectorMixin, OperatorMixin, NumberMixin):
             c /= a
 
         if a == 0 and b != 0:
-            return {x + c/b}
+            return {x + c / b}
         elif c == 0:
             return {x, x + b}
         else:

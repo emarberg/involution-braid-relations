@@ -42,16 +42,16 @@ class TestRationalNumbers:
 
     def test_hash(self):
         """Test that hashes for RationalNumbers which are integers match the hashes of the ints."""
-        N = 100
-        for p in range(-N, N):
-            for q in range(-N, N):
+        n = 100
+        for p in range(-n, n):
+            for q in range(-n, n):
                 try:
                     x = RationalNumber(p, q)
                 except:
                     assert q == 0
                 else:
                     if p % q == 0:
-                        assert hash(x) == hash(p//q)
+                        assert hash(x) == hash(p // q)
                         assert x.is_integer()
 
         assert len({1, RationalNumber(1, 1)}) == 1
@@ -60,8 +60,8 @@ class TestRationalNumbers:
         (RationalNumber(1), 1, True),
         (2, RationalNumber(1), False),
         (RationalNumber(2, 3), RationalNumber(5, 7), True),
-        (RationalNumber(3, 4), QuadraticNumber.sqrt(2)/2, False),
-        (QuadraticNumber.sqrt(2)/2, RationalNumber(3, 4), True)
+        (RationalNumber(3, 4), QuadraticNumber.sqrt(2) / 2, False),
+        (QuadraticNumber.sqrt(2) / 2, RationalNumber(3, 4), True)
     ])
     def test_le(self, a, b, expected):
         """Test <= operator for RationalNumbers."""
@@ -71,8 +71,8 @@ class TestRationalNumbers:
         (RationalNumber(1), 2, True),
         (2, RationalNumber(1), False),
         (RationalNumber(2, 3), RationalNumber(5, 7), True),
-        (RationalNumber(3, 4), QuadraticNumber.sqrt(2)/2, False),
-        (QuadraticNumber.sqrt(2)/2, RationalNumber(3, 4), True)
+        (RationalNumber(3, 4), QuadraticNumber.sqrt(2) / 2, False),
+        (QuadraticNumber.sqrt(2) / 2, RationalNumber(3, 4), True)
     ])
     def test_lt(self, a, b, expected):
         """Test <= operator for RationalNumbers."""
@@ -99,7 +99,7 @@ class TestRationalNumbers:
         (RationalNumber(3, 7), 1, RationalNumber(10, 7)),
         (RationalNumber(3, 7), -2, RationalNumber(-11, 7)),
         (RationalNumber(3, 7), RationalNumber(-3, 7), 0),
-        (RationalNumber(3, 7), RationalNumber(4, 9), RationalNumber(3*9 + 4*7, 7*9)),
+        (RationalNumber(3, 7), RationalNumber(4, 9), RationalNumber(3 * 9 + 4 * 7, 7 * 9)),
     ])
     def test_addition(self, a, b, c):
         """Tests for addition and substraction of RationalNumbers."""
@@ -238,11 +238,11 @@ class TestPrimeFactorization:
     @pytest.mark.parametrize("i, expected", [
         (1, {}),
         (-1, {-1: 1}),
-        (2*3*5*7, {2: 1, 3: 1, 5: 1, 7: 1}),
-        (8*27*125, {2: 3, 3: 3, 5: 3}),
+        (2 * 3 * 5 * 7, {2: 1, 3: 1, 5: 1, 7: 1}),
+        (8 * 27 * 125, {2: 3, 3: 3, 5: 3}),
         (-3, {-1: 1, 3: 1}),
-        (-2*3*5*7, {-1: 1, 2: 1, 3: 1, 5: 1, 7: 1}),
-        (-8*27*125, {-1: 1, 2: 3, 3: 3, 5: 3}),
+        (-2 * 3 * 5 * 7, {-1: 1, 2: 1, 3: 1, 5: 1, 7: 1}),
+        (-8 * 27 * 125, {-1: 1, 2: 3, 3: 3, 5: 3}),
     ])
     def test_constructor(self, i, expected):
         pf = PrimeFactorization(i)
@@ -250,19 +250,19 @@ class TestPrimeFactorization:
 
     def test_repr(self):
         """Test conversion of PrimeFactorization to str."""
-        assert str(PrimeFactorization(2*3*5*7)) == '{2: 1, 3: 1, 5: 1, 7: 1}'
+        assert str(PrimeFactorization(2 * 3 * 5 * 7)) == '{2: 1, 3: 1, 5: 1, 7: 1}'
 
     def test_lt(self):
         """Test < operator for PrimeFactorizations."""
-        assert PrimeFactorization(-2*3) < PrimeFactorization(-2) < PrimeFactorization(-1)
-        assert PrimeFactorization(-1) < PrimeFactorization(1) < PrimeFactorization(2*3)
+        assert PrimeFactorization(-2 * 3) < PrimeFactorization(-2) < PrimeFactorization(-1)
+        assert PrimeFactorization(-1) < PrimeFactorization(1) < PrimeFactorization(2 * 3)
 
     @pytest.mark.parametrize("m, n, expected", [
         (1, 1, {}),
         (1, -1, {-1: 1}),
         (-1, -1, {}),
-        (2*3*5, -7*9*11, {-1: 1, 2: 1, 3: 3, 5: 1, 7: 1, 11: 1}),
-        (-2*3*5, -7*9*11, {2: 1, 3: 3, 5: 1, 7: 1, 11: 1})
+        (2 * 3 * 5, -7 * 9 * 11, {-1: 1, 2: 1, 3: 3, 5: 1, 7: 1, 11: 1}),
+        (-2 * 3 * 5, -7 * 9 * 11, {2: 1, 3: 3, 5: 1, 7: 1, 11: 1})
     ])
     def test_multiplication(self, m, n, expected):
         """Tests for multiplication of PrimeFactorizations."""
@@ -275,7 +275,7 @@ class TestPrimeFactorization:
         (-1, {-1: 1}),
         (2, {2: 1}),
         (-4, {-1: 1}),
-        (4*3*25, {3: 1})
+        (4 * 3 * 25, {3: 1})
     ])
     def test_get_square_free_part(self, i, expected):
         pf = PrimeFactorization(i)
@@ -286,7 +286,7 @@ class TestPrimeFactorization:
         (-1, 1),
         (2, 1),
         (-4, 2),
-        (4*3*125, 10)
+        (4 * 3 * 125, 10)
     ])
     def get_truncated_square_root(self, i, expected):
         pf = PrimeFactorization(i)
@@ -347,7 +347,7 @@ class TestQuadraticNumbers:
         assert str(-3 * QuadraticNumber.sqrt((RationalNumber(-25, 3)))) == '(-5*sqrt(-3))'
 
     IRRATIONAL_SQUARE_1 = 3 + QuadraticNumber.sqrt(5)
-    IRRATIONAL_SQUARE_2 = 7 + 3*QuadraticNumber.sqrt(5)
+    IRRATIONAL_SQUARE_2 = 7 + 3 * QuadraticNumber.sqrt(5)
 
     @pytest.mark.parametrize("i, expected", [
         (0, {}),
@@ -355,7 +355,7 @@ class TestQuadraticNumbers:
         (QuadraticNumber(), {}),
         (1, {1: 1}),
         (-4, {-1: 2}),
-        (8*27, {6: 6}),
+        (8 * 27, {6: 6}),
         (125, {5: 5}),
         (RationalNumber(7, 8), {14: RationalNumber(1, 4)}),
         (RationalNumber(-4, 3), {-3: RationalNumber(2, 3)}),
@@ -503,8 +503,8 @@ class TestQuadraticNumbers:
         (QuadraticNumber(0), 3, {}),
         (QuadraticNumber(1), 10, {1: 1}),
         (QuadraticNumber.sqrt(2), -3, {2: RationalNumber(1, 4)}),
-        ((1 - QuadraticNumber.sqrt(3))/2, 2, {1: 1, 3: -RationalNumber(1, 2)}),
-        ((1 - QuadraticNumber.sqrt(3))/2, -2, {1: 4, 3: 2}),
+        ((1 - QuadraticNumber.sqrt(3)) / 2, 2, {1: 1, 3: -RationalNumber(1, 2)}),
+        ((1 - QuadraticNumber.sqrt(3)) / 2, -2, {1: 4, 3: 2}),
     ])
     def test_power(self, n, e, expected):
         """Tests for exponentiation of QuadraticNumbers."""
@@ -747,7 +747,7 @@ class TestPolynomial:
         (Monomial('x'), {Monomial('x'): 1}),
         (-3, {Monomial(): -3}),
         (RationalNumber(3, 7), {Monomial(): RationalNumber(3, 7)}),
-        (QuadraticNumber.sqrt(3)/7, {Monomial(): QuadraticNumber.sqrt(3)/7}),
+        (QuadraticNumber.sqrt(3) / 7, {Monomial(): QuadraticNumber.sqrt(3) / 7}),
     ])
     def test_constructor(self, i, expected):
         """Test constructor for Polynomial with a variety of valid inputs."""
@@ -770,7 +770,7 @@ class TestPolynomial:
         assert str(RationalNumber(7, 8) * x) == '7/8x'
         assert str(QuadraticNumber.sqrt(7) * 8 * x**2) == '(8*sqrt(7))x^2'
 
-    @pytest.mark.parametrize("K", [
+    @pytest.mark.parametrize("numbers", [
         [0, RationalNumber(0), QuadraticNumber(0), Polynomial(0)],
         [1, RationalNumber(1), QuadraticNumber(1), Polynomial(1)],
         [-7, RationalNumber(-7), QuadraticNumber(-7), Polynomial(-7)],
@@ -779,10 +779,10 @@ class TestPolynomial:
         [QuadraticNumber.sqrt(3), Polynomial(QuadraticNumber.sqrt(3))],
         [QuadraticNumber.sqrt(-3), Polynomial(QuadraticNumber.sqrt(-3))]
     ])
-    def test_eq(self, K):
+    def test_eq(self, numbers):
         """Test == operator for various 'equal' objects."""
-        for a in K:
-            for b in K:
+        for a in numbers:
+            for b in numbers:
                 assert a == b
 
     @pytest.mark.parametrize("a, b, expected", [
@@ -791,32 +791,32 @@ class TestPolynomial:
         (QuadraticNumber(0), X, True),
         (Polynomial(0), X, True),
         (1, X, False),
-        (0, 2*X, True),
+        (0, 2 * X, True),
         (RationalNumber(3, 5), X, False),
         (QuadraticNumber.sqrt(3), X, False),
         (0, X * Y, True),
-        (X, X**2 + 2*X, True),
+        (X, X**2 + 2 * X, True),
         (0, X - 1, False),
-        (0, X**2 - 2*X + 1, False),
-        (-2*X, X**2 - 2*X + 1, True),
-        (X + X**2, 2*X + 3*X**2, True),
+        (0, X**2 - 2 * X + 1, False),
+        (-2 * X, X**2 - 2 * X + 1, True),
+        (X + X**2, 2 * X + 3 * X**2, True),
     ])
     def test_le(self, a, b, expected):
         """Test <= operator for Polynomials."""
         assert (a <= b) == (-b <= -a) == expected
 
         q = RationalNumber(127, 128)
-        assert (q*a <= q*b) == (-q*b <= -q*a) == expected
+        assert (q * a <= q * b) == (-q * b <= -q * a) == expected
 
         r = 1 + QuadraticNumber.sqrt(127)
-        assert (r*a <= r*b) == (-r*b <= -r*a) == expected
+        assert (r * a <= r * b) == (-r * b <= -r * a) == expected
 
-        if (r-q)*b >= 0:
-            assert (q*a <= r*b) == (-r*b <= -q*a) == expected
+        if (r - q) * b >= 0:
+            assert (q * a <= r * b) == (-r * b <= -q * a) == expected
 
     @pytest.mark.parametrize("a, b, expected", [
         (0, X, False),
-        (0, 2*X, False),
+        (0, 2 * X, False),
         (1, X, False),
         (RationalNumber(3, 5), X, False),
         (QuadraticNumber.sqrt(3), X, False),
@@ -825,23 +825,23 @@ class TestPolynomial:
         (RationalNumber(1), X * Y + 2, True),
         (QuadraticNumber(1), X * Y + 2, True),
         (Polynomial(1), X * Y + 2, True),
-        (X, X**2 + 2*X, False),
+        (X, X**2 + 2 * X, False),
         (0, X + 1, True),
-        (-2*X - 3, X - 1, True),
-        (-2*X, X**2 - 2*X + 1, True)
+        (-2 * X - 3, X - 1, True),
+        (-2 * X, X**2 - 2 * X + 1, True)
     ])
     def test_lt(self, a, b, expected):
         """Test < operator for Polynomials."""
         assert (a < b) == (-b < -a) == expected
 
         q = RationalNumber(127, 128)
-        assert (q*a < q*b) == (-q*b < -q*a) == expected
+        assert (q * a < q * b) == (-q * b < -q * a) == expected
 
         r = 1 + QuadraticNumber.sqrt(127)
-        assert (r*a < r*b) == (-r*b < -r*a) == expected
+        assert (r * a < r * b) == (-r * b < -r * a) == expected
 
-        if (r-q)*b > 0:
-            assert (q*a < r*b) == (-r*b < -q*a) == expected
+        if (r-q) * b > 0:
+            assert (q * a < r * b) == (-r * b < -q * a) == expected
 
     def test_lt_errors(self):
         try:
@@ -858,14 +858,14 @@ class TestPolynomial:
         assert hash(Polynomial(QuadraticNumber.sqrt(7))) == hash(QuadraticNumber.sqrt(7))
 
         x = Polynomial('x')
-        assert hash(4*x) == hash(RationalNumber(4)*x) == hash(QuadraticNumber(4)*x)
-        assert hash(4*x/3) == hash(RationalNumber(4, 3)*x) \
-                           == hash(QuadraticNumber(RationalNumber(4, 3))*x)
+        assert hash(4 * x) == hash(RationalNumber(4) * x) == hash(QuadraticNumber(4) * x)
+        assert hash(4 * x/3) == hash(RationalNumber(4, 3) * x) \
+                           == hash(QuadraticNumber(RationalNumber(4, 3)) * x)
 
     def test_getitem(self):
         """Test [] operator for Polynomials."""
         x = Polynomial('x')
-        f = 3*x**3 + 2*x - 7
+        f = 3 * x**3 + 2 * x - 7
 
         assert f[1] == -7
         assert f['x'] == 2
@@ -883,8 +883,8 @@ class TestPolynomial:
         (Polynomial(5), Polynomial(-5), {}),
         (Polynomial(5), Polynomial(-5), {}),
         (Polynomial(5), QuadraticNumber.sqrt(5), {Monomial(): 5 + QuadraticNumber.sqrt(5)}),
-        (2*X, 3*X**2, {Monomial('x'): 2, Monomial('x')**2: 3}),
-        (2*X - X**2, X + 3*X**2, {Monomial('x'): 3, Monomial('x')**2: 2})
+        (2 * X, 3 * X**2, {Monomial('x'): 2, Monomial('x')**2: 3}),
+        (2 * X - X**2, X + 3 * X**2, {Monomial('x'): 3, Monomial('x')**2: 2})
     ])
     def test_addition(self, a, b, expected):
         """Tests for addition of Polynomials."""
@@ -904,11 +904,11 @@ class TestPolynomial:
         (Polynomial(1), Polynomial(1), {Monomial(): 1}),
         (Polynomial(5), -5,  {Monomial(): -25}),
         (Polynomial(5), QuadraticNumber.sqrt(5), {Monomial(): QuadraticNumber.sqrt(125)}),
-        (2*X, 3*X**2, {Monomial('x')**3: 6}),
-        (2*X - X**2, X + 3*X**2, {Monomial('x')**2: 2, Monomial('x')**3: 5, Monomial('x')**4: -3}),
+        (2 * X, 3 * X**2, {Monomial('x')**3: 6}),
+        (2 * X - X**2, X + 3 * X**2, {Monomial('x')**2: 2, Monomial('x')**3: 5, Monomial('x')**4: -3}),
         (Polynomial({0: -1}), Polynomial({0: 1}), {Monomial(): 1}),
         (sum(X**i for i in range(10)), sum(X**i for i in range(10)),
-         (sum((i+1)*X**i for i in range(10)) + sum((i+1)*X**(18-i) for i in range(9))).coefficients)
+         (sum((i+1) * X**i for i in range(10)) + sum((i+1) * X**(18-i) for i in range(9))).coefficients)
     ])
     def test_multiplication(self, a, b, expected):
         """Tests for multiplication of Polynomials."""
@@ -1012,15 +1012,15 @@ class TestPolynomial:
         f = Polynomial('x')
         g = Polynomial('y')
         h = Polynomial('z')
-        F = QuadraticNumber.sqrt(2) + 3 + 5*f**2*g + g**7*h + h**2*f
+        F = QuadraticNumber.sqrt(2) + 3 + 5 * f**2 * g + g**7 * h + h**2 * f
         assert F.get_variables() == {'x', 'y', 'z'}
 
     @pytest.mark.parametrize("f, expected", [
         (Polynomial(), 0),
         (Polynomial(1), 0),
         (Polynomial(QuadraticNumber.sqrt(2)), 0),
-        (X + QuadraticNumber.sqrt(2)*Y, 1),
-        (X*Y, 2),
+        (X + QuadraticNumber.sqrt(2) * Y, 1),
+        (X * Y, 2),
         (Y**2, 2),
         (Polynomial({0: -1}), None)
     ])
@@ -1032,7 +1032,7 @@ class TestPolynomial:
         (Polynomial(1), 'x', 0, 1),
         (X, 'x', 3, 3),
         (X, Monomial('x'), 3, 3),
-        (X**2, 'x', X + Y, X**2 + 2*X*Y + Y**2)
+        (X**2, 'x', X + Y, X**2 + 2 * X*Y + Y**2)
     ])
     def test_set_variable(self, f, variable, value, expected):
         assert f.set_variable(variable, value) == expected
@@ -1072,7 +1072,7 @@ class TestPolynomial:
             assert False
 
     @pytest.mark.parametrize("f, expected", [
-        (X*Y, False),
+        (X * Y, False),
         (X**3, False),
         (Polynomial(3), False),
         (X + 3, True),
@@ -1083,10 +1083,10 @@ class TestPolynomial:
 
     @pytest.mark.parametrize("f, expected", [
         (X + 1, {X + 1}),
-        (5*X + 1, {X + RationalNumber(1, 5)}),
+        (5 * X + 1, {X + RationalNumber(1, 5)}),
         (X**2 - 1, {X + 1, X - 1}),
-        (X**2 - 2*X + 1, {X - 1}),
-        (X**2 - 2*X, {X - 2, X}),
+        (X**2 - 2 * X + 1, {X - 1}),
+        (X**2 - 2 * X, {X - 2, X}),
     ])
     def test_get_factors(self, f, expected):
         factors = f.get_factors()
@@ -1125,8 +1125,8 @@ class TestPolynomial:
         f = X + 1
         assert f**0 == 1
         assert f**1 == f
-        assert f**2 == X**2 + 2*X + 1
-        assert f**3 == X**3 + 3*X**2 + 3*X + 1
+        assert f**2 == X**2 + 2 * X + 1
+        assert f**3 == X**3 + 3 * X**2 + 3 * X + 1
 
         try:
             f**1.0
