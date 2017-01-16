@@ -1126,22 +1126,28 @@ class CoxeterGraph:
         return max_len
 
     @staticmethod
-    def A(n, star=None):
+    def A(n, star=None): # noqa
+        """
+        Dynkin diagram labeling is:
+
+            1--2--...--n
+
+        """
         edges = [(i, i + 1, 3) for i in range(1, n)]
         return CoxeterGraph(edges, star=star)
 
     @staticmethod
-    def A2(n):
+    def A2(n): # noqa
         star = [(i, n + 1 - i) for i in range(1, n + 1)]
         return CoxeterGraph.A(n, star=star)
 
     @staticmethod
-    def B2(n=2):
+    def B2(n=2): # noqa
         assert n == 2
         return CoxeterGraph([(0, 1, 4)], star=[(0, 1)])
 
     @staticmethod
-    def B(n):
+    def B(n): # noqa
         """
         Dynkin diagram labeling is:
 
@@ -1153,7 +1159,7 @@ class CoxeterGraph:
         return CoxeterGraph(edges)
 
     @staticmethod
-    def D(n, star=None):
+    def D(n, star=None): # noqa
         """
         Dynkin diagram labeling is:
 
@@ -1167,13 +1173,13 @@ class CoxeterGraph:
         return CoxeterGraph(edges, star=star)
 
     @staticmethod
-    def D2(n):
+    def D2(n): # noqa
         assert 4 <= n
         star = [(0, 1)] + [(i, i) for i in range(2, n)]
         return CoxeterGraph.D(n, star=star)
 
     @staticmethod
-    def E(n, star=None):
+    def E(n, star=None): # noqa
         """
         Dynkin diagram labeling is:
 
@@ -1187,35 +1193,35 @@ class CoxeterGraph:
         return CoxeterGraph(edges, star=star)
 
     @staticmethod
-    def E2(n=6):
+    def E2(n=6): # noqa
         assert n == 6
         star = [(1, 6), (2, 5), (3, 3), (4, 4)]
         return CoxeterGraph.E(n, star=star)
 
     @staticmethod
-    def F(n=4, star=None):
+    def F(n=4, star=None): # noqa
         assert n == 4
         edges = [(1, 2, 3), (2, 3, 4), (3, 4, 3)]
         return CoxeterGraph(edges, star=star)
 
     @staticmethod
-    def F2(n=4):
+    def F2(n=4): # noqa
         assert n == 4
         star = [(1, 4), (2, 3)]
         return CoxeterGraph.F(n, star=star)
 
     @staticmethod
-    def G(n=2, star=None):
+    def G(n=2, star=None): # noqa
         assert n == 2
         return CoxeterGraph([(1, 2, 6)], star=star)
 
     @staticmethod
-    def G2(n=2):
+    def G2(n=2): # noqa
         assert n == 2
         return CoxeterGraph.G(n, star=[(1, 2)])
 
     @staticmethod
-    def H(n):
+    def H(n): # noqa
         """
         Dynkin diagram labeling is:
 
@@ -1231,13 +1237,13 @@ class CoxeterGraph:
         return CoxeterGraph(edges)
 
     @staticmethod
-    def A_tilde(n, star=None):
+    def A_tilde(n, star=None): # noqa
         assert n >= 2
         edges = [(i, i + 1, 3) for i in range(1, n)] + [(n, n + 1, 3), (n + 1, 1, 3)]
         return CoxeterGraph(edges, star=star)
 
     @staticmethod
-    def B_tilde(n, star=None):
+    def B_tilde(n, star=None): # noqa
         """
         Dynkin diagram labeling is:
 
@@ -1251,7 +1257,7 @@ class CoxeterGraph:
         return CoxeterGraph(edges, star=star)
 
     @staticmethod
-    def C_tilde(n, star=None):
+    def C_tilde(n, star=None): # noqa
         """
         Dynkin diagram labeling is:
 
@@ -1263,7 +1269,7 @@ class CoxeterGraph:
         return CoxeterGraph(edges, star=star)
 
     @staticmethod
-    def D_tilde(n, star=None):
+    def D_tilde(n, star=None): # noqa
         """
         Dynkin diagram labeling is:
 
@@ -1277,7 +1283,7 @@ class CoxeterGraph:
         return CoxeterGraph(edges, star=star)
 
     @staticmethod
-    def E_tilde(n, star=None):
+    def E_tilde(n, star=None): # noqa
         """
         Dynkin diagram labelings are:
 
@@ -1307,7 +1313,7 @@ class CoxeterGraph:
         return CoxeterGraph(edges, star=star)
 
     @staticmethod
-    def F_tilde(n=4):
+    def F_tilde(n=4): # noqa
         """
         Dynkin diagram labeling is:
 
@@ -1319,7 +1325,7 @@ class CoxeterGraph:
         return CoxeterGraph(edges)
 
     @staticmethod
-    def G_tilde(n=2):
+    def G_tilde(n=2): # noqa
         """
         Dynkin diagram labeling is:
 

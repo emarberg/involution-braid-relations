@@ -42,10 +42,10 @@ def get_arguments():
 
 
 def get_coxeter_graph(coxeter_type, rank):
-    # replace 'A~' with 'A_tilde', and so on
+    # replace 'X~' with 'X_tilde'
     if coxeter_type.endswith('~'):
         coxeter_type = coxeter_type[:-1] + '_tilde'
-    # reverse '2A' to be 'A2', and so on
+    # reverse '2X' to be 'X2'
     elif len(coxeter_type) != 1:
         coxeter_type = ''.join(reversed(coxeter_type))
 
@@ -60,10 +60,7 @@ def solve(coxeter_type, rank, verbosity, do_sanity_check, limit):
         return
     else:
         q = BraidQueue(g, verbose_level=verbosity)
-        try:
-            q.go(do_sanity_check=do_sanity_check, limit=limit)
-        except Exception as e:
-            print(e)
+        q.go(do_sanity_check=do_sanity_check, limit=limit)
 
 
 if __name__ == '__main__':
