@@ -3,7 +3,8 @@ import pytest
 from project.utils import (
     IndeterminatePowerException,
     InvalidInputException,
-    ZeroDivisionException
+    ZeroDivisionException,
+    OperatorException
 )
 
 from project.algebra import (
@@ -82,14 +83,14 @@ class TestRationalNumbers:
         try:
             RationalNumber(0) == 0.0
         except Exception as e:
-            assert type(e) == RationalNumber.OperatorException
+            assert type(e) == OperatorException
         else:
             assert False
 
         try:
             RationalNumber(-1) < 0.0
         except Exception as e:
-            assert type(e) == RationalNumber.OperatorException
+            assert type(e) == OperatorException
         else:
             assert False
 
@@ -173,28 +174,28 @@ class TestRationalNumbers:
         try:
             a + b
         except Exception as e:
-            assert type(e) == RationalNumber.OperatorException
+            assert type(e) == OperatorException
         else:
             assert False
 
         try:
             a - b
         except Exception as e:
-            assert type(e) == RationalNumber.OperatorException
+            assert type(e) == OperatorException
         else:
             assert False
 
         try:
             a * b
         except Exception as e:
-            assert type(e) == RationalNumber.OperatorException
+            assert type(e) == OperatorException
         else:
             assert False
 
         try:
             a / b
         except Exception as e:
-            assert type(e) == RationalNumber.OperatorException
+            assert type(e) == OperatorException
         else:
             assert False
 
@@ -227,7 +228,7 @@ class TestRationalNumbers:
         try:
             RationalNumber(5, 2)**RationalNumber(6, 2)
         except Exception as e:
-            assert type(e) == RationalNumber.OperatorException
+            assert type(e) == OperatorException
         else:
             assert False
 
@@ -411,7 +412,7 @@ class TestQuadraticNumbers:
         try:
             QuadraticNumber(-1) < 0.0
         except Exception as e:
-            assert type(e) == QuadraticNumber.OperatorException
+            assert type(e) == OperatorException
         else:
             assert False
 
@@ -589,28 +590,28 @@ class TestQuadraticNumbers:
         try:
             a + b
         except Exception as e:
-            assert type(e) == QuadraticNumber.OperatorException
+            assert type(e) == OperatorException
         else:
             assert False
 
         try:
             a - b
         except Exception as e:
-            assert type(e) == QuadraticNumber.OperatorException
+            assert type(e) == OperatorException
         else:
             assert False
 
         try:
             a * b
         except Exception as e:
-            assert type(e) == QuadraticNumber.OperatorException
+            assert type(e) == OperatorException
         else:
             assert False
 
         try:
             a / b
         except Exception as e:
-            assert type(e) == QuadraticNumber.OperatorException
+            assert type(e) == OperatorException
         else:
             assert False
 
@@ -846,7 +847,7 @@ class TestPolynomial:
         try:
             Polynomial('x') < 1.0
         except Exception as e:
-            assert type(e) == Polynomial.OperatorException
+            assert type(e) == OperatorException
         else:
             assert False
 
@@ -949,7 +950,7 @@ class TestPolynomial:
         try:
             Polynomial('x') / divisor
         except Exception as e:
-            assert type(e) == Polynomial.OperatorException
+            assert type(e) == OperatorException
         else:
             assert False
 
@@ -979,28 +980,28 @@ class TestPolynomial:
         try:
             a + b
         except Exception as e:
-            assert type(e) == Polynomial.OperatorException
+            assert type(e) == OperatorException
         else:
             assert False
 
         try:
             a - b
         except Exception as e:
-            assert type(e) == Polynomial.OperatorException
+            assert type(e) == OperatorException
         else:
             assert False
 
         try:
             a * b
         except Exception as e:
-            assert type(e) == Polynomial.OperatorException
+            assert type(e) == OperatorException
         else:
             assert False
 
         try:
             a / b
         except Exception as e:
-            assert type(e) == Polynomial.OperatorException
+            assert type(e) == OperatorException
         else:
             assert False
 

@@ -21,7 +21,7 @@ def get_arguments():
     )
     parser.add_argument(
         '--verify',
-        dest='do_sanity_check',
+        dest='verify',
         action='store_true',
         help='verify relations after constructing them (required if limit is set)'
     )
@@ -52,17 +52,16 @@ def get_coxeter_graph(coxeter_type, rank):
     return getattr(CoxeterGraph, coxeter_type)(rank)
 
 
-def solve(coxeter_type, rank, verbosity, do_sanity_check, limit):
+def solve(coxeter_type, rank, verbosity, verify, limit):
     try:
         g = get_coxeter_graph(coxeter_type, rank)
     except:
         print('Invalid type and rank: (%s, %s)' % (coxeter_type, rank))
-        return
     else:
         q = BraidQueue(g, verbose_level=verbosity)
-        q.go(do_sanity_check=do_sanity_check, limit=limit)
+        q.go(do_sanity_check=verify, limit=limit)
 
 
 if __name__ == '__main__':
     args = get_arguments()
-    solve(args.type, args.rank, args.verbosity, args.do_sanity_check, args.limit)
+    solve(args.type, args.rank, args.verbosity, args.verify, args.limit)

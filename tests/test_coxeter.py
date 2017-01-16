@@ -2,7 +2,8 @@ import pytest
 import numpy as np
 
 from project.utils import (
-    InvalidInputException
+    InvalidInputException,
+    OperatorException
 )
 
 from project.algebra import (
@@ -254,14 +255,14 @@ class TestRoot:
             try:
                 r == zero
             except Exception as e:
-                assert type(e) == Root.OperatorException
+                assert type(e) == OperatorException
             else:
                 assert False
 
             try:
                 zero == r
             except Exception as e:
-                assert type(e) == type(zero).OperatorException
+                assert type(e) == OperatorException
             else:
                 assert False
 
@@ -363,7 +364,7 @@ class TestRoot:
         try:
             a + Root(CoxeterGraph.H(3), 3)
         except Exception as e:
-            assert type(e) == Root.OperatorException
+            assert type(e) == OperatorException
         else:
             assert False
 

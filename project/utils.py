@@ -19,19 +19,20 @@ class ZeroDivisionException(Exception):
         super(ZeroDivisionException, self).__init__('Cannot divide %s by 0' % n.__class__.__name__)
 
 
-class VectorMixin:
+class OperatorException(Exception):
+    def __init__(self, a, b, operator='__eq__'):
+        method = a.__class__.__name__ + '.' + operator
+        super(OperatorException, self).__init__(
+            'Cannot evaluate %s with input of type `%s`' % (method, type(b)))
 
-    class OperatorException(Exception):
-        def __init__(self, a, b, operator='__eq__'):
-            method = a.__class__.__name__ + '.' + operator
-            super(VectorMixin.OperatorException, self).__init__(
-                'Cannot evaluate %s with input of type `%s`' % (method, type(b)))
+
+class VectorMixin:
 
     def __eq__(self, other):
         if self.is_comparable(other):
             return len(other - self) == 0
         else:
-            raise VectorMixin.OperatorException(self, other)
+            raise OperatorException(self, other)
 
     def is_comparable(self, other):
         """Returns True if we can evaluate ==, etc, between self and other."""

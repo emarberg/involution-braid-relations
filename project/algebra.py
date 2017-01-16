@@ -5,6 +5,7 @@ from project.utils import (
     IndeterminatePowerException,
     InvalidInputException,
     ZeroDivisionException,
+    OperatorException,
     NumberMixin,
     VectorMixin
 )
@@ -26,7 +27,7 @@ class OperatorMixin:
         elif type(other) == Polynomial:
             return self.eq__polynomial(other)
         else:
-            raise self.OperatorException(other)
+            raise OperatorException(self, other)
 
     def eq__int(self, other):
         """Evaluates self == other under assumption that type(other) is int."""
@@ -54,7 +55,7 @@ class OperatorMixin:
         elif type(other) == Polynomial:
             return self.lt__polynomial(other)
         else:
-            raise self.OperatorException(other, '__lt__')
+            raise OperatorException(self, other, '__lt__')
 
     def lt__int(self, other):
         """Evaluates self < other under assumption that type(other) is int."""
@@ -82,7 +83,7 @@ class OperatorMixin:
         elif type(other) == Polynomial:
             return self.add__polynomial(other)
         else:
-            raise self.OperatorException(other, '__add__')
+            raise OperatorException(self, other, '__add__')
 
     def add__int(self, other):
         """Evaluates self + other under assumption that type(other) is int."""
@@ -112,7 +113,7 @@ class OperatorMixin:
         elif type(other) == Root:
             return self.mul__root(other)
         else:
-            raise self.OperatorException(other, '__mul__')
+            raise OperatorException(self, other, '__mul__')
 
     def mul__int(self, other):
         """Evaluates self * other under assumption that type(other) is int."""
@@ -146,7 +147,7 @@ class OperatorMixin:
         elif type(other) == Polynomial:
             return self.truediv__polynomial(other)
         else:
-            raise self.OperatorException(other, '__truediv__')
+            raise OperatorException(self, other, '__truediv__')
 
     def truediv__int(self, other):
         """Evaluates self * other under assumption that type(other) is int."""
@@ -166,12 +167,6 @@ class OperatorMixin:
 
 
 class RationalNumber(OperatorMixin, NumberMixin):
-
-    class OperatorException(Exception):
-        def __init__(self, other, operator='__eq__'):
-            method = 'RationalNumber.' + operator
-            super(RationalNumber.OperatorException, self).__init__(
-                'Cannot evaluate %s with input of type `%s`' % (method, type(other)))
 
     def __init__(self, p=0, q=1):
         if type(p) == type(q) == RationalNumber:
@@ -283,14 +278,14 @@ class RationalNumber(OperatorMixin, NumberMixin):
         if other.is_constant():
             return self / other.get_constant_part()
         else:
-            raise RationalNumber.OperatorException(other, '__truediv__')
+            raise OperatorException(self, other, '__truediv__')
 
     def __rtruediv__(self, other):
         return other * RationalNumber(1, self)
 
     def __pow__(self, exponent):
         if type(exponent) != int:
-            raise RationalNumber.OperatorException(exponent, '__pow__')
+            raise OperatorException(self, exponent, '__pow__')
         elif exponent == 0 and self != 0:
             return RationalNumber(1)
         elif exponent == 0 and self == 0:
@@ -379,14 +374,14 @@ class PrimeFactorization:
         else:
             i_input = i
             factorization = {}
-            N = range(2, abs(i) + 1)
-            while N:
-                p = N[0]
+            possible_factors = range(2, abs(i) + 1)
+            while possible_factors:
+                p = possible_factors[0]
                 e = cls.get_divisor_exponent(i, p)
                 if e != 0:
                     factorization[p] = e
                     i = i // p**e
-                N = [a for a in N[1:] if a <= abs(i) and a % p != 0]
+                possible_factors = [a for a in possible_factors[1:] if a <= abs(i) and a % p != 0]
             if i_input < 0:
                 factorization[-1] = 1
             cls._factorization_cache[i_input] = factorization
@@ -522,7 +517,7 @@ class QuadraticNumber(VectorMixin, OperatorMixin, NumberMixin):
             return (self * conjugate) / (other * conjugate)
 
     def truediv__polynomial(self, other):
-        raise QuadraticNumber.OperatorException(self, other, '__truediv__')
+        raise OperatorException(self, other, '__truediv__')
 
     def __rtruediv__(self, other):
         conjugate = self.conjugate()
@@ -782,7 +777,7 @@ class Polynomial(VectorMixin, OperatorMixin, NumberMixin):
         if other.is_constant():
             return self / other[1]
         else:
-            raise Polynomial.OperatorException(self, other, '__truediv__')
+            raise OperatorException(self, other, '__truediv__')
 
     def truediv__helper(self, other):
         new = Polynomial()
@@ -794,7 +789,7 @@ class Polynomial(VectorMixin, OperatorMixin, NumberMixin):
         if self.is_constant() and type(other) in [int, RationalNumber, QuadraticNumber]:
             return Polynomial(other / self.get_constant_part())
         else:
-            raise Polynomial.OperatorException(self, other, '__rtruediv__')
+            raise OperatorException(self, other, '__rtruediv__')
 
     def __getitem__(self, i):
         if i == 1:
@@ -1423,7 +1418,7 @@ class Root(VectorMixin, NumberMixin):
             new.coefficients = {i: self[i] + other[i] for i in indices if (self[i] + other[i]) != 0}
             return new
         else:
-            raise Root.OperatorException(self, other, '__add__')
+            raise OperatorException(self, other, '__add__')
 
     def __mul__(self, other):
         new = Root(self.graph)
