@@ -603,7 +603,7 @@ class BraidQueue:
             self._print('States in queue                  : %s' % len(self))
             self._print('Multiplicities by word length    : %s' % self.word_multiplicities())
             self._print('Multiplicities by non-blank roots: %s' % self.root_multiplicities())
-            self._print('Sufficient relations             : %s' % len(self.sufficient_relations))
+            self._print('Relations found                  : %s' % len(self.sufficient_relations))
 
     def _get_multiplicities(self, state_to_length_fn):
         multiplicities = defaultdict(int)
