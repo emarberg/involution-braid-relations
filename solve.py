@@ -1,6 +1,6 @@
 import argparse
 
-from project.algebra import CoxeterGraph
+from project.coxeter import CoxeterGraph
 from project.managers import BraidQueue
 
 

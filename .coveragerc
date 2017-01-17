@@ -1,0 +1,3 @@
+[run]
+include = tests/*, project/*, solve.py
+omit = *.tox*

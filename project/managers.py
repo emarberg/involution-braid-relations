@@ -3,12 +3,15 @@ import time
 import itertools
 
 from project.algebra import (
-    CoxeterTransform,
-    CoxeterWord,
     Monomial,
     Polynomial,
     QuadraticNumber,
-    RationalNumber,
+    RationalNumber
+)
+
+from project.coxeter import (
+    CoxeterTransform,
+    CoxeterWord,
     Root,
     RootTransform
 )
@@ -833,6 +836,8 @@ class BraidQueue:
         if max_length == upper_length:
             self._print('\u26A0 Coxeter group appears to be very large or infinite.')
             self._print('  Only checking atoms up to length %s.' % max_length)
+            self._print('')
+            self._print('  (If this still takes forever, you can quit with CONTRL+C.)')
             self._print('')
 
         # first check that minimal relations are involution words for same twisted involution

@@ -9,7 +9,10 @@ from project.utils import (
 from project.algebra import (
     QuadraticNumber,
     RationalNumber,
-    Polynomial,
+    Polynomial
+)
+
+from project.coxeter import (
     CoxeterGraph,
     Root,
     RootTransform,

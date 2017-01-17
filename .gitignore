@@ -5,3 +5,4 @@ htmlcov
 pytest_results.xml
 .tox/
 .coverage
+py3/
