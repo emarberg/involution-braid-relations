@@ -26,6 +26,161 @@ class OperatorException(Exception):
             'Cannot evaluate %s with input of type `%s`' % (method, type(b)))
 
 
+class OperatorMixin:
+    """
+    Mixin class which helps implement polymorphic binary operations ==, <, +, *, and /
+    between int, RationalNumber, QuadraticNumber, and Polynomial objects.
+    """
+
+    def __eq__(self, other):
+        if type(other) == int:
+            return self.eq__int(other)
+        elif type(other).__name__ == 'RationalNumber':
+            return self.eq__rational_number(other)
+        elif type(other).__name__ == 'QuadraticNumber':
+            return self.eq__quadratic_number(other)
+        elif type(other).__name__ == 'Polynomial':
+            return self.eq__polynomial(other)
+        else:
+            raise OperatorException(self, other)
+
+    def eq__int(self, other):
+        """Evaluates self == other under assumption that type(other) is int."""
+        raise NotImplementedError  # pragma: no cover
+
+    def eq__rational_number(self, other):
+        """Evaluates self == other under assumption that type(other) is RationalNumber."""
+        raise NotImplementedError  # pragma: no cover
+
+    def eq__quadratic_number(self, other):
+        """Evaluates self == other under assumption that type(other) is QuadraticNumber."""
+        raise NotImplementedError  # pragma: no cover
+
+    def eq__polynomial(self, other):
+        """Evaluates self == other under assumption that type(other) is Polynomial."""
+        raise NotImplementedError  # pragma: no cover
+
+    def __lt__(self, other):
+        if type(other) == int:
+            return self.lt__int(other)
+        elif type(other).__name__ == 'RationalNumber':
+            return self.lt__rational_number(other)
+        elif type(other).__name__ == 'QuadraticNumber':
+            return self.lt__quadratic_number(other)
+        elif type(other).__name__ == 'Polynomial':
+            return self.lt__polynomial(other)
+        else:
+            raise OperatorException(self, other, '__lt__')
+
+    def lt__int(self, other):
+        """Evaluates self < other under assumption that type(other) is int."""
+        raise NotImplementedError  # pragma: no cover
+
+    def lt__rational_number(self, other):
+        """Evaluates self <other under assumption that type(other) is RationalNumber."""
+        raise NotImplementedError  # pragma: no cover
+
+    def lt__quadratic_number(self, other):
+        """Evaluates self < other under assumption that type(other) is QuadraticNumber."""
+        raise NotImplementedError  # pragma: no cover
+
+    def lt__polynomial(self, other):
+        """Evaluates self < other under assumption that type(other) is Polynomial."""
+        raise NotImplementedError  # pragma: no cover
+
+    def __add__(self, other):
+        if type(other) == int:
+            return self.add__int(other)
+        elif type(other).__name__ == 'RationalNumber':
+            return self.add__rational_number(other)
+        elif type(other).__name__ == 'QuadraticNumber':
+            return self.add__quadratic_number(other)
+        elif type(other).__name__ == 'Polynomial':
+            return self.add__polynomial(other)
+        else:
+            raise OperatorException(self, other, '__add__')
+
+    def add__int(self, other):
+        """Evaluates self + other under assumption that type(other) is int."""
+        raise NotImplementedError  # pragma: no cover
+
+    def add__rational_number(self, other):
+        """Evaluates self + other under assumption that type(other) is RationalNumber."""
+        raise NotImplementedError  # pragma: no cover
+
+    def add__quadratic_number(self, other):
+        """Evaluates self + other under assumption that type(other) is QuadraticNumber."""
+        raise NotImplementedError  # pragma: no cover
+
+    def add__polynomial(self, other):
+        """Evaluates self + other under assumption that type(other) is Polynomial."""
+        raise NotImplementedError  # pragma: no cover
+
+    def __mul__(self, other):
+        if type(other) == int:
+            return self.mul__int(other)
+        elif type(other).__name__ == 'RationalNumber':
+            return self.mul__rational_number(other)
+        elif type(other).__name__ == 'QuadraticNumber':
+            return self.mul__quadratic_number(other)
+        elif type(other).__name__ == 'Polynomial':
+            return self.mul__polynomial(other)
+        elif type(other).__name__ == 'Root':
+            return self.mul__root(other)
+        else:
+            raise OperatorException(self, other, '__mul__')
+
+    def mul__int(self, other):
+        """Evaluates self * other under assumption that type(other) is int."""
+        raise NotImplementedError  # pragma: no cover
+
+    def mul__rational_number(self, other):
+        """Evaluates self * other under assumption that type(other) is RationalNumber."""
+        raise NotImplementedError  # pragma: no cover
+
+    def mul__quadratic_number(self, other):
+        """Evaluates self * other under assumption that type(other) is QuadraticNumber."""
+        raise NotImplementedError  # pragma: no cover
+
+    def mul__polynomial(self, other):
+        """Evaluates self * other under assumption that type(other) is Polynomial."""
+        raise NotImplementedError  # pragma: no cover
+
+    def mul__root(self, other):
+        """Evaluates self * other under assumption that type(other) is Root."""
+        return other * self
+
+    def __truediv__(self, other):
+        if other == 0:
+            raise ZeroDivisionException(self)
+        elif type(other) == int:
+            return self.truediv__int(other)
+        elif type(other).__name__ == 'RationalNumber':
+            return self.truediv__rational_number(other)
+        elif type(other).__name__ == 'QuadraticNumber':
+            return self.truediv__quadratic_number(other)
+        elif type(other).__name__ == 'Polynomial':
+            return self.truediv__polynomial(other)
+        else:
+            raise OperatorException(self, other, '__truediv__')
+
+    def truediv__int(self, other):
+        """Evaluates self * other under assumption that type(other) is int."""
+        raise NotImplementedError  # pragma: no cover
+
+    def truediv__rational_number(self, other):
+        """Evaluates self * other under assumption that type(other) is RationalNumber."""
+        raise NotImplementedError  # pragma: no cover
+
+    def truediv__quadratic_number(self, other):
+        """Evaluates self * other under assumption that type(other) is QuadraticNumber."""
+        raise NotImplementedError  # pragma: no cover
+
+    def truediv__polynomial(self, other):
+        """Evaluates self * other under assumption that type(other) is Polynomial."""
+        raise NotImplementedError  # pragma: no cover
+
+
 class VectorMixin:
 
     def __eq__(self, other):
