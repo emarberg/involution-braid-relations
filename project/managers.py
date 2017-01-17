@@ -331,7 +331,7 @@ class PartialBraid:
             children = self._get_children_from_new_descent()
             return children, 'new descent'
 
-        raise Exception('Current state does not match any branching rule: %s' % self)
+        raise Exception('Current state does not match any branching rule: %s' % self)  # pragma: no cover
 
     def _get_semiorder(self, is_fixer):
         return self.graph.get_semiorder(self.s, self.t, is_fixer)
@@ -369,14 +369,14 @@ class PartialBraid:
         return children
 
     def _get_children_from_unconditional_descent(self, descent):
-        children = []
         if self.sigma[descent].is_constant():
             commutes = (self.sigma[descent] == Root(self.graph, self.graph.star(descent), -1))
-            children.append(self._branch_from_descent(descent, commutes=commutes))
+            return [self._branch_from_descent(descent, commutes=commutes)]
         else:
-            children.append(self._branch_from_descent(descent, commutes=True))
-            children.append(self._branch_from_descent(descent, commutes=False))
-        return children
+            return [
+                self._branch_from_descent(descent, commutes=True),
+                self._branch_from_descent(descent, commutes=False)
+            ]  # pragma: no cover
 
     def _get_children_from_conditional_descent(self, descent, nonpositive_root):
         """
@@ -541,7 +541,7 @@ class BraidQueue:
 
     def _print(self, string, end=None, level=VERBOSE_LEVEL_MEDIUM):
         if level <= self.verbose_level:
-            print(string, end=end)
+            print(string, end=end)  # noqa
 
     def _print_status(self, string, end=None):
         self._print(string, end=end, level=self.VERBOSE_LEVEL_LOW)
@@ -773,7 +773,8 @@ class BraidQueue:
                     return self._finalize_relations(candidate)
                 else:
                     self._print("       Does not span.")
-        raise Exception('Error in BraidQueue._finalize_necessary_relations: returning None')
+
+        raise Exception('Error in BraidQueue._finalize_necessary_relations: returning None')  # pragma: no cover
 
     def _finalize_relations(self, relations):
         """

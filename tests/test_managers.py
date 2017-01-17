@@ -422,17 +422,31 @@ class TestBraidQueue:
         g = CoxeterGraph.B(3)
         q = BraidQueue(g)
 
+        # do_sanity_check must be True if limit is not None
+        e = None
+        try:
+            q.go(do_sanity_check=False, limit=10)
+        except Exception as exception:
+            e = exception
+        assert type(e) == Exception
+
+        # check error handling when too many relations are present
         q.minimal_relations = [((0, 1), (1, 0)), ((1, 2), (2, 1))]
         try:
             q.sanity_check(None)
         except Exception as e:
             assert str(e) == 'Error: minimal relations do not preserve all sets of atoms.'
 
+        # check error handling when too few relations are present
         q.minimal_relations = [((0, 1, 0), (1, 0, 1)), ((1, 2), (2, 1))]
         try:
             q.sanity_check(None)
         except Exception as e:
             assert str(e) == 'Error: minimal relations fail to span all sets of atoms.'
 
+        # sanity check does not raise exception if we limit the length of atoms to check
+        q.sanity_check(upper_length=3)
+
+        # also raise no exceptions if atom length is unlimited but we use sufficient relations
         q.minimal_relations += [((0, 1, 2, 0, 1, 0), (0, 1, 2, 1, 0, 1))]
         q.sanity_check(None)

@@ -75,7 +75,7 @@ class VectorMixin:
             if alpha == '' and 0 < v:
                 s += ' + ' + str(v)
             elif alpha == '' and v < 0:
-                s += ' - ' + str(-v)  # pragma: no cover  
+                s += ' - ' + str(-v)  # pragma: no cover
             elif v == 1:
                 s += ' + ' + alpha
             elif v == -1:
@@ -131,10 +131,10 @@ class NumberMixin:
         return self * other
 
     def __sub__(self, other):
-        return self + (other*-1)
+        return self + (other * -1)
 
     def __rsub__(self, other):
-        return other + (self*-1)
+        return other + (self * -1)
 
     def __pow__(self, exponent):
         if type(exponent) != int or exponent <= 0:
@@ -142,8 +142,8 @@ class NumberMixin:
         if exponent == 1:
             return self + 0
         elif exponent % 2 == 0:
-            x = self**(exponent//2)
+            x = self**(exponent // 2)
             return x * x
         else:
-            x = self**((exponent-1)//2)
+            x = self**((exponent - 1) // 2)
             return x * x * self
