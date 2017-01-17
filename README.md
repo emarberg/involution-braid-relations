@@ -20,10 +20,10 @@ python3.5 solve.py --help
 (twisted) Coxeter system to consider:
 ```
 python3.5 solve.py --type <Coxeter graph type> \
-					 --rank <Coxeter graph rank> \
-				     [--verify] \
-				     [--limit <maximum braid length>] \
-				     [--verbosity <verbosity level>]
+				   --rank <Coxeter graph rank> \
+				   [--verify] \
+				   [--limit <maximum braid length>] \
+				   [--verbosity <verbosity level>]
 ```
 The last three parameters are optional.
 Including the `--verify` flag will make the program explicitly check that the relations
