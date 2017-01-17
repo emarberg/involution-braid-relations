@@ -63,19 +63,19 @@ class TestConstraintsManager:
         assert e in manager.quadratic_constraints
 
         # zero contraints must be linear or quadratic Polynomials
+        exception = None
         try:
             manager.add_zero_constraint(f)
         except Exception as exc:
-            assert type(exc) == InvalidInputException
-        else:
-            assert False
+            exception = exc
+        assert type(exception) == InvalidInputException
 
+        exception = None
         try:
             manager.add_zero_constraint(None)
         except Exception as exc:
-            assert type(exc) == InvalidInputException
-        else:
-            assert False
+            exception = exc
+        assert type(exception) == InvalidInputException
 
         manager.linear_constraints = set()
         manager.quadratic_constraints = set()
@@ -105,12 +105,12 @@ class TestConstraintsManager:
         manager.add_nonpositive_constraint(f)
         assert manager.nonpositive_constraints == {a, b, c, d, e, f}
 
+        exception = None
         try:
             manager.add_nonpositive_constraint(None)
         except Exception as exc:
-            assert type(exc) == InvalidInputException
-        else:
-            assert False
+            exception = exc
+        assert type(exception) == InvalidInputException
 
         manager.nonpositive_constraints = set()
         assert len(manager.nonpositive_constraints) == 0
@@ -148,12 +148,12 @@ class TestConstraintsManager:
         assert manager.nonzero_constraints == {r}
 
         # input to manager.add_nonzero_constraint must be a Root
+        exception = None
         try:
             manager.add_nonzero_constraint(c)
         except Exception as exc:
-            assert type(exc) == InvalidInputException
-        else:
-            assert False
+            exception = exc
+        assert type(exception) == InvalidInputException
 
     def test_repr(self):
         manager = ConstraintsManager()
@@ -254,12 +254,12 @@ class TestPartialBraid:
         g = CoxeterGraph.A(3)
 
         # input (s, t) must both be in g.generators
+        e = None
         try:
             PartialBraid(g, s=0, t=1)
-        except Exception as e:
-            assert type(e) == InvalidInputException
-        else:
-            assert False
+        except Exception as exception:
+            e = exception
+        assert type(e) == InvalidInputException
 
     @pytest.mark.parametrize("m, is_fixer, expected", [
         (5, True, (1, 2, 1)),
@@ -276,7 +276,7 @@ class TestPartialBraid:
         state._extend_words(is_fixer)
         assert state.word_s.word == expected
 
-        other = tuple(map(lambda i: 3-i, expected))
+        other = tuple(map(lambda i: 3 - i, expected))
         assert state.word_t.word == other
 
     def test_get_unconditional_descent(self):

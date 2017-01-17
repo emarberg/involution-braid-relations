@@ -36,7 +36,7 @@ class VectorMixin:
 
     def is_comparable(self, other):
         """Returns True if we can evaluate ==, etc, between self and other."""
-        raise NotImplementedError
+        raise NotImplementedError  # pragma: no cover
 
     def is_zero(self):
         return len(self.coefficients) == 0
@@ -62,7 +62,7 @@ class VectorMixin:
     @classmethod
     def get_index_repr(cls, index):
         """Return nice string representation of given `index`."""
-        raise NotImplementedError
+        raise NotImplementedError  # pragma: no cover
 
     @classmethod
     def is_rational_coeff(cls, v):
@@ -75,7 +75,7 @@ class VectorMixin:
             if alpha == '' and 0 < v:
                 s += ' + ' + str(v)
             elif alpha == '' and v < 0:
-                s += ' - ' + str(-v)
+                s += ' - ' + str(-v)  # pragma: no cover  
             elif v == 1:
                 s += ' + ' + alpha
             elif v == -1:
@@ -104,10 +104,10 @@ class NumberMixin:
                 '** not implemented when exponent is non-positive or non-integer')
 
     def __lt__(self, other):
-        raise NotImplementedError
+        raise NotImplementedError  # pragma: no cover
 
     def __le__(self, other):
-        raise NotImplementedError
+        raise NotImplementedError  # pragma: no cover
 
     def __gt__(self, other):
         return -self < -other
@@ -119,13 +119,13 @@ class NumberMixin:
         return self * -1
 
     def __add__(self, other):
-        raise NotImplementedError
+        raise NotImplementedError  # pragma: no cover
 
     def __radd__(self, other):
         return self + other
 
     def __mul__(self, other):
-        raise NotImplementedError
+        raise NotImplementedError  # pragma: no cover
 
     def __rmul__(self, other):
         return self * other

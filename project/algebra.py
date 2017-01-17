@@ -31,19 +31,19 @@ class OperatorMixin:
 
     def eq__int(self, other):
         """Evaluates self == other under assumption that type(other) is int."""
-        raise NotImplementedError
+        raise NotImplementedError  # pragma: no cover
 
     def eq__rational_number(self, other):
         """Evaluates self == other under assumption that type(other) is RationalNumber."""
-        raise NotImplementedError
+        raise NotImplementedError  # pragma: no cover
 
     def eq__quadratic_number(self, other):
         """Evaluates self == other under assumption that type(other) is QuadraticNumber."""
-        raise NotImplementedError
+        raise NotImplementedError  # pragma: no cover
 
     def eq__polynomial(self, other):
         """Evaluates self == other under assumption that type(other) is Polynomial."""
-        raise NotImplementedError
+        raise NotImplementedError  # pragma: no cover
 
     def __lt__(self, other):
         if type(other) == int:
@@ -59,19 +59,19 @@ class OperatorMixin:
 
     def lt__int(self, other):
         """Evaluates self < other under assumption that type(other) is int."""
-        raise NotImplementedError
+        raise NotImplementedError  # pragma: no cover
 
     def lt__rational_number(self, other):
         """Evaluates self <other under assumption that type(other) is RationalNumber."""
-        raise NotImplementedError
+        raise NotImplementedError  # pragma: no cover
 
     def lt__quadratic_number(self, other):
         """Evaluates self < other under assumption that type(other) is QuadraticNumber."""
-        raise NotImplementedError
+        raise NotImplementedError  # pragma: no cover
 
     def lt__polynomial(self, other):
         """Evaluates self < other under assumption that type(other) is Polynomial."""
-        raise NotImplementedError
+        raise NotImplementedError  # pragma: no cover
 
     def __add__(self, other):
         if type(other) == int:
@@ -87,19 +87,19 @@ class OperatorMixin:
 
     def add__int(self, other):
         """Evaluates self + other under assumption that type(other) is int."""
-        raise NotImplementedError
+        raise NotImplementedError  # pragma: no cover
 
     def add__rational_number(self, other):
         """Evaluates self + other under assumption that type(other) is RationalNumber."""
-        raise NotImplementedError
+        raise NotImplementedError  # pragma: no cover
 
     def add__quadratic_number(self, other):
         """Evaluates self + other under assumption that type(other) is QuadraticNumber."""
-        raise NotImplementedError
+        raise NotImplementedError  # pragma: no cover
 
     def add__polynomial(self, other):
         """Evaluates self + other under assumption that type(other) is Polynomial."""
-        raise NotImplementedError
+        raise NotImplementedError  # pragma: no cover
 
     def __mul__(self, other):
         if type(other) == int:
@@ -117,19 +117,19 @@ class OperatorMixin:
 
     def mul__int(self, other):
         """Evaluates self * other under assumption that type(other) is int."""
-        raise NotImplementedError
+        raise NotImplementedError  # pragma: no cover
 
     def mul__rational_number(self, other):
         """Evaluates self * other under assumption that type(other) is RationalNumber."""
-        raise NotImplementedError
+        raise NotImplementedError  # pragma: no cover
 
     def mul__quadratic_number(self, other):
         """Evaluates self * other under assumption that type(other) is QuadraticNumber."""
-        raise NotImplementedError
+        raise NotImplementedError  # pragma: no cover
 
     def mul__polynomial(self, other):
         """Evaluates self * other under assumption that type(other) is Polynomial."""
-        raise NotImplementedError
+        raise NotImplementedError  # pragma: no cover
 
     def mul__root(self, other):
         """Evaluates self * other under assumption that type(other) is Root."""
@@ -151,19 +151,19 @@ class OperatorMixin:
 
     def truediv__int(self, other):
         """Evaluates self * other under assumption that type(other) is int."""
-        raise NotImplementedError
+        raise NotImplementedError  # pragma: no cover
 
     def truediv__rational_number(self, other):
         """Evaluates self * other under assumption that type(other) is RationalNumber."""
-        raise NotImplementedError
+        raise NotImplementedError  # pragma: no cover
 
     def truediv__quadratic_number(self, other):
         """Evaluates self * other under assumption that type(other) is QuadraticNumber."""
-        raise NotImplementedError
+        raise NotImplementedError  # pragma: no cover
 
     def truediv__polynomial(self, other):
         """Evaluates self * other under assumption that type(other) is Polynomial."""
-        raise NotImplementedError
+        raise NotImplementedError  # pragma: no cover
 
 
 class RationalNumber(OperatorMixin, NumberMixin):
@@ -517,7 +517,10 @@ class QuadraticNumber(VectorMixin, OperatorMixin, NumberMixin):
             return (self * conjugate) / (other * conjugate)
 
     def truediv__polynomial(self, other):
-        raise OperatorException(self, other, '__truediv__')
+        if other.is_constant():
+            return self / other.get_constant_part()
+        else:
+            raise OperatorException(self, other, '__truediv__')
 
     def __rtruediv__(self, other):
         conjugate = self.conjugate()
@@ -1430,7 +1433,7 @@ class Root(VectorMixin, NumberMixin):
         return hash((self.graph,) + tuple(self[i] for i in self.graph.generators))
 
     def __pow__(self, exponent):
-        raise NotImplementedError
+        raise NotImplementedError  # pragma: no cover
 
     def __repr__(self):
         return super(Root, self).__repr__()[1:-1]

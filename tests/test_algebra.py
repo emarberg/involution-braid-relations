@@ -80,19 +80,19 @@ class TestRationalNumbers:
 
     def test_compare_errors(self):
         """Test error handling in == and < operators for RationalNumbers."""
+        e = None
         try:
             RationalNumber(0) == 0.0
-        except Exception as e:
-            assert type(e) == OperatorException
-        else:
-            assert False
+        except Exception as exception:
+            e = exception
+        assert type(e) == OperatorException
 
+        e = None
         try:
             RationalNumber(-1) < 0.0
-        except Exception as e:
-            assert type(e) == OperatorException
-        else:
-            assert False
+        except Exception as exception:
+            e = exception
+        assert type(e) == OperatorException
 
     @pytest.mark.parametrize("a, b, c", [
         (RationalNumber(3, 7), 0, RationalNumber(3, 7)),
@@ -155,16 +155,16 @@ class TestRationalNumbers:
     ])
     def test_constructor_errors(self, p, q):
         """Test error handling of invalid arguments passed to RationalNumber constructor."""
+        e = None
         try:
             # denominator must be nonzero
             RationalNumber(p, q)
-        except Exception as e:
-            if q == 0:
-                assert type(e) == ZeroDivisionException
-            else:
-                assert type(e) == InvalidInputException
+        except Exception as exception:
+            e = exception
+        if q == 0:
+            assert type(e) == ZeroDivisionException
         else:
-            assert False
+            assert type(e) == InvalidInputException
 
     @pytest.mark.parametrize("a, b", [
         (RationalNumber(3, 7), 1.2),
@@ -173,33 +173,45 @@ class TestRationalNumbers:
     ])
     def test_operator_errors(self, a, b):
         """Tests for error handling of invalid operations involving RationalNumbers."""
+        e = None
         try:
             a + b
-        except Exception as e:
-            assert type(e) == OperatorException
-        else:
-            assert False
+        except Exception as exception:
+            e = exception
+        assert type(e) == OperatorException
 
+        e = None
         try:
             a - b
-        except Exception as e:
-            assert type(e) == OperatorException
-        else:
-            assert False
+        except Exception as exception:
+            e = exception
+        assert type(e) == OperatorException
 
+        e = None
         try:
             a * b
-        except Exception as e:
-            assert type(e) == OperatorException
-        else:
-            assert False
+        except Exception as exception:
+            e = exception
+        assert type(e) == OperatorException
 
+        e = None
         try:
             a / b
-        except Exception as e:
-            assert type(e) == OperatorException
-        else:
-            assert False
+        except Exception as exception:
+            e = exception
+        assert type(e) == OperatorException
+
+    @pytest.mark.parametrize("a, b", [
+        (RationalNumber(2, 11), Polynomial('x')),
+    ])
+    def test_division_errors(self, a, b):
+        """Test error handling for division of RationalNumber by Polynomial."""
+        e = None
+        try:
+            a / b
+        except Exception as exception:
+            e = exception
+        assert type(e) == OperatorException
 
     @pytest.mark.parametrize("zero", [
         0,
@@ -210,29 +222,29 @@ class TestRationalNumbers:
     def test_zero_division_errors(self, zero):
         """Test error handling for attempted division of RationalNumber by zero."""
         a = RationalNumber(3, 7)
+        e = None
         try:
             a / zero
-        except Exception as e:
-            assert type(e) == ZeroDivisionException
-        else:
-            assert False
+        except Exception as exception:
+            e = exception
+        assert type(e) == ZeroDivisionException
 
     def test_power_errors(self):
         # cannot compute 0**0
+        e = None
         try:
             RationalNumber(0, 1)**0
-        except Exception as e:
-            assert type(e) == IndeterminatePowerException
-        else:
-            assert False
+        except Exception as exception:
+            e = exception
+        assert type(e) == IndeterminatePowerException
 
         # cannot compute RationlNumber**RationalNumber, even if exponent is integer
+        e = None
         try:
             RationalNumber(5, 2)**RationalNumber(6, 2)
-        except Exception as e:
-            assert type(e) == OperatorException
-        else:
-            assert False
+        except Exception as exception:
+            e = exception
+        assert type(e) == OperatorException
 
 
 class TestPrimeFactorization:
@@ -290,9 +302,9 @@ class TestPrimeFactorization:
         (-4, 2),
         (4 * 3 * 125, 10)
     ])
-    def get_truncated_square_root(self, i, expected):
+    def test_get_truncated_square_root(self, i, expected):
         pf = PrimeFactorization(i)
-        assert pf.get_truncated_square_root().factorization == expected
+        assert pf.get_truncated_square_root() == expected
 
     @pytest.mark.parametrize("i", [
         0,
@@ -302,12 +314,12 @@ class TestPrimeFactorization:
     ])
     def test_constructor_errors(self, i):
         """Test error handling of invalid arguments passed to QuadraticNumber constructor."""
+        e = None
         try:
             PrimeFactorization(i)
-        except Exception as e:
-            assert type(e) == InvalidInputException
-        else:
-            assert False
+        except Exception as exception:
+            e = exception
+        assert type(e) == InvalidInputException
 
     @pytest.mark.parametrize("i", [
         12,
@@ -321,8 +333,6 @@ class TestPrimeFactorization:
             PrimeFactorization(12) * i
         except Exception as e:
             assert str(e).startswith('Cannot multiply PrimeFactorization with ')
-        else:
-            assert False
 
 
 class TestQuadraticNumbers:
@@ -411,34 +421,34 @@ class TestQuadraticNumbers:
 
     def test_lt_errors(self):
         """Test error handling in == and < operators for RationalNumbers."""
+        e = None
         try:
             QuadraticNumber(-1) < 0.0
-        except Exception as e:
-            assert type(e) == OperatorException
-        else:
-            assert False
+        except Exception as exception:
+            e = exception
+        assert type(e) == OperatorException
 
+        e = None
         try:
             QuadraticNumber.sqrt(-2) < QuadraticNumber.sqrt(3)
-        except Exception as e:
-            assert type(e) == QuadraticNumber.ImaginaryComparisonException
-        else:
-            assert False
+        except Exception as exception:
+            e = exception
+        assert type(e) == QuadraticNumber.ImaginaryComparisonException
 
         a, b, c, d = tuple(QuadraticNumber.sqrt(i) for i in [2, 3, 5, 7])
+        e = None
         try:
             a + b + c < d + 17
-        except Exception as e:
-            assert type(e) == QuadraticNumber.IndeterminateComparisonException
-        else:
-            assert False
+        except Exception as exception:
+            e = exception
+        assert type(e) == QuadraticNumber.IndeterminateComparisonException
 
+        e = None
         try:
             2 - a < b + c + d
-        except Exception as e:
-            assert type(e) == QuadraticNumber.IndeterminateComparisonException
-        else:
-            assert False
+        except Exception as exception:
+            e = exception
+        assert type(e) == QuadraticNumber.IndeterminateComparisonException
 
     @pytest.mark.parametrize("a, b, expected", [
         (QuadraticNumber(0), 0, {}),
@@ -493,6 +503,7 @@ class TestQuadraticNumbers:
         (QuadraticNumber(-1), RationalNumber(-1), {1: 1}),
         (QuadraticNumber(-1), QuadraticNumber(-1), {1: 1}),
         (QuadraticNumber(5), QuadraticNumber.sqrt(5), {5: 1}),
+        (QuadraticNumber(5), Polynomial(QuadraticNumber.sqrt(5)), {5: 1}),
         (QuadraticNumber.sqrt(5), QuadraticNumber.sqrt(5), {1: 1}),
         (QuadraticNumber.sqrt(125), QuadraticNumber.sqrt(3), {15: RationalNumber(5, 3)}),
     ])
@@ -519,12 +530,12 @@ class TestQuadraticNumbers:
     ])
     def test_constructor_errors(self, i):
         """Test error handling of invalid arguments passed to QuadraticNumber constructor."""
+        e = None
         try:
             QuadraticNumber(i)
-        except Exception as e:
-            assert type(e) == InvalidInputException
-        else:
-            assert False
+        except Exception as exception:
+            e = exception
+        assert type(e) == InvalidInputException
 
     @pytest.mark.parametrize("i", [
         0.0,
@@ -533,12 +544,23 @@ class TestQuadraticNumbers:
     ])
     def test_sqrt_errors(self, i):
         """Test error handling of invalid arguments passed to QuadraticNumber constructor."""
+        e = None
         try:
             QuadraticNumber.sqrt(i)
         except Exception as e:
             assert str(e).startswith('Cannot compute square root of ')
-        else:
-            assert False
+
+    @pytest.mark.parametrize("a, b", [
+        (QuadraticNumber.sqrt(2), Polynomial('x')),
+    ])
+    def test_division_errors(self, a, b):
+        """Test error handling for division of QuadraticNumber by Polynomial."""
+        e = None
+        try:
+            a / b
+        except Exception as exception:
+            e = exception
+        assert type(e) == OperatorException
 
     @pytest.mark.parametrize("zero", [
         0,
@@ -550,12 +572,12 @@ class TestQuadraticNumbers:
     def test_zero_division_errors(self, zero):
         """Test error handling for attempted division of QuadraticNumber by zero."""
         a = QuadraticNumber(RationalNumber(3, 7)) + QuadraticNumber.sqrt(2)
+        e = None
         try:
             a / zero
-        except Exception as e:
-            assert type(e) == ZeroDivisionException
-        else:
-            assert False
+        except Exception as exception:
+            e = exception
+        assert type(e) == ZeroDivisionException
 
     @pytest.mark.parametrize("i", [
         0.0,
@@ -567,20 +589,20 @@ class TestQuadraticNumbers:
     ])
     def test_power_errors(self, i):
         """Test error handling for invalid exponentiation of Monomials."""
+        e = None
         try:
             QuadraticNumber(12) ** i
-        except Exception as e:
-            assert type(e) == QuadraticNumber.PowerException
-        else:
-            assert False
+        except Exception as exception:
+            e = exception
+        assert type(e) == QuadraticNumber.PowerException
 
     def test_indeterminate_power(self):
+        e = None
         try:
             QuadraticNumber(0)**0
-        except Exception as e:
-            assert type(e) == IndeterminatePowerException
-        else:
-            assert False
+        except Exception as exception:
+            e = exception
+        assert type(e) == IndeterminatePowerException
 
     @pytest.mark.parametrize("a, b", [
         (QuadraticNumber(3), 1.2),
@@ -589,33 +611,33 @@ class TestQuadraticNumbers:
     ])
     def test_operator_errors(self, a, b):
         """Tests for error handling of invalid operations involving QuadraticNumbers."""
+        e = None
         try:
             a + b
-        except Exception as e:
-            assert type(e) == OperatorException
-        else:
-            assert False
+        except Exception as exception:
+            e = exception
+        assert type(e) == OperatorException
 
+        e = None
         try:
             a - b
-        except Exception as e:
-            assert type(e) == OperatorException
-        else:
-            assert False
+        except Exception as exception:
+            e = exception
+        assert type(e) == OperatorException
 
+        e = None
         try:
             a * b
-        except Exception as e:
-            assert type(e) == OperatorException
-        else:
-            assert False
+        except Exception as exception:
+            e = exception
+        assert type(e) == OperatorException
 
+        e = None
         try:
             a / b
-        except Exception as e:
-            assert type(e) == OperatorException
-        else:
-            assert False
+        except Exception as exception:
+            e = exception
+        assert type(e) == OperatorException
 
 
 class TestMonomial:
@@ -692,12 +714,12 @@ class TestMonomial:
     ])
     def test_constructor_errors(self, i):
         """Test error handling of invalid arguments passed to Monomial constructor."""
+        e = None
         try:
             Monomial(i)
-        except Exception as e:
-            assert type(e) == InvalidInputException
-        else:
-            assert False
+        except Exception as exception:
+            e = exception
+        assert type(e) == InvalidInputException
 
     @pytest.mark.parametrize("i", [
         1,
@@ -708,12 +730,11 @@ class TestMonomial:
     ])
     def test_multiplication_errors(self, i):
         """Test error handling for invalid multiplication of Monomials."""
+        e = None
         try:
             Monomial(12) * i
         except Exception as e:
             assert str(e).startswith('Cannot multiply Monomial with ')
-        else:
-            assert False
 
     @pytest.mark.parametrize("i", [
         0.0,
@@ -725,12 +746,11 @@ class TestMonomial:
     ])
     def test_power_errors(self, i):
         """Test error handling for invalid exponentiation of Monomials."""
+        e = None
         try:
             Monomial('x') ** i
         except Exception as e:
             assert str(e).startswith('Cannot exponentiate Monomial by ')
-        else:
-            assert False
 
 
 X = Polynomial('x')
@@ -842,16 +862,15 @@ class TestPolynomial:
         r = 1 + QuadraticNumber.sqrt(127)
         assert (r * a < r * b) == (-r * b < -r * a) == expected
 
-        if (r-q) * b > 0:
+        if (r - q) * b > 0:
             assert (q * a < r * b) == (-r * b < -q * a) == expected
 
     def test_lt_errors(self):
         try:
             Polynomial('x') < 1.0
-        except Exception as e:
-            assert type(e) == OperatorException
-        else:
-            assert False
+        except Exception as exception:
+            e = exception
+        assert type(e) == OperatorException
 
     def test_hash(self):
         """Test that hashes for Polynomials are consistent."""
@@ -861,8 +880,8 @@ class TestPolynomial:
 
         x = Polynomial('x')
         assert hash(4 * x) == hash(RationalNumber(4) * x) == hash(QuadraticNumber(4) * x)
-        assert hash(4 * x/3) == hash(RationalNumber(4, 3) * x) \
-                           == hash(QuadraticNumber(RationalNumber(4, 3)) * x)
+        assert hash(4 * x / 3) == hash(RationalNumber(4, 3) * x) \
+                               == hash(QuadraticNumber(RationalNumber(4, 3)) * x)
 
     def test_getitem(self):
         """Test [] operator for Polynomials."""
@@ -904,13 +923,15 @@ class TestPolynomial:
         (Polynomial(1), RationalNumber(1), {Monomial(): 1}),
         (Polynomial(1), QuadraticNumber(1), {Monomial(): 1}),
         (Polynomial(1), Polynomial(1), {Monomial(): 1}),
-        (Polynomial(5), -5,  {Monomial(): -25}),
+        (Polynomial(5), -5, {Monomial(): -25}),
         (Polynomial(5), QuadraticNumber.sqrt(5), {Monomial(): QuadraticNumber.sqrt(125)}),
         (2 * X, 3 * X**2, {Monomial('x')**3: 6}),
-        (2 * X - X**2, X + 3 * X**2, {Monomial('x')**2: 2, Monomial('x')**3: 5, Monomial('x')**4: -3}),
+        (2 * X - X**2, X + 3 * X**2, {Monomial('x')**2: 2,
+         Monomial('x')**3: 5, Monomial('x')**4: -3}),
         (Polynomial({0: -1}), Polynomial({0: 1}), {Monomial(): 1}),
         (sum(X**i for i in range(10)), sum(X**i for i in range(10)),
-         (sum((i+1) * X**i for i in range(10)) + sum((i+1) * X**(18-i) for i in range(9))).coefficients)
+         (sum((i + 1) * X**i for i in range(10)) + sum((i + 1) * X**(18 - i)
+          for i in range(9))).coefficients)
     ])
     def test_multiplication(self, a, b, expected):
         """Tests for multiplication of Polynomials."""
@@ -936,12 +957,12 @@ class TestPolynomial:
     ])
     def test_constructor_errors(self, i):
         """Test error handling of invalid arguments passed to Polynomial constructor."""
+        e = None
         try:
             Polynomial(i)
-        except Exception as e:
-            assert type(e) == InvalidInputException
-        else:
-            assert False
+        except Exception as exception:
+            e = exception
+        assert type(e) == InvalidInputException
 
     @pytest.mark.parametrize("divisor", [
         0.1,
@@ -949,12 +970,12 @@ class TestPolynomial:
     ])
     def test_division_errors(self, divisor):
         """Test error handling for division of Polynomials by invalid arguments."""
+        e = None
         try:
             Polynomial('x') / divisor
-        except Exception as e:
-            assert type(e) == OperatorException
-        else:
-            assert False
+        except Exception as exception:
+            e = exception
+        assert type(e) == OperatorException
 
     @pytest.mark.parametrize("divisor", [
         0,
@@ -965,12 +986,12 @@ class TestPolynomial:
     ])
     def test_zero_division_errors(self, divisor):
         """Test error handling for attempted division of Polynomials by zero."""
+        e = None
         try:
             Polynomial('x') / divisor
-        except Exception as e:
-            assert type(e) == ZeroDivisionException
-        else:
-            assert False
+        except Exception as exception:
+            e = exception
+        assert type(e) == ZeroDivisionException
 
     @pytest.mark.parametrize("a, b", [
         (Polynomial(3), 1.2),
@@ -979,33 +1000,33 @@ class TestPolynomial:
     ])
     def test_operator_errors(self, a, b):
         """Tests for error handling of invalid operations involving Polynomials."""
+        e = None
         try:
             a + b
-        except Exception as e:
-            assert type(e) == OperatorException
-        else:
-            assert False
+        except Exception as exception:
+            e = exception
+        assert type(e) == OperatorException
 
+        e = None
         try:
             a - b
-        except Exception as e:
-            assert type(e) == OperatorException
-        else:
-            assert False
+        except Exception as exception:
+            e = exception
+        assert type(e) == OperatorException
 
+        e = None
         try:
             a * b
-        except Exception as e:
-            assert type(e) == OperatorException
-        else:
-            assert False
+        except Exception as exception:
+            e = exception
+        assert type(e) == OperatorException
 
+        e = None
         try:
             a / b
-        except Exception as e:
-            assert type(e) == OperatorException
-        else:
-            assert False
+        except Exception as exception:
+            e = exception
+        assert type(e) == OperatorException
 
     def test_get_variables(self):
         assert Polynomial().get_variables() == set()
@@ -1042,36 +1063,34 @@ class TestPolynomial:
     def test_set_variable_errors(self):
         """Test error handling in Polynomial.get_factors method."""
         # variable cannot be None
+        e = None
         try:
             Polynomial('y').set_variable(None, 0)
-        except Exception as e:
-            assert type(e) == InvalidInputException
-        else:
-            assert False
+        except Exception as exception:
+            e = exception
+        assert type(e) == InvalidInputException
 
         # if variable is string, must be valid input to Monomial
+        e = None
         try:
             Polynomial('y').set_variable({'abc'}, 0)
-        except Exception as e:
-            assert type(e) == InvalidInputException
-        else:
-            assert False
+        except Exception as exception:
+            e = exception
+        assert type(e) == InvalidInputException
 
         # value cannot be float
+        e = None
         try:
             Polynomial('y').set_variable('y', 0.0)
-        except Exception as e:
-            assert type(e) == InvalidInputException
-        else:
-            assert False
+        except Exception as exception:
+            e = exception
+        assert type(e) == InvalidInputException
 
         # cannot set variable to zero if this incurs divide-by-zero error
         try:
             Polynomial({0: -1}).set_variable(0, 0)
         except Exception as e:
             assert str(e).startswith('Division by zero when setting variable in ')
-        else:
-            assert False
 
     @pytest.mark.parametrize("f, expected", [
         (X * Y, False),
@@ -1119,8 +1138,6 @@ class TestPolynomial:
             f.get_factors()
         except Exception as e:
             assert str(e).startswith('Cannot factor ')
-        else:
-            assert False
 
     def test_pow(self):
         """Test ** operator for polynomials."""
@@ -1130,19 +1147,19 @@ class TestPolynomial:
         assert f**2 == X**2 + 2 * X + 1
         assert f**3 == X**3 + 3 * X**2 + 3 * X + 1
 
+        e = None
         try:
             f**1.0
-        except Exception as e:
-            assert type(e) == Polynomial.PowerException
-        else:
-            assert False
+        except Exception as exception:
+            e = exception
+        assert type(e) == Polynomial.PowerException
 
+        e = None
         try:
             f**-1
-        except Exception as e:
-            assert type(e) == Polynomial.PowerException
-        else:
-            assert False
+        except Exception as exception:
+            e = exception
+        assert type(e) == Polynomial.PowerException
 
     def test_is_rational(self):
         assert Polynomial().is_rational()
