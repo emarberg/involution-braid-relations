@@ -8,12 +8,8 @@ TODO: overview
 1. Install requirements: `pip3 install -r requirements/base.txt`
 
 ## Tests
-1. After setting up, run the tests at the command line by typing:
-```
-tox
-```
-All of these should pass, in which case you're good to go.
-1. (Optional) Review the generated coverage by opening `htmlcov/index.html`.
+1. After setting up, run the tests at the command line: `tox`
+1. (Optional) Review the generated coverage by opening `htmlcov/index.html`
 
 ## Run
 * To see the full list of command line options, run:
