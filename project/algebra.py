@@ -4,6 +4,7 @@ from project.utils import (
     InvalidInputException,
     ZeroDivisionException,
     OperatorException,
+    CannotFactorException,
     OperatorMixin,
     NumberMixin,
     VectorMixin
@@ -773,26 +774,17 @@ class Polynomial(VectorMixin, OperatorMixin, NumberMixin):
 
     def get_quadratic_discriminant(self):
         x = next(iter(self.get_variables()))
-        a = self[{x: 2}]
-        b = self[{x: 1}]
-        c = self[{}]
+        a, b, c = self[{x: 2}], self[{x: 1}], self[{}]
         return b**2 - 4 * a * c
 
-    def is_factorable(self):
-        if len(self.get_variables()) != 1:
-            return False
-
-        x = next(iter(self.get_variables()))
-        a = self[{x: 2}]
-        b = self[{x: 1}]
-        c = self[{}]
-
-        return self == a * Polynomial({x: 2}) + b * Polynomial({x: 1}) + c * Polynomial({})
-
     def get_factors(self):
-        """TODO: improve this method."""
+        """
+        If self is a non-constant polynomial in one variable with degree at most two, then this
+        returns the set of self's monic linear factors. Otherwise, raises CannotFactorException.
+        """
+        # check that self is not constant and does not involve multiple variables
         if len(self.get_variables()) != 1:
-            raise Exception('Cannot factor `%s`' % str(self))
+            raise CannotFactorException(self)
 
         def to_quadratic_number(i):
             if type(i) != QuadraticNumber:
@@ -805,26 +797,35 @@ class Polynomial(VectorMixin, OperatorMixin, NumberMixin):
         c = to_quadratic_number(self[{}])
         x = Polynomial({x: 1})
 
+        # check that self is linear or quadratic
         if self != a * x**2 + b * x + c:
-            raise Exception('Cannot factor `%s`' % str(self))
+            raise CannotFactorException(self)
 
+        # normalize coefficients
         if a != 0:
             b /= a
             c /= a
 
+        # case: self is linear
         if a == 0 and b != 0:
             return {x + c / b}
+        # case: self has no constant term
         elif c == 0:
             return {x, x + b}
+        # case: try to apply quadratic formula
         else:
             try:
                 r = (-b + QuadraticNumber.sqrt(b**2 - 4 * c)) / 2
-                s = (-b - QuadraticNumber.sqrt(b**2 - 4 * c)) / 2
+                s = -b - r
                 return {x - r, x - s}
-            except:
-                raise Exception('Cannot factor `%s`' % str(self))
+            except Exception as e:
+                # raise broader exception as failure indicates that roots are not QuadraticNumbers
+                raise Exception(
+                    ('Cannot compute roots of factorable polynomial: %s' % str(self)) +
+                    ('\nError message: %s' % str(e)))
 
     def degree(self):
+        """Returns degree of polynomialor None if self is a Laurent polynomial."""
         monomial_degrees = {0}
         for monomial in self.coefficients:
             monomial_degrees.add(monomial.degree())
@@ -847,7 +848,7 @@ class Polynomial(VectorMixin, OperatorMixin, NumberMixin):
 
     def set_variable(self, variable, value):
         """
-        Return polynomial given by replacing given variable in self with provided value.
+        Returns polynomial given by replacing given variable in self with provided value.
         The input variable must be a linear Monomial, or a valid input to Monomial.__init__
         that constructs a linear Monomial.
         """

@@ -5,7 +5,8 @@ from project.utils import (
     NegativePowerException,
     InvalidInputException,
     ZeroDivisionException,
-    OperatorException
+    OperatorException,
+    CannotFactorException
 )
 
 from project.algebra import (
@@ -1096,16 +1097,6 @@ class TestPolynomial:
             assert str(e).startswith('Division by zero when setting variable in ')
 
     @pytest.mark.parametrize("f, expected", [
-        (X * Y, False),
-        (X**3, False),
-        (Polynomial(3), False),
-        (X + 3, True),
-        (X**2 + 3, True)
-    ])
-    def test_is_factorable(self, f, expected):
-        assert f.is_factorable() == expected
-
-    @pytest.mark.parametrize("f, expected", [
         (X + 1, {X + 1}),
         (5 * X + 1, {X + RationalNumber(1, 5)}),
         (X**2 - 1, {X + 1, X - 1}),
@@ -1130,17 +1121,19 @@ class TestPolynomial:
         else:
             assert f == leading_coeff * monic_root_a * monic_root_b
 
-    @pytest.mark.parametrize("f", [
-        X * Y,
-        X**3 - 1,
-        X**2 - QuadraticNumber.sqrt(3)
+    @pytest.mark.parametrize("f, expected", [
+        (X * Y, CannotFactorException),
+        (X**3 - 1, CannotFactorException),
+        (X**2 - QuadraticNumber.sqrt(3), Exception)
     ])
-    def test_get_factors_error(self, f):
+    def test_get_factors_error(self, f, expected):
         """Test error handling in Polynomial.get_factors method."""
+        e = None
         try:
             f.get_factors()
-        except Exception as e:
-            assert str(e).startswith('Cannot factor ')
+        except Exception as exception:
+            e = exception
+        assert type(e) == expected
 
     def test_pow(self):
         """Test ** operator for polynomials."""

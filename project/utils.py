@@ -32,6 +32,11 @@ class OperatorException(Exception):
             'Cannot evaluate %s with input of type `%s`' % (method, type(b)))
 
 
+class CannotFactorException(Exception):
+    def __init__(self, f):
+        super(CannotFactorException, self).__init__('Cannot factor `%s`' % str(self))
+
+
 class OperatorMixin:
 
     """

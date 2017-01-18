@@ -18,7 +18,8 @@ from project.coxeter import (
 
 from project.utils import (
     reverse_tuple,
-    InvalidInputException
+    InvalidInputException,
+    CannotFactorException
 )
 
 
@@ -303,21 +304,19 @@ class PartialBraid:
             if nonpositive_part != 0:
                 return i, nonpositive_part
 
-    def _is_quadratic_constraint_factorable(self):
-        if self.constraints.quadratic_constraints:
-            c = next(iter(self.constraints.quadratic_constraints))
-            return c.is_factorable()
-        else:
-            return False
-
     def _get_children(self):
         if len(self.sigma) == 0:
             children = self._get_first_children()
             return children, 'first iteration'
 
-        if self._is_quadratic_constraint_factorable():
-            children = self._get_children_from_quadratic_constraint()
-            return children, 'reducing quadratic constraint'
+        if self.constraints.quadratic_constraints:
+            constraint = next(iter(self.constraints.quadratic_constraints))
+            try:
+                children = self._get_children_from_quadratic_constraint(constraint)
+            except CannotFactorException:  # pragma: no cover
+                pass  # pragma: no cover
+            else:
+                return children, 'reducing quadratic constraint'
 
         unconditional = self.get_unconditional_descent()
         if unconditional:
@@ -359,9 +358,8 @@ class PartialBraid:
 
         return [fixer, transposer]
 
-    def _get_children_from_quadratic_constraint(self):
+    def _get_children_from_quadratic_constraint(self, constraint):
         children = []
-        constraint = next(iter(self.constraints.quadratic_constraints))
         # if discriminant is negative then constraint has no real roots, so we return
         # no children since all indeterminates are positive real numbers by definition
         if constraint.get_quadratic_discriminant() >= 0:
