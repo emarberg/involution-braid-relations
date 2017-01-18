@@ -27,6 +27,7 @@ class OperatorException(Exception):
 
 
 class OperatorMixin:
+
     """
     Mixin class implementing polymorphic binary operations ==, <, +, *, and /
     between int, RationalNumber, QuadraticNumber, and Polynomial objects.
@@ -178,6 +179,7 @@ class OperatorMixin:
 
 
 class VectorMixin:
+
     """
     Mixin class implementing common magic functions for dict-like objects
     that represent elements of a vector space.
@@ -262,6 +264,7 @@ class VectorMixin:
 
 
 class NumberMixin:
+
     """
     Mixin class implementing common magic functions for number-like objects;
     technically, for objects that represent elements of a partially ordered ring.
