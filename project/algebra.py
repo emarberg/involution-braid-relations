@@ -772,19 +772,12 @@ class Polynomial(VectorMixin, OperatorMixin, NumberMixin):
         """Return set of integers indexing the indeterminates that appear in this polynomial."""
         return set(i for monomial in self.coefficients for i in monomial.exponents)
 
-    def get_real_factors(self):
+    def _get_monic_quadratic_coefficients(self):
         """
-        If self is a non-zero polynomial in one variable with degree at most two, then this returns
-        set of self's real-rooted monic linear factors. Returns empty set if self has no real roots.
+        Assuming self is univariate and non-constant, returns real QuadraticNumbers a, b, c and
+        (monomial) Polynomial x such that f = ax^2 + bx + c is monic and self is a constant
+        multiple of f. If such numbers do not exist, raises CannotFactorException.
         """
-        # check that self is not zero and does not involve multiple variables
-        if self == 0 or len(self.get_variables()) > 1:
-            raise CannotFactorException(self)
-
-        # if nonzero and constant, polynomial has no real roots
-        if self.is_constant():
-            return set()
-
         def to_quadratic_number(i):
             if type(i) != QuadraticNumber:
                 i = QuadraticNumber(i)
@@ -800,32 +793,55 @@ class Polynomial(VectorMixin, OperatorMixin, NumberMixin):
         if self != a * x**2 + b * x + c:
             raise CannotFactorException(self)
 
-        # if discriminant is negative, polynomial has no real roots
-        if (b**2 - 4 * a * c) < 0:
-            return set()
-
-        # normalize coefficients
+        # normalize coefficients so that a * x**2 + b * x + c is monic
         if a != 0:
             b /= a
             c /= a
+            a = QuadraticNumber(1)
+        elif b != 0:
+            c /= b
+            b = QuadraticNumber(1)
 
-        # case: self is linear
-        if a == 0 and b != 0:
-            return {x + c / b}
-        # case: self has no constant term
-        elif c == 0:
-            return {x, x + b}
-        # case: try to apply quadratic formula
-        else:
-            try:
-                r = (-b + QuadraticNumber.sqrt(b**2 - 4 * c)) / 2
-                s = -b - r
-                return {x - r, x - s}
-            except Exception as e:
-                # raise broader exception as failure indicates that roots are not QuadraticNumbers
-                raise Exception(
-                    ('Cannot compute roots of factorable polynomial: %s' % str(self)) +
-                    ('\nError message: %s' % str(e)))
+        if not (a.is_real() and b.is_real() and c.is_real()):
+            raise CannotFactorException(self)
+
+        return a, b, c, x
+
+    def get_real_quadratic_factors(self):
+        """
+        If self is a nonzero constant multiple of a polynomial in one variable with degree at most
+        two and real coefficients, then this returns set of self's real-rooted monic linear factors.
+        Returns empty set if self has no real roots, and raises Exception if cannot uniquely factor.
+        """
+        # check that self is not zero and does not involve multiple variables
+        if self == 0 or len(self.get_variables()) > 1:
+            raise CannotFactorException(self)
+
+        # case: polynomial is nonzero and constant, so has no real roots
+        if self.is_constant():
+            return set()
+
+        # if we get here, self is univariate and not constant
+        a, b, c, x = self._get_monic_quadratic_coefficients()
+
+        # case: discriminant is negative, so polynomial has no real roots
+        if (b**2 - 4 * a * c) < 0:
+            return set()
+
+        # case: polynomial is linear, so has one root
+        if a == 0:
+            return {x + c}
+
+        # finally, try to apply quadratic formula (note that a == 1)
+        try:
+            r = (-b + QuadraticNumber.sqrt(b**2 - 4 * c)) / 2
+            s = -b - r
+            return {x - r, x - s}
+        except Exception as e:
+            # raise broader exception as failure indicates that roots are not QuadraticNumbers
+            raise Exception(
+                ('Cannot compute roots of factorable polynomial: %s\n' % str(self)) +
+                ('Error message: %s' % str(e)))
 
     def degree(self):
         """Returns degree of polynomialor None if self is a Laurent polynomial."""

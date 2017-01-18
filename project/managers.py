@@ -360,7 +360,7 @@ class PartialBraid:
 
     def _get_children_from_quadratic_constraint(self, constraint):
         children = []
-        for factor in constraint.get_real_factors():
+        for factor in constraint.get_real_quadratic_factors():
             child = self.copy()
             child.constraints.add_zero_constraint(factor)
             children.append(child)
