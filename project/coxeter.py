@@ -17,6 +17,12 @@ from project.algebra import (
 
 class CoxeterGraph:
 
+    """
+    Class for objects representing Coxeter graphs with a distinguisehd graph involution.
+    This data classifies twisted Coxeter systems up to isomorphism, and encodes
+    the order of any product of simple generators in an associated Coxeter group.
+    """
+
     class EvalBilinearException(Exception):
         def __init__(self):
             super(CoxeterGraph.EvalBilinearException, self).__init__(
@@ -31,14 +37,13 @@ class CoxeterGraph:
 
     def __init__(self, edges, generators=None, star=None):
         """
-        Input `edges` should be list of tuples (i, j, m) where i, j are indices of simple
+        Input `edges` should be list of int tuples (i, j, m) where i, j are indices of simple
         generators and m is order of s_i s_j. Triples with m == 1 or 2 can be omitted.
         If (i, j, m) is included then the reverse triple (j, i, m) also may be omitted.
 
         Input `generators` should be list of integers indexing simple generators of the group.
         If not provided, this list will be formed from the set of numbers i or j in `edges`.
-        If i or j does not belong to `generators` for some (i, j, m) in `edges`, an error
-        will be raised.
+        If i or j is not in `generators` for some (i, j, m) in `edges`, an error will be raised.
 
         Input `star` should be list of pairs (i, j) such that the involution * : S -> S
         with i^* = j and j^* = i extends to an automorphism of W. If `star` is not given,
@@ -49,7 +54,7 @@ class CoxeterGraph:
         self._setup_star(star)
 
     def _setup_generators(self, edges, generators):
-        # assign sorted list of simple generator indices to self.generators
+        """Assign sorted list of simple generator indices to self.generators."""
         generators_from_edges = {t[0] for t in edges} | {t[1] for t in edges}
         try:
             if generators is not None:
@@ -62,7 +67,7 @@ class CoxeterGraph:
             raise InvalidInputException(self, (edges, generators))
 
     def _setup_orders(self, edges):
-        # construct dictionary with orders m_ij of products of simple generators
+        """Construct dictionary with orders m_ij of products of simple generators."""
         self.orders = {}
         for i, j, m in edges:
             # value of m must be an integer with 1 <= m <= infty
@@ -78,7 +83,7 @@ class CoxeterGraph:
                 self.orders[(j, i)] = m
 
     def _setup_star(self, star):
-        # construct dictionary with images of the *-involution 'star'
+        """Construct dictionary with images of the *-involution 'star'."""
         self._star = {}
         if star:
             generators_from_star = {t[0] for t in star} | {t[1] for t in star}
@@ -139,6 +144,11 @@ class CoxeterGraph:
             return self.orders.get((i, j), 2)
 
     def get_semiorder(self, i, j, generators_are_fixed):
+        """
+        Returns twisted involution length of longest element in dihedral group <s_i, s_j>
+        with respect to the automorphism fixing s_i and s_j (if generators_are_fixed is True)
+        or transposing s_i and s_j (if generators_are_fixed is False).
+        """
         m = self.get_order(i, j)
         if m % 2 != 0:
             return (m + 1) // 2
@@ -148,7 +158,11 @@ class CoxeterGraph:
             return m // 2
 
     def eval_bilinear(self, i, j):
-        """Returns -cos(pi/m_ij)."""
+        """
+        Returns -cos(pi/m_ij) as an int, RationalNumber, or QuadraticNumber.
+        For simplicity, an error is raised if m_ij is not 1, 2, 3, 4, 5, 6, 12, or infinity,
+        even though -cos(pi/m_ij) can be a QuadraticNumber for other values of m_ij.
+        """
         m = self.get_order(i, j)
         if m == 1:
             return 1
