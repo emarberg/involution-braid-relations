@@ -406,9 +406,15 @@ class QuadraticNumber(VectorMixin, OperatorMixin, NumberMixin):
 
     @classmethod
     def sqrt(cls, i):
-        """TODO: clean up this method."""
+        """
+        Returns QuadraticNumber which gives positive square root of input, if this exists.
+        The input i must be an int, a RationalNumber, or a QuadraticNumber of the form
+        a + b sqrt(c) for rational numbers a, b, c (we do not check whether the input has
+        a quadratic square root if it is a more complicated QuadraticNumber).
+        """
         if type(i) == QuadraticNumber and i.is_rational():
             i = i.get_rational_part()
+
         if type(i) == RationalNumber:
             denom = i.denominator
             i = i.numerator * i.denominator
@@ -417,19 +423,31 @@ class QuadraticNumber(VectorMixin, OperatorMixin, NumberMixin):
 
         if i == 0 and type(i) in [int, QuadraticNumber]:
             return QuadraticNumber()
-        elif type(i) == int:
+
+        if type(i) == int:
             pf = PrimeFactorization(i)
             square_free = pf.get_square_free_part()
+            num = pf.get_truncated_square_root()
             ans = QuadraticNumber()
-            ans.coefficients[square_free] = RationalNumber(pf.get_truncated_square_root(), denom)
+            ans.coefficients[square_free] = RationalNumber(num, denom)
             return ans
-        elif type(i) == QuadraticNumber:
-            q = i / (3 + cls.sqrt(5))
-            if q.is_rational():
-                return cls.sqrt(q) * (cls.sqrt(2) + cls.sqrt(10)) / 2
-            q = i / (7 + 3 * cls.sqrt(5))
-            if q.is_rational():
-                return cls.sqrt(q) * (3 * cls.sqrt(2) + cls.sqrt(10)) / 2
+
+        # try to compute sqrt when i = a + b sqrt(c) for rational numbers a, b, c:
+        # in this case we can have sqrt(i) = sqrt(a) * ( sqrt(x) +/- sqrt(1-x) ) for some x
+        if type(i) == QuadraticNumber and len(i) == 2 and PrimeFactorization(1) in i:
+            u = PrimeFactorization(1)
+            v = next(iter(i.coefficients.keys() - {u}))
+            a, b = i[u], i[v]
+
+            r = b / a
+            q = v.n * r**2
+            sign = (-1)**(r < 0)
+
+            c = (1 + QuadraticNumber.sqrt(1 - q)) / 2
+            if c.is_rational():
+                rescale = QuadraticNumber.sqrt(a)
+                return rescale * (QuadraticNumber.sqrt(c) + sign * QuadraticNumber.sqrt(1 - c))
+
         raise Exception('Cannot compute square root of `%s`' % i)
 
     def is_rational(self):
@@ -439,6 +457,7 @@ class QuadraticNumber(VectorMixin, OperatorMixin, NumberMixin):
         return all(0 < pf.n for pf in self.coefficients)
 
     def decompose(self):
+        """Returns pair (x, y) of QuadraticNumbers with positive coeff such that self = x - y."""
         positive_part, negative_part = QuadraticNumber(), QuadraticNumber()
         positive_part.coefficients = {i: v for i, v in self.coefficients.items() if 0 < v}
         negative_part.coefficients = {i: -v for i, v in self.coefficients.items() if v < 0}
@@ -449,8 +468,8 @@ class QuadraticNumber(VectorMixin, OperatorMixin, NumberMixin):
 
     def conjugate(self):
         """
-        If self has form (a_0 + a_1 sqrt(n_1) + a_2 sqrt(n_2) + ...) then
-        returns product of all conjugates (a_0 +/- a_1 sqrt(n_1) +/- a_2 sqrt(n_2) + ...).
+        When self has form (a_0 + a_1 sqrt(n_1) + a_2 sqrt(n_2) + ...), this method
+        returns product of all sums (a_0 +/- a_1 sqrt(n_1) +/- a_2 sqrt(n_2) + ...).
         """
         a = self.get_rational_part()
         b = self - a
