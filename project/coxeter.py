@@ -214,12 +214,12 @@ class CoxeterGraph:
         return CoxeterGraph(edges, star=star)
 
     @staticmethod
-    def A2(n):  # noqa
+    def A_twist(n):  # noqa
         star = [(i, n + 1 - i) for i in range(1, n + 1)]
         return CoxeterGraph.A(n, star=star)
 
     @staticmethod
-    def B2(n=2):  # noqa
+    def B_twist(n=2):  # noqa
         assert n == 2
         return CoxeterGraph([(0, 1, 4)], star=[(0, 1)])
 
@@ -250,7 +250,7 @@ class CoxeterGraph:
         return CoxeterGraph(edges, star=star)
 
     @staticmethod
-    def D2(n):  # noqa
+    def D_twist(n):  # noqa
         assert 4 <= n
         star = [(0, 1)] + [(i, i) for i in range(2, n)]
         return CoxeterGraph.D(n, star=star)
@@ -270,7 +270,7 @@ class CoxeterGraph:
         return CoxeterGraph(edges, star=star)
 
     @staticmethod
-    def E2(n=6):  # noqa
+    def E_twist(n=6):  # noqa
         assert n == 6
         star = [(1, 6), (2, 5), (3, 3), (4, 4)]
         return CoxeterGraph.E(n, star=star)
@@ -282,7 +282,7 @@ class CoxeterGraph:
         return CoxeterGraph(edges, star=star)
 
     @staticmethod
-    def F2(n=4):  # noqa
+    def F_twist(n=4):  # noqa
         assert n == 4
         star = [(1, 4), (2, 3)]
         return CoxeterGraph.F(n, star=star)
@@ -293,7 +293,7 @@ class CoxeterGraph:
         return CoxeterGraph([(1, 2, 6)], star=star)
 
     @staticmethod
-    def G2(n=2):  # noqa
+    def G_twist(n=2):  # noqa
         assert n == 2
         return CoxeterGraph.G(n, star=[(1, 2)])
 

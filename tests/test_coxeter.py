@@ -169,12 +169,12 @@ class TestCoxeterGraph:
         F4 = CoxeterGraph.F_tilde(4)
         G2 = CoxeterGraph.G_tilde(2)
 
-        a5_twist = CoxeterGraph.A2(5)
-        b2_twist = CoxeterGraph.B2(2)
-        d7_twist = CoxeterGraph.D2(7)
-        e6_twist = CoxeterGraph.E2(6)
-        f4_twist = CoxeterGraph.F2(4)
-        g2_twist = CoxeterGraph.G2(2)
+        a5_twist = CoxeterGraph.A_twist(5)
+        b2_twist = CoxeterGraph.B_twist(2)
+        d7_twist = CoxeterGraph.D_twist(7)
+        e6_twist = CoxeterGraph.E_twist(6)
+        f4_twist = CoxeterGraph.F_twist(4)
+        g2_twist = CoxeterGraph.G_twist(2)
 
         simply_laced = [a5, a5_twist, A5, d7, d7_twist, e6, e6_twist, e7, e8, E6, E7, E8, D6]
         crystallographic = \
@@ -696,7 +696,7 @@ class TestCoxeterTransform:
         e = e.demazure_conjugate(2)
         assert e.minimal_reduced_word == (1, 2, 1)
 
-        g = CoxeterGraph.A2(5)
+        g = CoxeterGraph.A_twist(5)
         e = CoxeterTransform(g)
 
         e = e.demazure_conjugate(1)

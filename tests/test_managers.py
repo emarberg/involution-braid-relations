@@ -382,7 +382,7 @@ class TestBraidQueue:
 
     def test_2A3(self):
         # Test algorithm in small twisted case
-        g = CoxeterGraph.A2(3)
+        g = CoxeterGraph.A_twist(3)
         q = BraidQueue(g, verbose_level=BraidQueue.VERBOSE_LEVEL_LOW)
         q.go(do_sanity_check=True)
         assert q.sufficient_relations == {

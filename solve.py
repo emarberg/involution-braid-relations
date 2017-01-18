@@ -10,8 +10,8 @@ def get_arguments():
         '--type',
         type=str,
         help='type of (twisted) Coxeter system',
-        choices=['A', 'B', 'D', 'E', 'F', 'G', 'H',
-                 '2A', '2B', '2D', '2E', '2F', '2G',
+        choices=['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H',
+                 '2A', '2B', '2C', '2D', '2E', '2F', '2G',
                  'A~', 'B~', 'C~', 'D~', 'E~', 'F~', 'G~']
     )
     parser.add_argument(
@@ -42,14 +42,31 @@ def get_arguments():
 
 
 def get_coxeter_graph(coxeter_type, rank):
-    # replace 'X~' with 'X_tilde'
-    if coxeter_type.endswith('~'):
-        coxeter_type = coxeter_type[:-1] + '_tilde'
-    # reverse '2X' to be 'X2'
-    elif len(coxeter_type) != 1:
-        coxeter_type = ''.join(reversed(coxeter_type))
-
-    return getattr(CoxeterGraph, coxeter_type)(rank)
+    coxeter_graph_constructor_dict = {
+        'A': CoxeterGraph.A,
+        'B': CoxeterGraph.B,
+        'C': CoxeterGraph.C,
+        'D': CoxeterGraph.D,
+        'E': CoxeterGraph.E,
+        'F': CoxeterGraph.F,
+        'G': CoxeterGraph.G,
+        'H': CoxeterGraph.H,
+        '2A': CoxeterGraph.A_twist,
+        '2B': CoxeterGraph.B_twist,
+        '2C': CoxeterGraph.B_twist,
+        '2D': CoxeterGraph.D_twist,
+        '2E': CoxeterGraph.E_twist,
+        '2F': CoxeterGraph.F_twist,
+        '2G': CoxeterGraph.G_twist,
+        'A~': CoxeterGraph.A_tilde,
+        'B~': CoxeterGraph.B_tilde,
+        'C~': CoxeterGraph.C_tilde,
+        'D~': CoxeterGraph.D_tilde,
+        'E~': CoxeterGraph.E_tilde,
+        'F~': CoxeterGraph.F_tilde,
+        'G~': CoxeterGraph.G_tilde,
+    }
+    return coxeter_graph_constructor_dict[coxeter_type](rank)
 
 
 def solve(coxeter_type, rank, verbosity, verify, limit):
