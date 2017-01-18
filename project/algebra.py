@@ -1,7 +1,6 @@
 import numpy as np
 
 from project.utils import (
-    IndeterminatePowerException,
     InvalidInputException,
     ZeroDivisionException,
     OperatorException,
@@ -13,7 +12,17 @@ from project.utils import (
 
 class RationalNumber(OperatorMixin, NumberMixin):
 
+    """
+    Class for objects representing rational numbers, with
+    the usual field operations and standard total ordering.
+    """
+
+    @classmethod
+    def one(cls):
+        return RationalNumber(1)
+
     def __init__(self, p=0, q=1):
+        """Returns RationalNumber with value p/q. Inputs must be ints or RationalNumbers."""
         if type(p) == type(q) == RationalNumber:
             p, q = (p.numerator * q.denominator, q.numerator * p.denominator)
         elif type(p) == int and type(q) == RationalNumber:
@@ -32,6 +41,7 @@ class RationalNumber(OperatorMixin, NumberMixin):
 
     @classmethod
     def reduce(cls, p, q):
+        """Given integers p, q, returns pair (p/d, q/d) where d = gcd(p, q)."""
         if q < 0:
             q = q * -1
             p = p * -1
@@ -128,20 +138,6 @@ class RationalNumber(OperatorMixin, NumberMixin):
     def __rtruediv__(self, other):
         return other * RationalNumber(1, self)
 
-    def __pow__(self, exponent):
-        if type(exponent) != int:
-            raise OperatorException(self, exponent, '__pow__')
-        elif exponent == 0 and self != 0:
-            return RationalNumber(1)
-        elif exponent == 0 and self == 0:
-            raise IndeterminatePowerException
-
-        x = super(RationalNumber, self).__pow__(abs(exponent))
-        if exponent < 0:
-            return RationalNumber(1, x)
-        else:
-            return x
-
     def __repr__(self):
         if self.numerator == 0:
             return '0'
@@ -152,9 +148,16 @@ class RationalNumber(OperatorMixin, NumberMixin):
 
 
 class PrimeFactorization:
-    _factorization_cache = {}
+
+    """
+    Class for objects to store and access the unique factorization
+    of a non-zero integer into prime-power factors.
+    """
+
+    _factorization_cache = {}  # updated whenever a new PrimeFactorization is created
 
     def __init__(self, i=1):
+        """Input i must be nonzero int."""
         if type(i) == int and i != 0:
             self.factorization = PrimeFactorization.get_prime_factorization(i)
             self.n = i
@@ -178,9 +181,9 @@ class PrimeFactorization:
             ans = PrimeFactorization()
             ans.n = self.n * other.n
             factors = set(self.factorization.keys()) | set(other.factorization.keys())
-            ans.factorization = {p: self[p] + other[p] for p in factors}
-            if ans[-1] != 0 and ans[-1] % 2 == 0:
-                del ans.factorization[-1]
+            ans.factorization = {p: self[p] + other[p] for p in factors if p != -1}
+            if ans.n < 0:
+                ans.factorization[-1] = 1
             return ans
         else:
             raise Exception('Cannot multiply PrimeFactorization with %s' % type(other))
@@ -189,6 +192,10 @@ class PrimeFactorization:
         return repr(self.factorization)
 
     def get_square_free_part(self):
+        """
+        Returns PrimeFactorization of integer n with smallest absolute value
+        such that self/n is a square-free positive integer.
+        """
         ans = PrimeFactorization()
         ans.factorization = {p: e % 2 for p, e in self.factorization.items() if e % 2 != 0}
         ans.n = 1
@@ -197,6 +204,7 @@ class PrimeFactorization:
         return ans
 
     def get_truncated_square_root(self):
+        """Returns sqrt(self/n) where self.get_square_free_part() == PrimeFactorization(n)."""
         r = 1
         for p, e in self.factorization.items():
             r *= p**(e // 2)
@@ -204,7 +212,7 @@ class PrimeFactorization:
 
     @classmethod
     def get_divisor_exponent(cls, n, p):
-        """Return maximum positive integer e such that p^e divides n."""
+        """Return maximum positive integer e such that p**e divides n."""
         if n % p != 0:
             return 0
         if abs(n) == abs(p):
@@ -214,6 +222,10 @@ class PrimeFactorization:
 
     @classmethod
     def get_prime_factorization(cls, i):
+        """
+        Returns dict with prime integer keys (with -1 considered to be prime) and positive
+        integer values which gives the prime factorization of the input integer i.
+        """
         if i in cls._factorization_cache:
             return cls._factorization_cache[i].copy()
         else:
@@ -235,6 +247,12 @@ class PrimeFactorization:
 
 class QuadraticNumber(VectorMixin, OperatorMixin, NumberMixin):
 
+    """
+    Class for objects representing rational linear combinations of square roots of integers,
+    with the usual field operations and (for real-valued objects) the usual total ordering
+    on real numbers.
+    """
+
     class ImaginaryComparisonException(Exception):
         def __init__(self, diff):
             super(QuadraticNumber.ImaginaryComparisonException, self).__init__(
@@ -253,7 +271,12 @@ class QuadraticNumber(VectorMixin, OperatorMixin, NumberMixin):
     def coefficients(self, value):
         self._coefficients = value
 
+    @classmethod
+    def one(cls):
+        return QuadraticNumber(1)
+
     def __init__(self, i=0):
+        """Input i must be int or RationalNumber."""
         if type(i) == int:
             i = RationalNumber(i)
         if type(i) == RationalNumber:
@@ -273,6 +296,7 @@ class QuadraticNumber(VectorMixin, OperatorMixin, NumberMixin):
             return super(QuadraticNumber, self).__repr__()
 
     def __hash__(self):
+        """If self is a rational, its hash is the same as the corresponding RationalNumber."""
         if self.is_rational():
             return hash(self.get_rational_part())
         else:
@@ -285,6 +309,17 @@ class QuadraticNumber(VectorMixin, OperatorMixin, NumberMixin):
         return self.lt__quadratic_number(QuadraticNumber(other))
 
     def lt__quadratic_number(self, other):
+        """
+        Tries to compare self and QuadraticNumber other. Raises exception if self - other is
+        not real-valued or too complicated for us to compute its sign, and otherwise returns
+        True/False if the difference if negative/positive.
+
+        Our approach to determining (whether we can compute) the sign of self - other is overly
+        simplistic: we raise an exception to indicate failure if the difference is a sum of too
+        many distinct radicals. There are efficient algorithms that can solve this problem in
+        general (see http://cs.smith.edu/~orourke/TOPP/P33.html), but our simpler implementation
+        is good enough for the applications of this program.
+        """
         diff = other - self
         if diff.is_rational():
             return 0 < diff[PrimeFactorization(1)]
@@ -343,16 +378,6 @@ class QuadraticNumber(VectorMixin, OperatorMixin, NumberMixin):
 
     def mul__polynomial(self, other):
         return other.mul__quadratic_number(self)
-
-    def __pow__(self, exponent):
-        if type(exponent) == int:
-            if exponent == 0 and self != 0:
-                return QuadraticNumber(1)
-            elif exponent == 0 and self == 0:
-                raise IndeterminatePowerException
-            elif exponent < 0:
-                return 1 / super(QuadraticNumber, self).__pow__(-exponent)
-        return super(QuadraticNumber, self).__pow__(exponent)
 
     def truediv__int(self, other):
         return self.mul__rational_number(RationalNumber(1, other))
@@ -539,6 +564,10 @@ class Polynomial(VectorMixin, OperatorMixin, NumberMixin):
     @coefficients.setter
     def coefficients(self, value):
         self._coefficients = value
+
+    @classmethod
+    def one(cls):
+        return Polynomial(1)
 
     def __init__(self, i=None):
         if i is None or (type(i) in [int, RationalNumber, QuadraticNumber] and i == 0):

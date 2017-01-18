@@ -45,7 +45,7 @@ def get_coxeter_graph(coxeter_type, rank):
     coxeter_graph_constructor_dict = {
         'A': CoxeterGraph.A,
         'B': CoxeterGraph.B,
-        'C': CoxeterGraph.C,
+        'C': CoxeterGraph.B,
         'D': CoxeterGraph.D,
         'E': CoxeterGraph.E,
         'F': CoxeterGraph.F,
@@ -72,7 +72,7 @@ def get_coxeter_graph(coxeter_type, rank):
 def solve(coxeter_type, rank, verbosity, verify, limit):
     try:
         g = get_coxeter_graph(coxeter_type, rank)
-    except:
+    except Exception as e:
         print('Invalid type and rank: (%s, %s)' % (coxeter_type, rank))
     else:
         q = BraidQueue(g, verbose_level=verbosity)

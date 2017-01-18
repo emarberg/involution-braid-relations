@@ -2,6 +2,7 @@ import pytest
 
 from project.utils import (
     IndeterminatePowerException,
+    NegativePowerException,
     InvalidInputException,
     ZeroDivisionException,
     OperatorException
@@ -132,6 +133,8 @@ class TestRationalNumbers:
         assert a / b == c
 
     @pytest.mark.parametrize("p, q, e, num, den", [
+        (3, 2, 1, 3, 2),
+        (3, 2, 2, 9, 4),
         (3, 2, 4, 81, 16),
         (3, 2, -4, 16, 81),
         (3, 2, 0, 1, 1)
@@ -594,7 +597,7 @@ class TestQuadraticNumbers:
             QuadraticNumber(12) ** i
         except Exception as exception:
             e = exception
-        assert type(e) == QuadraticNumber.PowerException
+        assert type(e) == OperatorException
 
     def test_indeterminate_power(self):
         e = None
@@ -1152,14 +1155,14 @@ class TestPolynomial:
             f**1.0
         except Exception as exception:
             e = exception
-        assert type(e) == Polynomial.PowerException
+        assert type(e) == OperatorException
 
         e = None
         try:
             f**-1
         except Exception as exception:
             e = exception
-        assert type(e) == Polynomial.PowerException
+        assert type(e) == NegativePowerException
 
     def test_is_rational(self):
         assert Polynomial().is_rational()

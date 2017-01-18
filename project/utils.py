@@ -8,6 +8,12 @@ class IndeterminatePowerException(Exception):
         super(IndeterminatePowerException, self).__init__('Cannot compute indeterminate power 0**0')
 
 
+class NegativePowerException(Exception):
+    def __init__(self):
+        super(NegativePowerException, self).__init__(
+            '** not implemented when exponent is non-positive integer')
+
+
 class InvalidInputException(Exception):
     def __init__(self, obj, inputs, method='__init__'):
         super(InvalidInputException, self).__init__(
@@ -275,11 +281,6 @@ class NumberMixin:
     neither class overrides any methods of the other.
     """
 
-    class PowerException(Exception):
-        def __init__(self):
-            super(NumberMixin.PowerException, self).__init__(
-                '** not implemented when exponent is non-positive or non-integer')
-
     def __lt__(self, other):
         raise NotImplementedError  # pragma: no cover
 
@@ -313,11 +314,25 @@ class NumberMixin:
     def __rsub__(self, other):
         return other + (self * -1)
 
+    @classmethod
+    def one(cls):
+        """Returns multiplicative identity element of ring to which NumberMixin belongs."""
+        raise NotImplementedError
+
     def __pow__(self, exponent):
-        if type(exponent) != int or exponent <= 0:
-            raise NumberMixin.PowerException
-        if exponent == 1:
-            return self + 0
+        if type(exponent) != int:
+            raise OperatorException(self, exponent, '__pow__')
+        elif exponent == 0 and self == 0:
+            raise IndeterminatePowerException
+        elif exponent == 0:
+            return self.one()
+        elif exponent < 0:
+            try:
+                return 1 / self**(-exponent)
+            except:
+                raise NegativePowerException
+        elif exponent == 1:
+            return self
         elif exponent % 2 == 0:
             x = self**(exponent // 2)
             return x * x
