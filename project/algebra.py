@@ -772,19 +772,18 @@ class Polynomial(VectorMixin, OperatorMixin, NumberMixin):
         """Return set of integers indexing the indeterminates that appear in this polynomial."""
         return set(i for monomial in self.coefficients for i in monomial.exponents)
 
-    def get_quadratic_discriminant(self):
-        x = next(iter(self.get_variables()))
-        a, b, c = self[{x: 2}], self[{x: 1}], self[{}]
-        return b**2 - 4 * a * c
-
-    def get_factors(self):
+    def get_real_factors(self):
         """
-        If self is a non-constant polynomial in one variable with degree at most two, then this
-        returns the set of self's monic linear factors. Otherwise, raises CannotFactorException.
+        If self is a non-zero polynomial in one variable with degree at most two, then this returns
+        set of self's real-rooted monic linear factors. Returns empty set if self has no real roots.
         """
-        # check that self is not constant and does not involve multiple variables
-        if len(self.get_variables()) != 1:
+        # check that self is not zero and does not involve multiple variables
+        if self == 0 or len(self.get_variables()) > 1:
             raise CannotFactorException(self)
+
+        # if nonzero and constant, polynomial has no real roots
+        if self.is_constant():
+            return set()
 
         def to_quadratic_number(i):
             if type(i) != QuadraticNumber:
@@ -800,6 +799,10 @@ class Polynomial(VectorMixin, OperatorMixin, NumberMixin):
         # check that self is linear or quadratic
         if self != a * x**2 + b * x + c:
             raise CannotFactorException(self)
+
+        # if discriminant is negative, polynomial has no real roots
+        if (b**2 - 4 * a * c) < 0:
+            return set()
 
         # normalize coefficients
         if a != 0:

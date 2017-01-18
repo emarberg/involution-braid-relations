@@ -360,13 +360,10 @@ class PartialBraid:
 
     def _get_children_from_quadratic_constraint(self, constraint):
         children = []
-        # if discriminant is negative then constraint has no real roots, so we return
-        # no children since all indeterminates are positive real numbers by definition
-        if constraint.get_quadratic_discriminant() >= 0:
-            for factor in constraint.get_factors():
-                child = self.copy()
-                child.constraints.add_zero_constraint(factor)
-                children.append(child)
+        for factor in constraint.get_real_factors():
+            child = self.copy()
+            child.constraints.add_zero_constraint(factor)
+            children.append(child)
         return children
 
     def _get_children_from_unconditional_descent(self, descent):

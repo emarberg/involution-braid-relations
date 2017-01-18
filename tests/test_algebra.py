@@ -1098,17 +1098,21 @@ class TestPolynomial:
 
     @pytest.mark.parametrize("f, expected", [
         (X + 1, {X + 1}),
+        (Polynomial(5), set()),
+        (X**2 + 1, set()),
         (5 * X + 1, {X + RationalNumber(1, 5)}),
         (X**2 - 1, {X + 1, X - 1}),
         (X**2 - 2 * X + 1, {X - 1}),
         (X**2 - 2 * X, {X - 2, X}),
     ])
-    def test_get_factors(self, f, expected):
-        factors = f.get_factors()
+    def test_get_real_factors(self, f, expected):
+        factors = f.get_real_factors()
         assert factors == expected
 
         # check that factors are indeed the monic roots of f
-        if len(factors) == 1:
+        if len(factors) == 0:
+            return
+        elif len(factors) == 1:
             monic_root_a = factors.pop()
             monic_root_b = monic_root_a
         else:
@@ -1122,15 +1126,16 @@ class TestPolynomial:
             assert f == leading_coeff * monic_root_a * monic_root_b
 
     @pytest.mark.parametrize("f, expected", [
+        (Polynomial(), CannotFactorException),
         (X * Y, CannotFactorException),
         (X**3 - 1, CannotFactorException),
         (X**2 - QuadraticNumber.sqrt(3), Exception)
     ])
-    def test_get_factors_error(self, f, expected):
-        """Test error handling in Polynomial.get_factors method."""
+    def test_get_real_factors_error(self, f, expected):
+        """Test error handling in Polynomial.get_real_factors method."""
         e = None
         try:
-            f.get_factors()
+            f.get_real_factors()
         except Exception as exception:
             e = exception
         assert type(e) == expected
