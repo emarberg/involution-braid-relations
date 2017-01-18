@@ -28,7 +28,7 @@ class OperatorException(Exception):
 
 class OperatorMixin:
     """
-    Mixin class which helps implement polymorphic binary operations ==, <, +, *, and /
+    Mixin class implementing polymorphic binary operations ==, <, +, *, and /
     between int, RationalNumber, QuadraticNumber, and Polynomial objects.
     """
 
@@ -126,7 +126,7 @@ class OperatorMixin:
         elif type(other).__name__ == 'Polynomial':
             return self.mul__polynomial(other)
         elif type(other).__name__ == 'Root':
-            return self.mul__root(other)
+            return other * self
         else:
             raise OperatorException(self, other, '__mul__')
 
@@ -145,10 +145,6 @@ class OperatorMixin:
     def mul__polynomial(self, other):
         """Evaluates self * other under assumption that type(other) is Polynomial."""
         raise NotImplementedError  # pragma: no cover
-
-    def mul__root(self, other):
-        """Evaluates self * other under assumption that type(other) is Root."""
-        return other * self
 
     def __truediv__(self, other):
         if other == 0:
@@ -182,6 +178,19 @@ class OperatorMixin:
 
 
 class VectorMixin:
+    """
+    Mixin class implementing common magic functions for dict-like objects
+    that represent elements of a vector space.
+    """
+
+    @property
+    def coefficients(self):
+        """This should return a dict whose values are number-like objects."""
+        raise NotImplementedError  # pragma: no cover
+
+    @coefficients.setter
+    def coefficients(self, value):
+        raise NotImplementedError  # pragma: no cover
 
     def __eq__(self, other):
         if self.is_comparable(other):
@@ -224,6 +233,7 @@ class VectorMixin:
         return type(v) == int or (hasattr(v, 'is_rational') and v.is_rational())
 
     def __repr__(self):
+        """Rather complicated convenience method for printing VectorMixin objects nicely."""
         s = ''
         for i, v in sorted(self.coefficients.items()):
             alpha = self.get_index_repr(i)
@@ -252,6 +262,15 @@ class VectorMixin:
 
 
 class NumberMixin:
+    """
+    Mixin class implementing common magic functions for number-like objects;
+    technically, for objects that represent elements of a partially ordered ring.
+
+    The __eq__ operator is not implemented here or required to be implemented,
+    in contrast to most other operations (namely, < <= > >= - + * **). This
+    convention ensures that when both VectorMixin and NumberMixin are inherited,
+    neither class overrides any methods of the other.
+    """
 
     class PowerException(Exception):
         def __init__(self):

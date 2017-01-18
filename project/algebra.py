@@ -13,6 +13,14 @@ from project.utils import (
 
 class RationalNumber(OperatorMixin, NumberMixin):
 
+    @property
+    def coefficients(self):
+        return self._coefficients
+
+    @coefficients.setter
+    def coefficients(self, value):
+        self._coefficients = value
+
     def __init__(self, p=0, q=1):
         if type(p) == type(q) == RationalNumber:
             p, q = (p.numerator * q.denominator, q.numerator * p.denominator)
@@ -245,13 +253,21 @@ class QuadraticNumber(VectorMixin, OperatorMixin, NumberMixin):
             super(QuadraticNumber.IndeterminateComparisonException, self).__init__(
                 'Cannot determine inequality %s < %s' % (a, b))
 
+    @property
+    def coefficients(self):
+        return self._coefficients
+
+    @coefficients.setter
+    def coefficients(self, value):
+        self._coefficients = value
+
     def __init__(self, i=0):
         if type(i) == int:
             i = RationalNumber(i)
         if type(i) == RationalNumber:
-            self.coefficients = {}
+            self._coefficients = {}
             if i != 0:
-                self.coefficients[PrimeFactorization(1)] = i
+                self._coefficients[PrimeFactorization(1)] = i
         else:
             raise InvalidInputException(self, type(i))
 
@@ -523,22 +539,31 @@ class Monomial:
 
 
 class Polynomial(VectorMixin, OperatorMixin, NumberMixin):
+
+    @property
+    def coefficients(self):
+        return self._coefficients
+
+    @coefficients.setter
+    def coefficients(self, value):
+        self._coefficients = value
+
     def __init__(self, i=None):
         if i is None or (type(i) in [int, RationalNumber, QuadraticNumber] and i == 0):
-            self.coefficients = {}
+            self._coefficients = {}
         elif type(i) == str or type(i) == dict:
             try:
                 monomial = Monomial(i)
             except:
                 raise InvalidInputException(self, type(i))
             else:
-                self.coefficients = {monomial: 1}
+                self._coefficients = {monomial: 1}
         elif type(i) == Monomial:
-            self.coefficients = {i: 1}
+            self._coefficients = {i: 1}
         elif type(i) in [int, RationalNumber]:
-            self.coefficients = {Monomial(): QuadraticNumber(i)}
+            self._coefficients = {Monomial(): QuadraticNumber(i)}
         elif type(i) == QuadraticNumber:
-            self.coefficients = {Monomial(): i}
+            self._coefficients = {Monomial(): i}
         else:
             raise InvalidInputException(self, type(i))
 
