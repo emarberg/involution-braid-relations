@@ -9,7 +9,7 @@ TODO: overview
 
 ## Tests
 1. After setting up, run the tests at the command line: `tox`
-1. (Optional) Review the generated coverage by opening `htmlcov/index.html`
+1. (Optional) Review the generated coverage by opening `tests/htmlcov/index.html`
 
 ## Run
 * To see the full list of command line options, run:

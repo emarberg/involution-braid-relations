@@ -317,7 +317,7 @@ class NumberMixin:
     @classmethod
     def one(cls):
         """Returns multiplicative identity element of ring to which NumberMixin belongs."""
-        raise NotImplementedError
+        raise NotImplementedError  # pragma: no cover
 
     def __pow__(self, exponent):
         if type(exponent) != int:

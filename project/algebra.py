@@ -296,7 +296,7 @@ class QuadraticNumber(VectorMixin, OperatorMixin, NumberMixin):
             return super(QuadraticNumber, self).__repr__()
 
     def __hash__(self):
-        """If self is a rational, its hash is the same as the corresponding RationalNumber."""
+        """If self is rational, its hash is the same as the corresponding RationalNumber."""
         if self.is_rational():
             return hash(self.get_rational_part())
         else:
@@ -312,7 +312,7 @@ class QuadraticNumber(VectorMixin, OperatorMixin, NumberMixin):
         """
         Tries to compare self and QuadraticNumber other. Raises exception if self - other is
         not real-valued or too complicated for us to compute its sign, and otherwise returns
-        True/False if the difference if negative/positive.
+        True/False if the difference is negative/positive.
 
         Our approach to determining (whether we can compute) the sign of self - other is overly
         simplistic: we raise an exception to indicate failure if the difference is a sum of too
@@ -651,12 +651,6 @@ class Polynomial(VectorMixin, OperatorMixin, NumberMixin):
             for monomial_2, coeff_2 in self:
                 new[monomial_1 * monomial_2] += coeff_1 * coeff_2
         return new
-
-    def __pow__(self, other):
-        if type(other) == int and other == 0:
-            return Polynomial(1)
-        else:
-            return super(Polynomial, self).__pow__(other)
 
     def truediv__int(self, other):
         return self.truediv__helper(QuadraticNumber(other))

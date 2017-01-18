@@ -72,7 +72,7 @@ def get_coxeter_graph(coxeter_type, rank):
 def solve(coxeter_type, rank, verbosity, verify, limit):
     try:
         g = get_coxeter_graph(coxeter_type, rank)
-    except Exception as e:
+    except:
         print('Invalid type and rank: (%s, %s)' % (coxeter_type, rank))
     else:
         q = BraidQueue(g, verbose_level=verbosity)
