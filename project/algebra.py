@@ -250,7 +250,8 @@ class QuadraticNumber(VectorMixin, OperatorMixin, NumberMixin):
     """
     Class for objects representing rational linear combinations of square roots of integers,
     with the usual field operations and (for real-valued objects) the usual total ordering
-    on real numbers.
+    on real numbers. QuadraticNumbers are implemented as vectors spanned by
+    PrimeFactorizations with RationalNumber coefficients.
     """
 
     class ImaginaryComparisonException(Exception):
@@ -407,10 +408,10 @@ class QuadraticNumber(VectorMixin, OperatorMixin, NumberMixin):
     @classmethod
     def sqrt(cls, i):
         """
-        Returns QuadraticNumber which gives positive square root of input, if this exists.
+        Returns QuadraticNumber which is the positive square root of the input, if this exists.
         The input i must be an int, a RationalNumber, or a QuadraticNumber of the form
-        a + b sqrt(c) for rational numbers a, b, c (we do not check whether the input has
-        a quadratic square root if it is a more complicated QuadraticNumber).
+        a + b sqrt(c) for rational numbers a, b, c (we do not check whether the input has a
+        square root if its form is more complicated than this, even though one might exist.).
         """
         if type(i) == QuadraticNumber and i.is_rational():
             i = i.get_rational_part()
@@ -469,7 +470,7 @@ class QuadraticNumber(VectorMixin, OperatorMixin, NumberMixin):
     def conjugate(self):
         """
         When self has form (a_0 + a_1 sqrt(n_1) + a_2 sqrt(n_2) + ...), this method
-        returns product of all sums (a_0 +/- a_1 sqrt(n_1) +/- a_2 sqrt(n_2) + ...).
+        returns product of all sums (a_0 +/- a_1 sqrt(n_1) +/- a_2 sqrt(n_2) +/- ...).
         """
         a = self.get_rational_part()
         b = self - a
@@ -492,7 +493,19 @@ class QuadraticNumber(VectorMixin, OperatorMixin, NumberMixin):
 
 
 class Monomial:
+
+    """
+    Class for objects representing monomials, that is, products of commuting indeterminates (and
+    their inverses). Formally, a monomial is just a dict with integer values, but unlike a dict,
+    objects of this class are hashable and orderable, can be multiplied with each other, and so on.
+    """
+
     def __init__(self, exponents=None):
+        """
+        Input must be int or nonempty string (taken to be name of a single variable with
+        exponent 1) or a dict with int values and keys which are all strings or all ints.
+        There are some minor conditions on which strings can serve as variables names.
+        """
         if exponents is None:
             self.exponents = {}
         else:
@@ -576,6 +589,21 @@ class Monomial:
 
 class Polynomial(VectorMixin, OperatorMixin, NumberMixin):
 
+    """
+    Class for objects representing polynomials in commuting variables. Polynomials are
+    implemented here as vectors spanned by Monomials with QuadraticNumber coefficients.
+
+    The most important quirk in our implementation is how the comparators <, <=, >, and >= are
+    defined. Specifically:
+
+        f < g returns True iff (f - g) has all positive real coefficients and nonzero constant term.
+        f <= g returns True iff (f - g) is zero or has all positive real coefficients.
+
+    The reverse operators > and >= are defined symmetrically. These definitions give us a simple
+    way to check if f has positive or nonnegative values for all nonnegative inputs (this happens
+    if 0 < f or 0 <= f). Note, however, that (f <= g) is not the same as (f < g or f == g).
+    """
+
     @property
     def coefficients(self):
         return self._coefficients
@@ -589,6 +617,11 @@ class Polynomial(VectorMixin, OperatorMixin, NumberMixin):
         return Polynomial(1)
 
     def __init__(self, i=None):
+        """
+        Input must be int, RationalNumber, QuadraticNumber, dict, or Monomial.
+        In the first three cases, returns constant polynomial with given constant term.
+        In last two cases, returns polynomial representing the given monomial.
+        """
         if i is None or (type(i) in [int, RationalNumber, QuadraticNumber] and i == 0):
             self._coefficients = {}
         elif type(i) == str or type(i) == dict:
@@ -703,7 +736,6 @@ class Polynomial(VectorMixin, OperatorMixin, NumberMixin):
             i = Monomial()
         elif type(i) in [dict, str]:
             i = Monomial(i)
-
         return super(Polynomial, self).__getitem__(i)
 
     def __repr__(self):
@@ -810,11 +842,15 @@ class Polynomial(VectorMixin, OperatorMixin, NumberMixin):
     def is_rational(self):
         if self.is_constant():
             v = self.get_constant_part()
-            if type(v) == int or v.is_rational():
-                return True
+            return type(v) == int or v.is_rational()
         return False
 
     def set_variable(self, variable, value):
+        """
+        Return polynomial given by replacing given variable in self with provided value.
+        The input variable must be a linear Monomial, or a valid input to Monomial.__init__
+        that constructs a linear Monomial.
+        """
         try:
             assert type(value) in [int, RationalNumber, QuadraticNumber, Polynomial]
 
