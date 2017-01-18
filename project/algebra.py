@@ -13,14 +13,6 @@ from project.utils import (
 
 class RationalNumber(OperatorMixin, NumberMixin):
 
-    @property
-    def coefficients(self):
-        return self._coefficients
-
-    @coefficients.setter
-    def coefficients(self, value):
-        self._coefficients = value
-
     def __init__(self, p=0, q=1):
         if type(p) == type(q) == RationalNumber:
             p, q = (p.numerator * q.denominator, q.numerator * p.denominator)
