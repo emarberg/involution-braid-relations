@@ -20,7 +20,8 @@ class CoxeterGraph:
     """
     Class for objects representing Coxeter graphs with a distinguisehd graph involution.
     This data classifies twisted Coxeter systems up to isomorphism, and encodes
-    the order of any product of simple generators in an associated Coxeter group.
+    the order of any product of simple generators in an associated Coxeter group,
+    as well as the action of a fixed group automorphism of order one or two.
     """
 
     class EvalBilinearException(Exception):
@@ -428,6 +429,12 @@ class CoxeterGraph:
 
 
 class Root(VectorMixin, NumberMixin):
+
+    """
+    Class for objects representing linear combinations of roots belonging to the root system
+    of a given Coxeter system. This is equivalent to the data encoding a vector in the geometric
+    representation of a Coxeter group.
+    """
 
     @property
     def coefficients(self):
