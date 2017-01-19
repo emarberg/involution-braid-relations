@@ -565,7 +565,18 @@ class Root(VectorMixin, NumberMixin):
 
 
 class RootTransform:
+
+    """
+    Class for objects which represent linear transformations T : U -> V where V is the
+    geometric representation of a Coxeter system and U is a subspace of V spanned by some
+    subset of simple roots.
+    """
+
     def __init__(self, coxeter_graph, sigma={}):
+        """
+        Input `sigma` should be dict whose keys are elements of coxeter_graph.generators and
+        whose values are Roots from the Root system of the given coxeter_graph.
+        """
         if all(i in coxeter_graph.generators for i in sigma) and \
            all(type(r) == Root and r.graph == coxeter_graph for r in sigma.values()):
             self.graph = coxeter_graph
