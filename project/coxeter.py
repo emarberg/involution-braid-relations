@@ -431,9 +431,10 @@ class CoxeterGraph:
 class Root(VectorMixin, NumberMixin):
 
     """
-    Class for objects representing linear combinations of roots belonging to the root system
-    of a given Coxeter system. This is equivalent to the data encoding a vector in the geometric
-    representation of a Coxeter group.
+    Class for objects representing linear combinations of roots from the root system
+    of a given Coxeter system. This is equivalent to the data encoding a vector in the
+    geometric representation of the input Coxeter group. Coefficients in these vectors
+    should be ints, RationalNumbers, QuadraticNumbers, or Polynomials.
     """
 
     @property
@@ -445,6 +446,10 @@ class Root(VectorMixin, NumberMixin):
         self._coefficients = value
 
     def __init__(self, coxeter_graph, index=None, coeff=1):
+        """
+        If index is None, returns zero vector. Otherwise, index should be an element of
+        coxeter_graph.generators.
+        """
         self.graph = coxeter_graph
         if index is None or coeff == 0:
             self._coefficients = {}
@@ -462,6 +467,10 @@ class Root(VectorMixin, NumberMixin):
             return False
 
     def eval_bilinear(self, other):
+        """
+        Returns value of standard bilinear form evaluated at self and other, where other
+        is another Root object (or a generator index which will be converted to a Root).
+        """
         try:
             is_generator = (other in self.graph.generators)
         except:
@@ -479,14 +488,16 @@ class Root(VectorMixin, NumberMixin):
         else:
             raise InvalidInputException(self, other, 'eval_bilinear')
 
-    def reflect(self, index):
-        if index in self.graph.generators:
-            v = 2 * self.eval_bilinear(index)
-            return self - Root(self.graph, index, v)
+    def reflect(self, i):
+        """Given index i, returns root: self - 2 <self, alpha_i> alpha_i."""
+        if i in self.graph.generators:
+            v = 2 * self.eval_bilinear(i)
+            return self - Root(self.graph, i, v)
         else:
-            raise InvalidInputException(self, index, 'reflect')
+            raise InvalidInputException(self, i, 'reflect')
 
     def is_constant(self):
+        """Returns true if all coefficients are constant polynomials."""
         return not any(type(v) == Polynomial and not v.is_constant() for i, v in self)
 
     def is_positive(self):
@@ -502,8 +513,8 @@ class Root(VectorMixin, NumberMixin):
         both polynomials whose coefficients are all nonnegative and whose constant
         coefficients are positive.
 
-        An 'invalid' linear combination does not specialize to a positive or negative root
-        for any choice of nonnegative indeterminate values.
+        An invalid linear combination does not specialize to a positive or negative root
+        for any choice of nonnegative variable inputs.
         """
         if self.is_zero():
             return False
@@ -532,6 +543,7 @@ class Root(VectorMixin, NumberMixin):
             raise OperatorException(self, other, '__add__')
 
     def __mul__(self, other):
+        """Implements scalar multiplication."""
         new = Root(self.graph)
         if other != 0:
             new.coefficients = {i: other * self[i] for i in self.coefficients}
@@ -541,10 +553,11 @@ class Root(VectorMixin, NumberMixin):
         return hash((self.graph,) + tuple(self[i] for i in self.graph.generators))
 
     def __pow__(self, exponent):
+        """Overrides NumberMixin.__pow__ implementation."""
         raise NotImplementedError  # pragma: no cover
 
     def __repr__(self):
-        return super(Root, self).__repr__()[1:-1]
+        return super(Root, self).__repr__()[1:-1]  # slicing removes '(' and ')' characters
 
     @classmethod
     def get_index_repr(cls, index):
