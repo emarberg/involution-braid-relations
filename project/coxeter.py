@@ -616,6 +616,11 @@ class PartialTransform:
 
     @property
     def unconditional_descents(self):
+        """
+        Returns set of unconditional descents of a PartialTransform object.
+        An index i is an unconditional descent if alpha_i -> sum_j f_j alpha_j where for some j the
+        coefficient f_j is a polynomial with all negative coefficients and nonzero constant term.
+        """
         if self._unconditional_descents is None:
             self._unconditional_descents = {
                 i for i in self.sigma
@@ -625,6 +630,11 @@ class PartialTransform:
 
     @property
     def strong_conditional_descents(self):
+        """
+        Returns set of strong unconditional descents of a PartialTransform object.
+        An index i is a strong unconditional descent if alpha_i -> sum_j f_j alpha_j where
+        for some j the coefficient f_j is a polynomial with all negative coefficients.
+        """
         if self._strong_conditional_descents is None:
             self._strong_conditional_descents = {
                 i for i in self.sigma
@@ -634,6 +644,12 @@ class PartialTransform:
 
     @property
     def weak_conditional_descents(self):
+        """
+        Returns set of weak unconditional descents of a PartialTransform object.
+        An index i is a weak unconditional descent if alpha_i -> sum_j f_j alpha_j where
+        for some j the coefficient f_j is a polynomial with a negative coefficient
+        or zero constant term.
+        """
         if self._weak_conditional_descents is None:
             self._weak_conditional_descents = {
                 i for i in self.sigma
@@ -643,10 +659,12 @@ class PartialTransform:
 
     @classmethod
     def identity(cls, coxeter_graph):
+        """Returns PartialTransform corresponding to identity map on geometric representation."""
         sigma = {i: CoxeterVector(coxeter_graph, i) for i in coxeter_graph.generators}
         return cls(coxeter_graph, sigma)
 
     def __mul__(self, j):
+        """Returns composition of PartialTransform with image of s_j in geometric representation."""
         if j not in self.graph.generators:
             raise InvalidInputException(self, j, '__mul__')
         new = {}
@@ -659,6 +677,7 @@ class PartialTransform:
         return self.__class__(self.graph, new)
 
     def __rmul__(self, j):
+        """Returns composition of image of s_j in geometric representation with PartialTransform."""
         if j not in self.graph.generators:
             raise InvalidInputException(self, j, '__rmul__')
         new = {}
@@ -704,10 +723,25 @@ class PartialTransform:
 
 
 class CoxeterTransform(PartialTransform):
+
+    """
+    Class for objects which encode the (invertible) linear transformations which arise as images
+    of elements of a Coxeter group in its geometric representation. This is implemented
+    as a subclass of PartialTransform, but has a new constructor and a few new properties.
+    """
+
     def __init__(self, coxeter_graph, sigma=None):
+        """
+        Input `sigma` should be a dict whose key set is set(oxeter_graph.generators) and
+        whose values are CoxeterVectors with constant coefficients. The constructor does
+        not check if the provided inputs define a linear transformation from a group element.
+        """
         if sigma:
             keys_valid = set(sigma.keys()) == set(coxeter_graph.generators)
-            roots_valid = all(type(r) == CoxeterVector and r.graph == coxeter_graph for r in sigma.values())
+            roots_valid = all(
+                type(r) == CoxeterVector and r.graph == coxeter_graph
+                for r in sigma.values()
+            )
             nonvariable = all(r.is_constant() for r in sigma.values())
             if keys_valid and roots_valid and nonvariable:
                 self.sigma = sigma.copy()
@@ -857,17 +891,17 @@ class CoxeterWord:
 
     @property
     def left_descents(self):
-        """Returns left descent set of group element represented by self."""
+        """Returns left descent set of group element represented by a CoxeterWord."""
         return self.right_action.right_descents
 
     @property
     def right_descents(self):
-        """Returns right descent set of group element represented by self."""
+        """Returns right descent set of group element represented by a CoxeterWord."""
         return self.left_action.right_descents
 
     @property
     def minimal_reduced_word(self):
-        """Returns lexicographically minimal reduced word for self, read left to right."""
+        """Returns lexicographically minimal reduced word for a CoxeterWord, read left to right."""
         return reverse_tuple(self.right_action.minimal_reduced_word)
 
     def __eq__(self, other):
@@ -889,6 +923,7 @@ class CoxeterWord:
         return new
 
     def get_reduced_words(self):
+        """Computes and returns set of all reduced words for group element of a CoxeterWord."""
         ans = set()
         to_add = {self.word}
         while to_add:
