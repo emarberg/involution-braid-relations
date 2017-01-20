@@ -137,7 +137,7 @@ class OperatorMixin:
             return self.mul__quadratic_number(other)
         elif type(other).__name__ == 'Polynomial':
             return self.mul__polynomial(other)
-        elif type(other).__name__ == 'Root':
+        elif type(other).__name__ == 'CoxeterVector':
             return other * self
         else:
             raise OperatorException(self, other, '__mul__')

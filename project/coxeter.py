@@ -19,9 +19,7 @@ class CoxeterGraph:
 
     """
     Class for objects representing Coxeter graphs with a distinguisehd graph involution.
-    This data classifies twisted Coxeter systems up to isomorphism, and encodes
-    the order of any product of simple generators in an associated Coxeter group,
-    as well as the action of a fixed group automorphism of order one or two.
+    This data classifies twisted Coxeter systems up to isomorphism.
     """
 
     class EvalBilinearException(Exception):
@@ -428,12 +426,12 @@ class CoxeterGraph:
         return CoxeterGraph([(1, 2, 6), (2, 3, 3)])
 
 
-class Root(VectorMixin, NumberMixin):
+class CoxeterVector(VectorMixin, NumberMixin):
 
     """
-    Class for objects representing linear combinations of roots from the root system
-    of a given Coxeter system. This is equivalent to the data encoding a vector in the
-    geometric representation of the input Coxeter group. Coefficients in these vectors
+    Class for objects encoding individual vectors in the geometric representation
+    of a provided Coxeter system, i.e., linear combinations of simple roots in the
+    root system associated to the input Coxeter group. Coefficients in these vectors
     should be ints, RationalNumbers, QuadraticNumbers, or Polynomials.
     """
 
@@ -461,15 +459,15 @@ class Root(VectorMixin, NumberMixin):
     def is_comparable(self, other):
         if type(other) == int and other == 0:
             return True
-        elif type(other) == Root and other.graph == self.graph:
+        elif type(other) == CoxeterVector and other.graph == self.graph:
             return True
         else:
             return False
 
     def eval_bilinear(self, other):
         """
-        Returns value of standard bilinear form evaluated at self and other, where other
-        is another Root object (or a generator index which will be converted to a Root).
+        Returns value of standard bilinear form evaluated at self and other, where other is another
+        CoxeterVector object (or a generator index which will be converted to a CoxeterVector).
         """
         try:
             is_generator = (other in self.graph.generators)
@@ -477,9 +475,9 @@ class Root(VectorMixin, NumberMixin):
             is_generator = False
 
         if is_generator:
-            other = Root(self.graph, other)
+            other = CoxeterVector(self.graph, other)
 
-        if type(other) == Root and other.graph == self.graph:
+        if type(other) == CoxeterVector and other.graph == self.graph:
             ans = 0
             for i, u in self:
                 for j, v in other:
@@ -489,10 +487,10 @@ class Root(VectorMixin, NumberMixin):
             raise InvalidInputException(self, other, 'eval_bilinear')
 
     def reflect(self, i):
-        """Given index i, returns root: self - 2 <self, alpha_i> alpha_i."""
+        """Given index i, returns (self - 2 <self, alpha_i> alpha_i)."""
         if i in self.graph.generators:
             v = 2 * self.eval_bilinear(i)
-            return self - Root(self.graph, i, v)
+            return self - CoxeterVector(self.graph, i, v)
         else:
             raise InvalidInputException(self, i, 'reflect')
 
@@ -508,7 +506,7 @@ class Root(VectorMixin, NumberMixin):
 
     def is_valid(self):
         """
-        A Root object, which is a linear combination sum_i c_i alpha_i of simple roots,
+        A CoxeterVector object, which is a linear combination sum_i c_i alpha_i of simple roots,
         is 'invalid' if it is zero or if for some i and j it holds that -c_i and c_j are
         both polynomials whose coefficients are all nonnegative and whose constant
         coefficients are positive.
@@ -523,7 +521,7 @@ class Root(VectorMixin, NumberMixin):
         return True
 
     def set_variable(self, variable, value):
-        new = Root(self.graph)
+        new = CoxeterVector(self.graph)
         for i, v in self:
             if type(v) == Polynomial:
                 v = v.set_variable(variable, value)
@@ -533,10 +531,10 @@ class Root(VectorMixin, NumberMixin):
 
     def __add__(self, other):
         if other == 0:
-            other = Root(self.graph)
-        if type(other) == Root and self.graph == other.graph:
+            other = CoxeterVector(self.graph)
+        if type(other) == CoxeterVector and self.graph == other.graph:
             indices = set(self.coefficients.keys()) | set(other.coefficients.keys())
-            new = Root(self.graph)
+            new = CoxeterVector(self.graph)
             new.coefficients = {i: self[i] + other[i] for i in indices if (self[i] + other[i]) != 0}
             return new
         else:
@@ -544,7 +542,7 @@ class Root(VectorMixin, NumberMixin):
 
     def __mul__(self, other):
         """Implements scalar multiplication."""
-        new = Root(self.graph)
+        new = CoxeterVector(self.graph)
         if other != 0:
             new.coefficients = {i: other * self[i] for i in self.coefficients}
         return new
@@ -557,14 +555,14 @@ class Root(VectorMixin, NumberMixin):
         raise NotImplementedError  # pragma: no cover
 
     def __repr__(self):
-        return super(Root, self).__repr__()[1:-1]  # slicing removes '(' and ')' characters
+        return super(CoxeterVector, self).__repr__()[1:-1]  # slicing removes '(' and ')' characters
 
     @classmethod
     def get_index_repr(cls, index):
         return 'alpha_' + str(index)
 
 
-class RootTransform:
+class PartialTransform:
 
     """
     Class for objects which represent linear transformations T : U -> V where V is the
@@ -575,10 +573,10 @@ class RootTransform:
     def __init__(self, coxeter_graph, sigma={}):
         """
         Input `sigma` should be dict whose keys are elements of coxeter_graph.generators and
-        whose values are Roots from the Root system of the given coxeter_graph.
+        whose values are CoxeterVectors whose graph fields match coxeter_graph.
         """
         if all(i in coxeter_graph.generators for i in sigma) and \
-           all(type(r) == Root and r.graph == coxeter_graph for r in sigma.values()):
+           all(type(r) == CoxeterVector and r.graph == coxeter_graph for r in sigma.values()):
             self.graph = coxeter_graph
             self.sigma = sigma.copy()
             self._unconditional_descents = None
@@ -588,7 +586,7 @@ class RootTransform:
             raise InvalidInputException(self, (coxeter_graph, sigma))
 
     def __eq__(self, other):
-        return isinstance(other, RootTransform) and \
+        return isinstance(other, PartialTransform) and \
             other.graph == self.graph and other.sigma == self.sigma
 
     def __getitem__(self, i):
@@ -603,18 +601,18 @@ class RootTransform:
         self._weak_conditional_descents = None
 
     def copy(self):
-        other = RootTransform(self.graph, self.sigma)
+        other = PartialTransform(self.graph, self.sigma)
         other._unconditional_descents = self._unconditional_descents
         other._strong_conditional_descents = self._unconditional_descents
         other._weak_conditional_descents = self._weak_conditional_descents
         return other
 
-    def __setitem__(self, i, value):
-        if i in self.graph.generators and type(value) == Root and value.graph == self.graph:
-            self.sigma[i] = value
+    def __setitem__(self, i, val):
+        if i in self.graph.generators and type(val) == CoxeterVector and val.graph == self.graph:
+            self.sigma[i] = val
             self._unset_cached_properties()
         else:
-            raise InvalidInputException(self, (i, value), '__setitem__')
+            raise InvalidInputException(self, (i, val), '__setitem__')
 
     @property
     def unconditional_descents(self):
@@ -645,7 +643,7 @@ class RootTransform:
 
     @classmethod
     def identity(cls, coxeter_graph):
-        sigma = {i: Root(coxeter_graph, i) for i in coxeter_graph.generators}
+        sigma = {i: CoxeterVector(coxeter_graph, i) for i in coxeter_graph.generators}
         return cls(coxeter_graph, sigma)
 
     def __mul__(self, j):
@@ -653,7 +651,7 @@ class RootTransform:
             raise InvalidInputException(self, j, '__mul__')
         new = {}
         for i in self.sigma:
-            root = Root(self.graph, i).reflect(j)
+            root = CoxeterVector(self.graph, i).reflect(j)
             for k, v in root:
                 if k not in self.sigma:
                     raise InvalidInputException(self, j, '__mul__')
@@ -694,7 +692,7 @@ class RootTransform:
 
     def is_identity(self):
         if sorted(self.sigma.keys()) == self.graph.generators:
-            return all(self.sigma[i] == Root(self.graph, i) for i in self.graph.generators)
+            return all(self.sigma[i] == CoxeterVector(self.graph, i) for i in self.graph.generators)
         return False
 
     def __repr__(self):
@@ -705,18 +703,18 @@ class RootTransform:
         return s
 
 
-class CoxeterTransform(RootTransform):
+class CoxeterTransform(PartialTransform):
     def __init__(self, coxeter_graph, sigma=None):
         if sigma:
             keys_valid = set(sigma.keys()) == set(coxeter_graph.generators)
-            roots_valid = all(type(r) == Root and r.graph == coxeter_graph for r in sigma.values())
+            roots_valid = all(type(r) == CoxeterVector and r.graph == coxeter_graph for r in sigma.values())
             nonvariable = all(r.is_constant() for r in sigma.values())
             if keys_valid and roots_valid and nonvariable:
                 self.sigma = sigma.copy()
             else:
                 raise InvalidInputException(self, sigma)
         else:
-            self.sigma = {i: Root(coxeter_graph, i) for i in coxeter_graph.generators}
+            self.sigma = {i: CoxeterVector(coxeter_graph, i) for i in coxeter_graph.generators}
         self.graph = coxeter_graph
         self._right_descents = None
         self._minimal_right_descent = None
@@ -742,7 +740,7 @@ class CoxeterTransform(RootTransform):
         self._minimal_reduced_word = None
 
     def __setitem__(self, i, value):
-        if not (value.is_constant() and type(value) == Root and value.graph == self.graph):
+        if not (value.is_constant() and type(value) == CoxeterVector and value.graph == self.graph):
             raise InvalidInputException(self, (i, value), '__setitem__')
         elif i not in self.graph.generators:
             raise InvalidInputException(self, (i, value), '__setitem__')
@@ -842,6 +840,12 @@ class CoxeterTransform(RootTransform):
 
 
 class CoxeterWord:
+
+    """
+    Class for objects representing finite sequences of simple generators in a Coxeter group,
+    i.e., factorizations of Coxeter group elements into simple generators.
+    """
+
     def __init__(self, coxeter_graph, word=()):
         self.graph = coxeter_graph
         self.word = ()
@@ -853,10 +857,12 @@ class CoxeterWord:
 
     @property
     def left_descents(self):
+        """Returns left descent set of group element represented by self."""
         return self.right_action.right_descents
 
     @property
     def right_descents(self):
+        """Returns right descent set of group element represented by self."""
         return self.left_action.right_descents
 
     @property
@@ -876,7 +882,7 @@ class CoxeterWord:
     def to_involution(self):
         new = CoxeterWord(self.graph)
         for i in self.word:
-            alpha = Root(self.graph, self.graph.star(i))
+            alpha = CoxeterVector(self.graph, self.graph.star(i))
             if new.left_action[i] not in [alpha, -alpha]:
                 new.extend_left(self.graph.star(i))
             new.extend_right(i)
@@ -926,6 +932,7 @@ class CoxeterWord:
             (type(other) == int and other in self.graph.generators)
 
     def __mul__(self, other):
+        """Input `other` must be int or CoxeterWord."""
         if not self._is_valid_argument(other):
             raise InvalidInputException(self, type(other), '__mul__')
 
@@ -939,6 +946,7 @@ class CoxeterWord:
         return new
 
     def __rmul__(self, other):
+        """Input `other` must be int or CoxeterWord."""
         if not self._is_valid_argument(other):
             raise InvalidInputException(self, type(other), '__rmul__')
 

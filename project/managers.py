@@ -12,8 +12,8 @@ from project.algebra import (
 from project.coxeter import (
     CoxeterTransform,
     CoxeterWord,
-    Root,
-    RootTransform
+    CoxeterVector,
+    PartialTransform
 )
 
 from project.utils import (
@@ -38,7 +38,7 @@ class ConstraintsManager:
         self.quadratic_constraints = set()
         # list of linear Polynomials which must be <= 0
         self.nonpositive_constraints = set()
-        # list of Roots which must be != 0
+        # list of CoxeterVectors which must be != 0
         self.nonzero_constraints = set()
 
     def __eq__(self, other):
@@ -61,9 +61,9 @@ class ConstraintsManager:
     def add_zero_constraint(self, constraint):
         """
         Add input Polynomial `constraint` to linear or quadratic constraints accordingly.
-        If input is a Root, do the same for all of its coefficients.
+        If input is a CoxeterVector, do the same for all of its coefficients.
         """
-        if type(constraint) == Root:
+        if type(constraint) == CoxeterVector:
             for v in constraint.coefficients.values():
                 self.add_zero_constraint(v)
             return
@@ -84,9 +84,9 @@ class ConstraintsManager:
         """
         Add input Polynomial `constraint` to nonpositive constraints. If -constraint
         is already in this set, then we call `add_zero_constraint` with `constraint` as input.
-        If input is a Root, do the same for all of its coefficients.
+        If input is a CoxeterVector, do the same for all of its coefficients.
         """
-        if type(constraint) == Root:
+        if type(constraint) == CoxeterVector:
             for v in constraint.coefficients.values():
                 self.add_nonpositive_constraint(v)
             return
@@ -101,7 +101,7 @@ class ConstraintsManager:
             self.nonpositive_constraints.add(constraint)
 
     def add_nonzero_constraint(self, root):
-        if type(root) == Root:
+        if type(root) == CoxeterVector:
             self.nonzero_constraints.add(root)
         else:
             raise InvalidInputException(self, root, 'add_nonzero_constraint')
@@ -214,7 +214,7 @@ class PartialBraid:
             self.graph = coxeter_graph
             self.s = s
             self.t = t
-            self.sigma = RootTransform(coxeter_graph)
+            self.sigma = PartialTransform(coxeter_graph)
             self.word_s = CoxeterWord(coxeter_graph)
             self.word_t = CoxeterWord(coxeter_graph)
             self.constraints = ConstraintsManager()
@@ -297,10 +297,10 @@ class PartialBraid:
 
     def get_conditional_descent(self):
         for i in self.sigma:
-            nonpositive_part = Root(self.graph)
+            nonpositive_part = CoxeterVector(self.graph)
             for j, f in self.sigma[i]:
                 if f <= 0 or any(f <= g for g in self.constraints.nonpositive_constraints):
-                    nonpositive_part += Root(self.graph, j, f)
+                    nonpositive_part += CoxeterVector(self.graph, j, f)
             if nonpositive_part != 0:
                 return i, nonpositive_part
 
@@ -345,15 +345,15 @@ class PartialBraid:
             self.word_t.extend_left(gens[(i + 1) % 2])
 
     def _get_first_children(self):
-        alpha = Root(self.graph, self.graph.star(self.s))
-        beta = Root(self.graph, self.graph.star(self.t))
+        alpha = CoxeterVector(self.graph, self.graph.star(self.s))
+        beta = CoxeterVector(self.graph, self.graph.star(self.t))
 
         fixer = PartialBraid(self.graph, self.s, self.t)
-        fixer.sigma = RootTransform(self.graph, {self.s: alpha, self.t: beta})
+        fixer.sigma = PartialTransform(self.graph, {self.s: alpha, self.t: beta})
         fixer._extend_words(is_fixer=True)
 
         transposer = PartialBraid(self.graph, self.s, self.t)
-        transposer.sigma = RootTransform(self.graph, {self.s: beta, self.t: alpha})
+        transposer.sigma = PartialTransform(self.graph, {self.s: beta, self.t: alpha})
         transposer._extend_words(is_fixer=False)
 
         return [fixer, transposer]
@@ -368,7 +368,7 @@ class PartialBraid:
 
     def _get_children_from_unconditional_descent(self, descent):
         if self.sigma[descent].is_constant():
-            commutes = (self.sigma[descent] == Root(self.graph, self.graph.star(descent), -1))
+            commutes = (self.sigma[descent] == CoxeterVector(self.graph, self.graph.star(descent), -1))
             return [self._branch_from_descent(descent, commutes=commutes)]
         else:
             return [
@@ -381,7 +381,7 @@ class PartialBraid:
         Returns list of three children constructed from a 'conditional descent'.
 
         The input `descent` is an element of self.graph.generators and the input `nonpositive_root`
-        is the "nonpositive part" of self.sigma[descent]: the Root formed from a linear
+        is the "nonpositive part" of self.sigma[descent]: the CoxeterVector formed from a linear
         combination of simple roots by omitting all summands except those whose coefficients
         are constrained to be nonpositive. The value of `nonpositive_root` is determined by
         `descent`, and it is assumed that this value is not identically zero.
@@ -406,7 +406,7 @@ class PartialBraid:
         return [child_a, child_b, child_c]
 
     def _branch_from_descent(self, i, commutes=True):
-        alpha = Root(self.graph, self.graph.star(i))
+        alpha = CoxeterVector(self.graph, self.graph.star(i))
         beta = self.sigma[i]
 
         new = self.copy()
@@ -434,7 +434,7 @@ class PartialBraid:
             # add child with new descent i
             child = self.copy()
             child._clear_constraints()
-            child.sigma[i] = sum([-Polynomial({j: 1}) * Root(g, j) for j in g.generators])
+            child.sigma[i] = sum([-Polynomial({j: 1}) * CoxeterVector(g, j) for j in g.generators])
             for j in child.sigma:
                 child.constraints.add_zero_constraint(
                     child.sigma[i].eval_bilinear(child.sigma[j]) - g.eval_bilinear(i, j)
@@ -445,7 +445,7 @@ class PartialBraid:
         child = self.copy()
         for i in g.generators:
             if i not in child.sigma:
-                child.sigma[i] = Root(g, i)
+                child.sigma[i] = CoxeterVector(g, i)
         children.append(child)
         return children
 

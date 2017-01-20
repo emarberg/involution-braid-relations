@@ -14,8 +14,8 @@ from project.algebra import (
 
 from project.coxeter import (
     CoxeterGraph,
-    Root,
-    RootTransform,
+    CoxeterVector,
+    PartialTransform,
     CoxeterTransform,
     CoxeterWord
 )
@@ -224,25 +224,25 @@ class TestCoxeterGraph:
         assert type(e) == CoxeterGraph.EvalBilinearException
 
 
-class TestRoot:
+class TestCoxeterVector:
     def test_constructor(self):
         g = CoxeterGraph.A(5)
 
-        zero = Root(g)
+        zero = CoxeterVector(g)
         assert zero.coefficients == {}
 
-        one = Root(g, 1)
+        one = CoxeterVector(g, 1)
         assert one.coefficients == {1: 1}
         assert 1 in one and 2 not in one
 
-        nonzero = Root(g, 1, Polynomial('x'))
+        nonzero = CoxeterVector(g, 1, Polynomial('x'))
         assert nonzero.coefficients == {1: Polynomial('x')}
         assert 1 in one and 2 not in one
 
         # second argument to root constructor must belong of g.generators
         e = None
         try:
-            Root(g, 0)
+            CoxeterVector(g, 0)
         except Exception as exception:
             e = exception
         assert type(e) == InvalidInputException
@@ -252,9 +252,9 @@ class TestRoot:
         h = CoxeterGraph.A(5)
 
         # can only compare roots with other roots with same graph, or the int 0
-        r = Root(g)
+        r = CoxeterVector(g)
         assert r == 0 and 0 == r
-        for zero in [RationalNumber(0), QuadraticNumber(0), Polynomial(0), Root(h)]:
+        for zero in [RationalNumber(0), QuadraticNumber(0), Polynomial(0), CoxeterVector(h)]:
             e = None
             try:
                 r == zero
@@ -270,24 +270,24 @@ class TestRoot:
             assert type(e) == OperatorException
 
         # r and s are linearly independent vectors, so clearly not equal
-        r = Root(g, 1)
-        s = Root(g, 2)
+        r = CoxeterVector(g, 1)
+        s = CoxeterVector(g, 2)
         assert r != s
 
         # roots should be considered equal if their coefficients represent the same numbers
-        a = Root(g, 1, 2)
-        b = Root(g, 1, RationalNumber(2))
-        c = Root(g, 1, QuadraticNumber(2))
-        d = Root(g, 1, Polynomial(2))
+        a = CoxeterVector(g, 1, 2)
+        b = CoxeterVector(g, 1, RationalNumber(2))
+        c = CoxeterVector(g, 1, QuadraticNumber(2))
+        d = CoxeterVector(g, 1, Polynomial(2))
 
         assert a == b == c == d and d == c == b == a
         assert len({a, b, c, d}) == 1
 
     def test_eval_bilinear(self):
         g = CoxeterGraph.F(4)
-        r = Root(g, 1)
-        s = Root(g, 2)
-        t = Root(g, 3)
+        r = CoxeterVector(g, 1)
+        s = CoxeterVector(g, 2)
+        t = CoxeterVector(g, 3)
 
         # <alpha, alpha> == 1 for any root alpha
         assert r.eval_bilinear(r) == r.eval_bilinear(1) == 1
@@ -307,9 +307,9 @@ class TestRoot:
         assert (r + s).reflect(3) == r + s + QuadraticNumber.sqrt(2) * t
 
     def test_eval_bilinear_errors(self):
-        """Test error handling for various invalid inputs to Root.eval_bilinear()."""
+        """Test error handling for various invalid inputs to CoxeterVector.eval_bilinear()."""
         g = CoxeterGraph.F(4)
-        r = Root(g, 1)
+        r = CoxeterVector(g, 1)
 
         # int inputs to r.eval_bilinear or r.reflect must belong to r.graph.generators
         e = None
@@ -328,9 +328,9 @@ class TestRoot:
         assert type(e) == InvalidInputException
 
         h = CoxeterGraph.H(4)
-        u = Root(h, 1)
+        u = CoxeterVector(h, 1)
 
-        # cannot compute r.eval_bilinear() if input Root has different CoxeterGraph
+        # cannot compute r.eval_bilinear() if input CoxeterVector has different CoxeterGraph
         e = None
         try:
             r.eval_bilinear(u)
@@ -339,42 +339,42 @@ class TestRoot:
         assert type(e) == InvalidInputException
 
     def test_set_variables(self):
-        """Tests for Root.set_variable method."""
+        """Tests for CoxeterVector.set_variable method."""
         x = Polynomial({0: 1})
         y = Polynomial({1: 1})
 
         g = CoxeterGraph.F(4)
-        a = Root(g, 1, x)
-        b = Root(g, 2, y)
-        c = Root(g, 3, x + y)
+        a = CoxeterVector(g, 1, x)
+        b = CoxeterVector(g, 2, y)
+        c = CoxeterVector(g, 3, x + y)
 
-        assert a.set_variable(0, 3) == Root(g, 1, 3)
+        assert a.set_variable(0, 3) == CoxeterVector(g, 1, 3)
         assert a.set_variable(1, 3) == a
-        assert a.set_variable(0, 0) == Root(g)
+        assert a.set_variable(0, 0) == CoxeterVector(g)
 
-        assert (a + b + c).set_variable(0, 1) == Root(g, 1) + b + (1 + y) * Root(g, 3)
-        # assert (a + b + c).set_variables_to_zero({0}) == (Root(g, 2) + Root(g, 3))*y
-        # assert (a + b + c).set_variables_to_zero({1}) == (Root(g, 1) + Root(g, 3))*x
+        assert (a + b + c).set_variable(0, 1) == CoxeterVector(g, 1) + b + (1 + y) * CoxeterVector(g, 3)
+        # assert (a + b + c).set_variables_to_zero({0}) == (CoxeterVector(g, 2) + CoxeterVector(g, 3))*y
+        # assert (a + b + c).set_variables_to_zero({1}) == (CoxeterVector(g, 1) + CoxeterVector(g, 3))*x
         # assert (a + b + c).set_variables_to_zero({0, 1}) == 0
 
     def test_add(self):
         g = CoxeterGraph.F(4)
-        a = Root(g, 1, 1) - Root(g, 2, 1)
-        b = Root(g, 2, 1) - Root(g, 3, 1)
+        a = CoxeterVector(g, 1, 1) - CoxeterVector(g, 2, 1)
+        b = CoxeterVector(g, 2, 1) - CoxeterVector(g, 3, 1)
         assert (a + b).coefficients == {1: 1, 3: -1}
 
         assert a + 0 == 0 + a == a
         e = None
         try:
-            a + Root(CoxeterGraph.H(3), 3)
+            a + CoxeterVector(CoxeterGraph.H(3), 3)
         except Exception as exception:
             e = exception
         assert type(e) == OperatorException
 
     def test_power_error(self):
-        """Test that ** operator is not implemented for Root objects."""
+        """Test that ** operator is not implemented for CoxeterVector objects."""
         g = CoxeterGraph.E(8)
-        r = Root(g, 1) + Root(g, 8)
+        r = CoxeterVector(g, 1) + CoxeterVector(g, 8)
         try:
             r**2
         except NotImplementedError:
@@ -384,21 +384,21 @@ class TestRoot:
         """Tests for methods is_constant, is_positive, is_negative, and is_valid."""
         g = CoxeterGraph.E(8)
 
-        r = Root(g, 1, Polynomial(8))
-        s = Root(g, 2, Polynomial('x') + 1)
+        r = CoxeterVector(g, 1, Polynomial(8))
+        s = CoxeterVector(g, 2, Polynomial('x') + 1)
         assert r.is_constant()
         assert not s.is_constant()
 
         t = -r - s
         u = r - s
-        v = Root(g, 3, Polynomial('x') - 1)
+        v = CoxeterVector(g, 3, Polynomial('x') - 1)
         assert r.is_positive() and not r.is_negative()
         assert s.is_positive() and not r.is_negative()
         assert not t.is_positive() and t.is_negative()
         assert not u.is_positive() and not u.is_negative()
         assert not v.is_positive() and not v.is_negative()
 
-        z = Root(g)
+        z = CoxeterVector(g)
         assert z.is_zero()
 
         # z is not 'valid' since it is zero
@@ -415,47 +415,47 @@ class TestRoot:
 
     def test_repr(self):
         g = CoxeterGraph.A(5)
-        r = Root(g)
+        r = CoxeterVector(g)
         assert str(r) == '0'
 
 
-class TestRootTransform:
+class TestPartialTransform:
     def test_constructor(self):
         g = CoxeterGraph.A(5)
-        T = RootTransform(g)
+        T = PartialTransform(g)
         assert T.graph == g
         assert T.sigma == {}
         assert T.unconditional_descents == set()
         assert T.strong_conditional_descents == set()
         assert T.weak_conditional_descents == set()
 
-        sigma = {1: -Root(g, 2), 2: Root(g, 1)}
-        T = RootTransform(g, sigma)
+        sigma = {1: -CoxeterVector(g, 2), 2: CoxeterVector(g, 1)}
+        T = PartialTransform(g, sigma)
         assert T.sigma == sigma
         # check that changes to sigma do not affect T after construction
         del sigma[1]
-        assert T.sigma == {1: -Root(g, 2), 2: Root(g, 1)}
+        assert T.sigma == {1: -CoxeterVector(g, 2), 2: CoxeterVector(g, 1)}
         assert T.unconditional_descents == {1}
         assert T.strong_conditional_descents == {1}
         assert T.weak_conditional_descents == {1}
 
         T[1] *= Polynomial('x')
         # T now has no unconditional descents, but 1 is a conditional descent
-        assert T.sigma == {1: -Root(g, 2, Polynomial('x')), 2: Root(g, 1)}
+        assert T.sigma == {1: -CoxeterVector(g, 2, Polynomial('x')), 2: CoxeterVector(g, 1)}
         assert T.unconditional_descents == set()
         assert T.strong_conditional_descents == {1}
         assert T.weak_conditional_descents == {1}
 
-        T[1] += Root(g, 2)
+        T[1] += CoxeterVector(g, 2)
         # T now has no strong conditional descents, but 1 is a weak conditional descent
-        assert T.sigma == {1: Root(g, 2, 1 - Polynomial('x')), 2: Root(g, 1)}
+        assert T.sigma == {1: CoxeterVector(g, 2, 1 - Polynomial('x')), 2: CoxeterVector(g, 1)}
         assert T.unconditional_descents == set()
         assert T.strong_conditional_descents == set()
         assert T.weak_conditional_descents == {1}
 
-        T[1] += Root(g, 2, 2 * Polynomial('x'))
+        T[1] += CoxeterVector(g, 2, 2 * Polynomial('x'))
         # T now has no descents, although T is not trivial
-        assert T.sigma == {1: Root(g, 2, 1 + Polynomial('x')), 2: Root(g, 1)}
+        assert T.sigma == {1: CoxeterVector(g, 2, 1 + Polynomial('x')), 2: CoxeterVector(g, 1)}
         assert T.unconditional_descents == set()
         assert T.strong_conditional_descents == set()
         assert T.weak_conditional_descents == set()
@@ -465,62 +465,62 @@ class TestRootTransform:
         g = CoxeterGraph.A(5)
         e = None
         try:
-            RootTransform(g, {0: 0})
+            PartialTransform(g, {0: 0})
         except Exception as exception:
             e = exception
         assert type(e) == InvalidInputException
 
         e = None
         try:
-            RootTransform(g, {1: Root(CoxeterGraph.B(5), 1)})
+            PartialTransform(g, {1: CoxeterVector(CoxeterGraph.B(5), 1)})
         except Exception as exception:
             e = exception
         assert type(e) == InvalidInputException
 
-        T = RootTransform(g, {1: -Root(g, 2), 2: Root(g, 1)})
+        T = PartialTransform(g, {1: -CoxeterVector(g, 2), 2: CoxeterVector(g, 1)})
         e = None
         try:
-            T[1] = Root(CoxeterGraph.B(5), 1)
+            T[1] = CoxeterVector(CoxeterGraph.B(5), 1)
         except Exception as exception:
             e = exception
         assert type(e) == InvalidInputException
 
     def test_eq(self):
         g = CoxeterGraph.A(5)
-        T = RootTransform(g, {1: Root(g, 2, 1 + Polynomial('x')), 2: Root(g, 1)})
+        T = PartialTransform(g, {1: CoxeterVector(g, 2, 1 + Polynomial('x')), 2: CoxeterVector(g, 1)})
         U = T
         V = T.copy()
 
-        T[1] = Root(g)
+        T[1] = CoxeterVector(g)
         assert U[1] == 0 and U == T
-        assert V[1] == Root(g, 2, 1 + Polynomial('x')) and T != V
+        assert V[1] == CoxeterVector(g, 2, 1 + Polynomial('x')) and T != V
         assert len({T, U, V}) == len({T, V}) == 2
 
     def test_multiply(self):
         g = CoxeterGraph.A(5)
-        T = RootTransform(g, {1: Root(g, 2, 1 + Polynomial('x')), 2: Root(g, 1)})
+        T = PartialTransform(g, {1: CoxeterVector(g, 2, 1 + Polynomial('x')), 2: CoxeterVector(g, 1)})
 
         U = T * 1
         assert U.sigma == {
-            1: -Root(g, 2, 1 + Polynomial('x')),
-            2: Root(g, 1) + Root(g, 2, 1 + Polynomial('x'))
+            1: -CoxeterVector(g, 2, 1 + Polynomial('x')),
+            2: CoxeterVector(g, 1) + CoxeterVector(g, 2, 1 + Polynomial('x'))
         }
 
         V = 1 * T
         assert V.sigma == {
-            1: (Root(g, 1) + Root(g, 2)) * (1 + Polynomial('x')),
-            2: -Root(g, 1)
+            1: (CoxeterVector(g, 1) + CoxeterVector(g, 2)) * (1 + Polynomial('x')),
+            2: -CoxeterVector(g, 1)
         }
 
         W = 1 * T * 1
         assert W.sigma == {
-            1: -(Root(g, 1) + Root(g, 2)) * (1 + Polynomial('x')),
-            2: Root(g, 1, Polynomial('x')) + Root(g, 2, 1 + Polynomial('x'))
+            1: -(CoxeterVector(g, 1) + CoxeterVector(g, 2)) * (1 + Polynomial('x')),
+            2: CoxeterVector(g, 1, Polynomial('x')) + CoxeterVector(g, 2, 1 + Polynomial('x'))
         }
 
     def test_multiplication_errors(self):
         g = CoxeterGraph.A(5)
-        T = RootTransform(g, {1: Root(g, 2, 1 + Polynomial('x')), 2: Root(g, 1)})
+        T = PartialTransform(g, {1: CoxeterVector(g, 2, 1 + Polynomial('x')), 2: CoxeterVector(g, 1)})
 
         # cannot multiply by 6 since this is not a generator for the Coxeter system A5
         e = None
@@ -548,8 +548,8 @@ class TestRootTransform:
     def test_convenience_methods(self):
         """Tests for various convenience methods of RooTransform objects."""
         g = CoxeterGraph.A(5)
-        sigma = {1: Root(g, 2, 1 + Polynomial('x')), 2: Root(g, 1)}
-        T = RootTransform(g, sigma)
+        sigma = {1: CoxeterVector(g, 2, 1 + Polynomial('x')), 2: CoxeterVector(g, 1)}
+        T = PartialTransform(g, sigma)
 
         assert not T.is_constant()
         assert not T.is_complete()
@@ -561,14 +561,14 @@ class TestRootTransform:
         assert {i for i in T} == {1, 2}
         assert set(T.values()) == set(sigma.values())
 
-        U = RootTransform.identity(g)
-        assert U.sigma == {i: Root(g, i) for i in g.generators}
+        U = PartialTransform.identity(g)
+        assert U.sigma == {i: CoxeterVector(g, i) for i in g.generators}
         assert U.is_constant()
         assert U.is_complete()
         assert U.is_positive()
         assert U.is_identity()
 
-        # check (non-)conversion of RootTransform to CoxeterTransform
+        # check (non-)conversion of PartialTransform to CoxeterTransform
         e = None
         try:
             T.to_coxeter_transform()
@@ -579,7 +579,7 @@ class TestRootTransform:
         V = U * 1 * 2 * 3
         assert V.to_coxeter_transform().minimal_reduced_word == (1, 2, 3)
 
-        # try converting RootTransforms to str, check that no errors occur
+        # try converting PartialTransforms to str, check that no errors occur
         str(U)
         str(V)
 
@@ -589,17 +589,17 @@ class TestCoxeterTransform:
         g = CoxeterGraph.B(3)
         T = CoxeterTransform(g)
         assert T.graph == g
-        assert T.sigma == {i: Root(g, i) for i in g.generators}
+        assert T.sigma == {i: CoxeterVector(g, i) for i in g.generators}
         assert T.right_descents == set()
         assert T.minimal_right_descent is None
         assert T.minimal_reduced_word == ()
 
-        sigma = {i: -Root(g, i) for i in g.generators}
+        sigma = {i: -CoxeterVector(g, i) for i in g.generators}
         T = CoxeterTransform(g, sigma)
         assert T.graph == g
         assert T.sigma == sigma
         sigma.clear()
-        assert T.sigma == {i: -Root(g, i) for i in g.generators}
+        assert T.sigma == {i: -CoxeterVector(g, i) for i in g.generators}
         assert T.right_descents == {0, 1, 2}
         assert T.minimal_right_descent is 0
         assert T.minimal_reduced_word == (2, 1, 0, 1, 2, 1, 0, 1, 0)
@@ -609,7 +609,7 @@ class TestCoxeterTransform:
         g = CoxeterGraph.B(3)
         e = None
         try:
-            CoxeterTransform(g, {0: Root(g, 0)})
+            CoxeterTransform(g, {0: CoxeterVector(g, 0)})
         except Exception as exception:
             e = exception
         assert type(e) == InvalidInputException
@@ -617,21 +617,21 @@ class TestCoxeterTransform:
         h = CoxeterGraph.A(3)
         e = None
         try:
-            CoxeterTransform(g, {0: Root(g, 0), 1: Root(g, 1), 2: Root(h, 2)})
+            CoxeterTransform(g, {0: CoxeterVector(g, 0), 1: CoxeterVector(g, 1), 2: CoxeterVector(h, 2)})
         except Exception as exception:
             e = exception
         assert type(e) == InvalidInputException
 
         e = None
         try:
-            CoxeterTransform(g, {0: Root(g, 0), 1: Root(g, 1), 2: Root(g, Polynomial('x'))})
+            CoxeterTransform(g, {0: CoxeterVector(g, 0), 1: CoxeterVector(g, 1), 2: CoxeterVector(g, Polynomial('x'))})
         except Exception as exception:
             e = exception
         assert type(e) == InvalidInputException
 
     def test_get_inverse(self):
         g = CoxeterGraph.B(3)
-        T = CoxeterTransform(g, {i: -Root(g, i) for i in g.generators})
+        T = CoxeterTransform(g, {i: -CoxeterVector(g, i) for i in g.generators})
         assert T == T.get_inverse()
 
         U = CoxeterTransform(g)
@@ -639,13 +639,13 @@ class TestCoxeterTransform:
 
     def test_eq(self):
         g = CoxeterGraph.B(2)
-        T = RootTransform(g, {0: Root(g, 0), 1: Root(g, 1)})
-        U = CoxeterTransform(g, {0: Root(g, 0), 1: Root(g, 1)})
+        T = PartialTransform(g, {0: CoxeterVector(g, 0), 1: CoxeterVector(g, 1)})
+        U = CoxeterTransform(g, {0: CoxeterVector(g, 0), 1: CoxeterVector(g, 1)})
         assert T == U
 
         V = U.copy()
-        V[0] = -Root(g, 0)
-        V[1] = -Root(g, 1)
+        V[0] = -CoxeterVector(g, 0)
+        V[1] = -CoxeterVector(g, 1)
 
         assert T == U and U != V
         assert not hasattr(T, 'minimal_reduced_word')
@@ -655,12 +655,12 @@ class TestCoxeterTransform:
 
     def test_setitem_errors(self):
         g = CoxeterGraph.B(2)
-        V = CoxeterTransform(g, {0: Root(g, 0), 1: Root(g, 1)})
+        V = CoxeterTransform(g, {0: CoxeterVector(g, 0), 1: CoxeterVector(g, 1)})
 
-        # cannot assign value which is non-constant Root
+        # cannot assign value which is non-constant CoxeterVector
         e = None
         try:
-            V[0] = -Root(g, 0, Polynomial('x'))
+            V[0] = -CoxeterVector(g, 0, Polynomial('x'))
         except Exception as exception:
             e = exception
         assert type(e) == InvalidInputException
@@ -668,7 +668,7 @@ class TestCoxeterTransform:
         # cannot assign to index which is not in g.generators
         e = None
         try:
-            V[2] = Root(g, 1)
+            V[2] = CoxeterVector(g, 1)
         except Exception as exception:
             e = exception
         assert type(e) == InvalidInputException

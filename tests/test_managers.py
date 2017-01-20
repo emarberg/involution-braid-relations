@@ -16,8 +16,8 @@ from project.coxeter import (
     CoxeterGraph,
     CoxeterTransform,
     CoxeterWord,
-    Root,
-    RootTransform
+    CoxeterVector,
+    PartialTransform
 )
 
 from project.managers import (
@@ -48,7 +48,10 @@ class TestConstraintsManager:
         f = Polynomial('x')**3
 
         g = CoxeterGraph.A(5)
-        r = Root(g, 1, a) + Root(g, 2, b) + Root(g, 3, c) + Root(g, 4, d) + Root(g, 5, e)
+        r = CoxeterVector(g, 1, a) + \
+            CoxeterVector(g, 2, b) + \
+            CoxeterVector(g, 3, c) + \
+            CoxeterVector(g, 4, d) + CoxeterVector(g, 5, e)
 
         manager.add_zero_constraint(a)
         assert a in manager.linear_constraints
@@ -98,7 +101,7 @@ class TestConstraintsManager:
         f = -Polynomial('x')**3
 
         g = CoxeterGraph.A(5)
-        r = Root(g, 1, a) + Root(g, 4, d) + Root(g, 5, e)
+        r = CoxeterVector(g, 1, a) + CoxeterVector(g, 4, d) + CoxeterVector(g, 5, e)
 
         manager.add_nonpositive_constraint(a)
         manager.add_nonpositive_constraint(b)
@@ -118,7 +121,7 @@ class TestConstraintsManager:
         manager.nonpositive_constraints = set()
         assert len(manager.nonpositive_constraints) == 0
 
-        # check that adding Root as nonpositive constraint introduces constraint for each coeff
+        # check that adding CoxeterVector as constraint introduces constraint for each coeff
         manager.add_nonpositive_constraint(r)
         assert manager.nonpositive_constraints == {a, d, e}
 
@@ -145,12 +148,12 @@ class TestConstraintsManager:
         c = -Polynomial('x') * Polynomial('y')
 
         g = CoxeterGraph.A(5)
-        r = Root(g, 1, a) + Root(g, 4, b) + Root(g, 5, c)
+        r = CoxeterVector(g, 1, a) + CoxeterVector(g, 4, b) + CoxeterVector(g, 5, c)
 
         manager.add_nonzero_constraint(r)
         assert manager.nonzero_constraints == {r}
 
-        # input to manager.add_nonzero_constraint must be a Root
+        # input to manager.add_nonzero_constraint must be a CoxeterVector
         exception = None
         try:
             manager.add_nonzero_constraint(c)
@@ -165,7 +168,7 @@ class TestConstraintsManager:
         manager.add_zero_constraint(Polynomial('x'))
         manager.add_zero_constraint(Polynomial('x') * Polynomial('y'))
         manager.add_nonpositive_constraint(Polynomial('x') - 1)
-        manager.add_nonzero_constraint(Root(CoxeterGraph.A(5), 1, Polynomial('y')))
+        manager.add_nonzero_constraint(CoxeterVector(CoxeterGraph.A(5), 1, Polynomial('y')))
         assert str(manager) != ''
 
     def test_eq(self):
@@ -218,7 +221,7 @@ class TestConstraintsManager:
 
         # check that method removes nonzero roots from set of nonzero constraints
         g = CoxeterGraph.A(5)
-        r = Root(g, 1)
+        r = CoxeterVector(g, 1)
         manager.add_nonzero_constraint(r)
         assert manager.nonzero_constraints == {r}
         manager.remove_vacuous_constraints()
@@ -237,7 +240,7 @@ class TestConstraintsManager:
         manager.add_zero_constraint(y + z)
         manager.add_nonpositive_constraint(3 - y)
         manager.add_zero_constraint(x + y**2)
-        manager.add_nonzero_constraint(Root(g, 1, x))
+        manager.add_nonzero_constraint(CoxeterVector(g, 1, x))
 
         variable_substitutions = set(manager.simplify())
         assert variable_substitutions == {
@@ -248,7 +251,7 @@ class TestConstraintsManager:
         assert manager.linear_constraints == set()
         assert manager.quadratic_constraints == {4}
         assert manager.nonpositive_constraints == {1}
-        assert manager.nonzero_constraints == {Root(g)}
+        assert manager.nonzero_constraints == {CoxeterVector(g)}
         assert not manager.is_valid()
 
 
@@ -287,13 +290,17 @@ class TestPartialBraid:
         state = PartialBraid(g, s=1, t=2)
         state._extend_words(True)
 
-        state.sigma = RootTransform(g, {1: -Root(g, 1), 3: -Root(g, 3)})
+        state.sigma = PartialTransform(g, {1: -CoxeterVector(g, 1), 3: -CoxeterVector(g, 3)})
         assert state.get_unconditional_descent() == 1
 
-        state.sigma = RootTransform(g, {1: Root(g, 1), 3: -Root(g, 3, 1 + Polynomial('x'))})
+        state.sigma = PartialTransform(
+            g, {1: CoxeterVector(g, 1), 3: -CoxeterVector(g, 3, 1 + Polynomial('x'))}
+        )
         assert state.get_unconditional_descent() == 3
 
-        state.sigma = RootTransform(g, {1: Root(g, 1), 3: -Root(g, 3, Polynomial('x'))})
+        state.sigma = PartialTransform(
+            g, {1: CoxeterVector(g, 1), 3: -CoxeterVector(g, 3, Polynomial('x'))}
+        )
         assert state.get_unconditional_descent() is None
 
     def test_get_conditional_descent(self):
@@ -301,36 +308,39 @@ class TestPartialBraid:
         g = CoxeterGraph.A(3)
         state = PartialBraid(g, s=1, t=2)
 
-        state.sigma = RootTransform(g, {1: -Root(g, 1), 3: -Root(g, 3)})
-        assert state.get_conditional_descent() == (1, -Root(g, 1))
+        state.sigma = PartialTransform(g, {1: -CoxeterVector(g, 1), 3: -CoxeterVector(g, 3)})
+        assert state.get_conditional_descent() == (1, -CoxeterVector(g, 1))
 
-        state.sigma = RootTransform(g, {1: -Root(g, 1) + Root(g, 2) - Root(g, 3, x)})
-        assert state.get_conditional_descent() == (1, -Root(g, 1) - Root(g, 3, x))
+        state.sigma = PartialTransform(
+            g, {1: -CoxeterVector(g, 1) + CoxeterVector(g, 2) - CoxeterVector(g, 3, x)}
+        )
+        assert state.get_conditional_descent() == (1, -CoxeterVector(g, 1) - CoxeterVector(g, 3, x))
 
-        state.sigma = RootTransform(g, {
-            1: (1 - x) * Root(g, 2),
-            2: (x - 1) * (Root(g, 1) - Root(g, 2) + Root(g, 3))
+        state.sigma = PartialTransform(g, {
+            1: (1 - x) * CoxeterVector(g, 2),
+            2: (x - 1) * (CoxeterVector(g, 1) - CoxeterVector(g, 2) + CoxeterVector(g, 3))
         })
         assert state.get_conditional_descent() is None
 
         state.constraints.nonpositive_constraints.add(x - 1)
-        assert state.get_conditional_descent() == (2, (x - 1) * (Root(g, 1) + Root(g, 3)))
+        assert state.get_conditional_descent() == \
+            (2, (x - 1) * (CoxeterVector(g, 1) + CoxeterVector(g, 3)))
 
     def test_is_sigma_valid(self):
         g = CoxeterGraph.A(3)
         state = PartialBraid(g, s=1, t=2)
 
-        state.sigma = RootTransform(g, {1: Root(g, 1) - Root(g, 2)})
+        state.sigma = PartialTransform(g, {1: CoxeterVector(g, 1) - CoxeterVector(g, 2)})
         assert not state._is_sigma_valid()
 
-        state.sigma = RootTransform(g, {
-            1: Root(g, 3),
-            2: Root(g, 2),
-            3: Root(g, 1)
+        state.sigma = PartialTransform(g, {
+            1: CoxeterVector(g, 3),
+            2: CoxeterVector(g, 2),
+            3: CoxeterVector(g, 1)
         })
         assert not state._is_sigma_valid()
 
-        state.sigma = RootTransform.identity(g)
+        state.sigma = PartialTransform.identity(g)
         state.word_s = CoxeterWord(g, (1, 2))
         state.word_t = CoxeterWord(g, (3, 2))
         assert not state._is_sigma_valid()
