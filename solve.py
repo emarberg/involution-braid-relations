@@ -12,7 +12,8 @@ def get_arguments():
         help='type of (twisted) Coxeter system',
         choices=['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H',
                  '2A', '2B', '2C', '2D', '2E', '2F', '2G',
-                 'A~', 'B~', 'C~', 'D~', 'E~', 'F~', 'G~']
+                 'A~', 'B~', 'C~', 'D~', 'E~', 'F~', 'G~',
+                 '2A~']
     )
     parser.add_argument(
         '--rank',
@@ -65,6 +66,7 @@ def get_coxeter_graph(coxeter_type, rank):
         'E~': CoxeterGraph.E_tilde,
         'F~': CoxeterGraph.F_tilde,
         'G~': CoxeterGraph.G_tilde,
+        '2A~': CoxeterGraph.A_tilde_twist
     }
     return coxeter_graph_constructor_dict[coxeter_type](rank)
 
