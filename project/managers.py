@@ -671,29 +671,7 @@ class BraidQueue:
         """Returns string with multiplicities of lengths of word_s/t fields in queue states."""
         return self._get_multiplicities(lambda state: len(state.word_s))
 
-    def go(self, do_sanity_check=False, limit=None):
-        """
-        Process all states in queue to find sufficient spanning relations,
-        then reduce these to a minimal set.
-
-        If boolean input `do_sanity_check` is True, then we explicitly check that
-        minimal relations generate all sets of involution words.
-
-        If integer input `limit` is provided, then we only look for relations of length
-        less than or equal to this limit. In this case, `do_sanity_check` must be True,
-        since the truncated algorithm is not guaranteed to find a sufficient set of relations.
-        """
-        if limit is not None and not do_sanity_check:
-            raise Exception('Error: `--verify` is required if `--limit` is given')
-
-        self._print_status('Step 1: Finding sufficient relations.')
-        t0 = time.time()
-        while len(self) > 0 and (limit is None or len(self.queue[0]) <= limit):
-            self.next()
-        # sort by word length, then lexicographically
-        sufficient = sorted(self.sufficient_relations, key=lambda x: (len(x[0]), x))
-        t1 = time.time()
-
+    def _summarize(self, do_sanity_check, t0, t1, sufficient):
         self._print_status('')
         self._print_status('Duration: %s seconds' % (t1 - t0))
         self._print_status('')
@@ -727,13 +705,14 @@ class BraidQueue:
         self._print_status('')
         self._print_status('Total duration: %s + %s = %s seconds' % (t1 - t0, t2 - t1, t2 - t0))
 
-        self._print_status('')
-        self._print_status('--------------')
-        self._print_status('Cyclic states:')
-        self._print_status('--------------')
-        self._print_status('')
-        for i, state in enumerate(self.cyclic_states):
-            print('%s. %s' % (i + 1, state))
+        if len(self.cyclic_states) > 0:
+            self._print_status('')
+            self._print_status('--------------')
+            self._print_status('Cyclic states:')
+            self._print_status('--------------')
+            self._print_status('')
+            for i, state in enumerate(self.cyclic_states):
+                print('%s. %s' % (i + 1, state))
 
         if not do_sanity_check:
             return
@@ -747,6 +726,32 @@ class BraidQueue:
 
         self._print('')
         self._print_status('Verifying relations took %s seconds' % (t3 - t2))
+
+    def go(self, do_sanity_check=False, limit=None):
+        """
+        Process all states in queue to find sufficient spanning relations,
+        then reduce these to a minimal set.
+
+        If boolean input `do_sanity_check` is True, then we explicitly check that
+        minimal relations generate all sets of involution words.
+
+        If integer input `limit` is provided, then we only look for relations of length
+        less than or equal to this limit. In this case, `do_sanity_check` must be True,
+        since the truncated algorithm is not guaranteed to find a sufficient set of relations.
+        """
+        if limit is not None and not do_sanity_check:
+            raise Exception('Error: `--verify` is required if `--limit` is given')
+
+        self._print_status('Step 1: Finding sufficient relations.')
+
+        t0 = time.time()
+        while len(self) > 0 and (limit is None or len(self.queue[0]) <= limit):
+            self.next()
+        # sort by word length, then lexicographically
+        sufficient = sorted(self.sufficient_relations, key=lambda x: (len(x[0]), x))
+        t1 = time.time()
+
+        self._summarize(do_sanity_check, t0, t1, sufficient)
 
     def minimize_relations(self):
         """
