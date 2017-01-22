@@ -301,6 +301,11 @@ class TestPartialBraid:
         state.sigma = PartialTransform(
             g, {1: CoxeterVector(g, 1), 3: -CoxeterVector(g, 3, Polynomial('x'))}
         )
+        assert state.get_unconditional_descent() is 3
+
+        state.sigma = PartialTransform(
+            g, {1: CoxeterVector(g, 1), 3: CoxeterVector(g, 3, 1 - Polynomial('x'))}
+        )
         assert state.get_unconditional_descent() is None
 
     def test_get_conditional_descent(self):

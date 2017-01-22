@@ -208,6 +208,14 @@ class ConstraintsManager:
         )
 
 
+class CyclicStateException(Exception):
+    MAX_LENGTH = 32
+
+    def __init__(self, state):
+        self.state = state
+        super(CyclicStateException, self).__init__('Cyclic state')
+
+
 class PartialBraid:
     def __init__(self, coxeter_graph, s, t):
         if s in coxeter_graph.generators and t in coxeter_graph.generators:
@@ -239,7 +247,7 @@ class PartialBraid:
         if conditional:
             conditional = conditional[0]
 
-        s = '\n'
+        s = ''
         s += 'PartialBraid data:\n'
         s += '----------------------------------------------------------------\n'
         s += 's = %s, word_s = %s\n' % (self.s, self.word_s)
@@ -287,6 +295,15 @@ class PartialBraid:
         descents_to_avoid = self.word_s.left_descents | self.word_t.left_descents
         unconditional = self.sigma.unconditional_descents
 
+        for i in self.sigma:
+            if i in unconditional:
+                continue
+            if all(
+                f <= 0 or any(f <= g for g in self.constraints.nonpositive_constraints)
+                for j, f in self.sigma[i]
+            ):
+                unconditional.add(i)
+
         intersection = unconditional & descents_to_avoid
         if intersection:
             return intersection.pop()
@@ -309,7 +326,12 @@ class PartialBraid:
             children = self._get_first_children()
             return children, 'first iteration'
 
-        if self.constraints.quadratic_constraints:
+        determinant = self.get_determinant()
+        if determinant is not None and determinant not in [-1, 1]:
+            children = self._get_children_from_determinant_constraint(determinant)
+            return children, 'determinant constraint'
+
+        if len(self.constraints.quadratic_constraints) > 0:
             constraint = next(iter(self.constraints.quadratic_constraints))
             try:
                 children = self._get_children_from_quadratic_constraint(constraint)
@@ -319,12 +341,12 @@ class PartialBraid:
                 return children, 'reducing quadratic constraint'
 
         unconditional = self.get_unconditional_descent()
-        if unconditional:
+        if unconditional is not None:
             children = self._get_children_from_unconditional_descent(unconditional)
             return children, 'unconditional descent'
 
         conditional = self.get_conditional_descent()
-        if conditional:
+        if conditional is not None:
             descent, nonpositive_root = conditional
             children = self._get_children_from_conditional_descent(descent, nonpositive_root)
             return children, 'conditional descent'
@@ -335,12 +357,9 @@ class PartialBraid:
 
         raise Exception('Current state does not match any branching rule: %s' % self)  # pragma: no cover
 
-    def _get_semiorder(self, is_fixer):
-        return self.graph.get_semiorder(self.s, self.t, is_fixer)
-
     def _extend_words(self, is_fixer):
         gens = [self.s, self.t]
-        for i in range(self._get_semiorder(is_fixer)):
+        for i in range(self.graph.get_semiorder(self.s, self.t, is_fixer)):
             self.word_s.extend_left(gens[i % 2])
             self.word_t.extend_left(gens[(i + 1) % 2])
 
@@ -358,6 +377,13 @@ class PartialBraid:
 
         return [fixer, transposer]
 
+    def _get_children_from_determinant_constraint(self, determinant):
+        positive_child = self.copy()
+        positive_child.constraints.add_zero_constraint(determinant - 1)
+        negative_child = self.copy()
+        negative_child.constraints.add_zero_constraint(determinant + 1)
+        return [positive_child, negative_child]
+
     def _get_children_from_quadratic_constraint(self, constraint):
         children = []
         for factor in constraint.get_real_quadratic_factors():
@@ -367,14 +393,25 @@ class PartialBraid:
         return children
 
     def _get_children_from_unconditional_descent(self, descent):
-        if self.sigma[descent].is_constant():
-            commutes = (self.sigma[descent] == CoxeterVector(self.graph, self.graph.star(descent), -1))
-            return [self._branch_from_descent(descent, commutes=commutes)]
-        else:
+        if not self.sigma[descent].is_constant():
             return [
                 self._branch_from_descent(descent, commutes=True),
                 self._branch_from_descent(descent, commutes=False)
             ]  # pragma: no cover
+
+        new = self
+        for _ in range(CyclicStateException.MAX_LENGTH):
+            commutes = (new.sigma[descent] == -CoxeterVector(new.graph, new.graph.star(descent)))
+            new = new._branch_from_descent(descent, commutes=commutes)
+            new.reduce()
+            if not new.is_valid():
+                return []
+
+            descent = new.get_unconditional_descent()
+            if descent is None or not new.sigma[descent].is_constant():
+                return [new]
+
+        raise CyclicStateException(new)
 
     def _get_children_from_conditional_descent(self, descent, nonpositive_root):
         """
@@ -497,6 +534,9 @@ class PartialBraid:
             for i in self.sigma:
                 self.sigma[i] = self.sigma[i].set_variable(var, substitution)
 
+    def get_determinant(self):
+        return self.sigma.get_determinant()
+
 
 class BraidQueue:
 
@@ -530,6 +570,7 @@ class BraidQueue:
         else:
             self.queue = [PartialBraid(coxeter_graph, s, t)]
 
+        self.cyclic_states = []
         self.sufficient_relations = set()
         self.minimal_relations = []
         self.verbose_level = verbose_level
@@ -550,9 +591,9 @@ class BraidQueue:
     def _update(self, children):
         """Add new states from input list `children` to self.queue or to self.final."""
         added = False
-        for child in children:
+        for i, child in enumerate(children):
             if child not in self.queue:
-                self._print_verbose(child)
+                self._print_verbose('%s. %s' % (i + 1, child))
                 if child.is_leaf():
                     self._add_to_sufficient_relations(child)
                 else:
@@ -588,20 +629,26 @@ class BraidQueue:
             self._print_verbose('-----------')
             self._print_verbose('Next state:')
             self._print_verbose('-----------')
+            self._print_verbose('')
             self._print_verbose(next_state)
 
-            children, description = next_state.branch()
-            self._print(description)
-
-            self._print_verbose('')
-            self._print_verbose('-------------')
-            self._print_verbose('Child states:')
-            self._print_verbose('-------------')
-            self._update(children)
-            self._print('States in queue                  : %s' % len(self))
-            self._print('Multiplicities by word length    : %s' % self.word_multiplicities())
-            self._print('Multiplicities by non-blank roots: %s' % self.root_multiplicities())
-            self._print('Relations found                  : %s' % len(self.sufficient_relations))
+            try:
+                children, description = next_state.branch()
+            except CyclicStateException as e:
+                self.cyclic_states += [e.state]
+            else:
+                self._print(description)
+                self._print_verbose('')
+                self._print_verbose('-------------')
+                self._print_verbose('Child states:')
+                self._print_verbose('-------------')
+                self._print_verbose('')
+                self._update(children)
+                self._print('States in queue                  : %s' % len(self))
+                self._print('Multiplicities by word length    : %s' % self.word_multiplicities())
+                self._print('Multiplicities by non-blank roots: %s' % self.root_multiplicities())
+                self._print('Relations found                  : %s' % len(self.sufficient_relations))
+                self._print('Cyclic states                    : %s' % len(self.cyclic_states))
 
     def _get_multiplicities(self, state_to_length_fn):
         multiplicities = defaultdict(int)
@@ -675,6 +722,14 @@ class BraidQueue:
 
         self._print_status('')
         self._print_status('Total duration: %s + %s = %s seconds' % (t1 - t0, t2 - t1, t2 - t0))
+
+        self._print_status('')
+        self._print_status('--------------')
+        self._print_status('Cyclic states:')
+        self._print_status('--------------')
+        self._print_status('')
+        for i, state in enumerate(self.cyclic_states):
+            print('%s. %s' % (i + 1, state))
 
         if not do_sanity_check:
             return
