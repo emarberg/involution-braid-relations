@@ -588,19 +588,32 @@ class BraidQueue:
     def _print_verbose(self, string, end=None):
         self._print(string, end=end, level=self.VERBOSE_LEVEL_HIGH)
 
-    def _update(self, children):
+    def _update(self, children, description):
         """Add new states from input list `children` to self.queue or to self.final."""
-        added = False
-        for i, child in enumerate(children):
+        self._print(description)
+        self._print_verbose('')
+        self._print_verbose('-------------')
+        self._print_verbose('Child states:')
+        self._print_verbose('-------------')
+        self._print_verbose('')
+
+        i = 0
+        for child in children:
             if child not in self.queue:
-                self._print_verbose('%s. %s' % (i + 1, child))
                 if child.is_leaf():
                     self._add_to_sufficient_relations(child)
                 else:
                     self._insert(child)
-                    added = True
-        if not added:
+                    self._print_verbose('%s. %s' % (i + 1, child))
+                    i += 1
+        if i == 0:
             self._print_verbose('\n(no states added)\n')
+
+        self._print('States in queue                  : %s' % len(self))
+        self._print('Multiplicities by word length    : %s' % self.word_multiplicities())
+        self._print('Multiplicities by non-blank roots: %s' % self.root_multiplicities())
+        self._print('Relations found                  : %s' % len(self.sufficient_relations))
+        self._print('Cyclic states                    : %s' % len(self.cyclic_states))
 
     def _insert(self, child):
         """Insert child into queue so as to preserve ordering by length."""
@@ -618,37 +631,28 @@ class BraidQueue:
         else:
             self.sufficient_relations.add((v, u))
 
+    def _get_next_state(self):
+        next_state = self.queue.pop(0)
+        self._print_verbose('')
+        self._print_verbose('-----------')
+        self._print_verbose('Next state:')
+        self._print_verbose('-----------')
+        self._print_verbose('')
+        self._print_verbose(next_state)
+        return next_state
+
     def next(self):
         """Pop first state from queue, compute its children, then append these to the queue."""
         if len(self) == 0:
             self._print('Queue is empty')
         else:
-            next_state = self.queue.pop(0)
-
-            self._print_verbose('')
-            self._print_verbose('-----------')
-            self._print_verbose('Next state:')
-            self._print_verbose('-----------')
-            self._print_verbose('')
-            self._print_verbose(next_state)
-
+            next_state = self._get_next_state()
             try:
                 children, description = next_state.branch()
             except CyclicStateException as e:
                 self.cyclic_states += [e.state]
             else:
-                self._print(description)
-                self._print_verbose('')
-                self._print_verbose('-------------')
-                self._print_verbose('Child states:')
-                self._print_verbose('-------------')
-                self._print_verbose('')
-                self._update(children)
-                self._print('States in queue                  : %s' % len(self))
-                self._print('Multiplicities by word length    : %s' % self.word_multiplicities())
-                self._print('Multiplicities by non-blank roots: %s' % self.root_multiplicities())
-                self._print('Relations found                  : %s' % len(self.sufficient_relations))
-                self._print('Cyclic states                    : %s' % len(self.cyclic_states))
+                self._update(children, description)
 
     def _get_multiplicities(self, state_to_length_fn):
         multiplicities = defaultdict(int)
