@@ -384,6 +384,7 @@ class PartialBraid:
 
         new = self
         try:
+            iterations = 0
             while True:
                 commutes = new.sigma[descent] == -CoxeterVector(new.graph, new.graph.star(descent))
                 new = new._branch_from_descent(descent, commutes=commutes).reduce()
@@ -392,8 +393,9 @@ class PartialBraid:
                 descent = new.get_unconditional_descent()
                 if descent is None or not new.sigma[descent].is_constant():
                     return [new]
-                if new.is_recurrent():
+                if iterations > 16 and new.is_recurrent():
                     return []
+                iterations += 1
         except KeyboardInterrupt:
             raise RecurrentStateException(new)
 
@@ -446,13 +448,11 @@ class PartialBraid:
         sigma = formula[0]
         checks = []
         for i in range(len(pattern)):
-            b = sigma == formula[i]
-            checks += [b]
+            checks += [sigma == formula[i]]
             sigma = next_sigma(sigma, pattern[(i + 1) % n])
 
         for i in range(len(pattern)):
-            b = sigma == expected[i]
-            checks += [b]
+            checks += [sigma == expected[i]]
             sigma = next_sigma(sigma, pattern[(i + 1) % n])
 
         return all(checks)
@@ -662,7 +662,7 @@ class BraidQueue:
         self._print('Multiplicities by word length    : %s' % self.word_multiplicities())
         self._print('Multiplicities by non-blank roots: %s' % self.root_multiplicities())
         self._print('Relations found                  : %s' % len(self.sufficient_relations))
-        self._print('Rcurrent states                  : %s' % len(self.recurrent_states))
+        self._print('Unresolved states                : %s' % len(self.recurrent_states))
 
     def _insert(self, child):
         """Insert child into queue so as to preserve ordering by length."""
@@ -756,9 +756,9 @@ class BraidQueue:
 
         if len(self.recurrent_states) > 0:
             self._print_status('')
-            self._print_status('-----------------')
-            self._print_status('Recurrent states:')
-            self._print_status('-----------------')
+            self._print_status('------------------')
+            self._print_status('Unresolved states:')
+            self._print_status('------------------')
             self._print_status('')
             for i, state in enumerate(self.recurrent_states):
                 print('%s. %s' % (i + 1, state))
@@ -945,7 +945,7 @@ class BraidQueue:
             self._print('\u26A0 Coxeter group appears to be very large or infinite.')
             self._print('  Only checking atoms up to length %s.' % max_length)
             self._print('')
-            self._print('  (If this still takes forever, you can quit with CONTRL+C.)')
+            self._print('  (If this still takes forever, you can quit with CONTROL+C.)')
             self._print('')
 
         # first check that minimal relations are involution words for same twisted involution
