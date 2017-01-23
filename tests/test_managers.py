@@ -301,7 +301,7 @@ class TestPartialBraid:
         state.sigma = PartialTransform(
             g, {1: CoxeterVector(g, 1), 3: -CoxeterVector(g, 3, Polynomial('x'))}
         )
-        assert state.get_unconditional_descent() is 3
+        assert state.get_unconditional_descent() is None
 
         state.sigma = PartialTransform(
             g, {1: CoxeterVector(g, 1), 3: CoxeterVector(g, 3, 1 - Polynomial('x'))}
@@ -325,7 +325,7 @@ class TestPartialBraid:
             1: (1 - x) * CoxeterVector(g, 2),
             2: (x - 1) * (CoxeterVector(g, 1) - CoxeterVector(g, 2) + CoxeterVector(g, 3))
         })
-        assert state.get_conditional_descent() is None
+        assert state.get_conditional_descent() == (None, None)
 
         state.constraints.nonpositive_constraints.add(x - 1)
         assert state.get_conditional_descent() == \

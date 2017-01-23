@@ -208,12 +208,10 @@ class ConstraintsManager:
         )
 
 
-class CyclicStateException(Exception):
-    MAX_LENGTH = 32
-
+class RecurrentStateException(Exception):
     def __init__(self, state):
         self.state = state
-        super(CyclicStateException, self).__init__('Cyclic state')
+        super(RecurrentStateException, self).__init__('Recurrent state')
 
 
 class PartialBraid:
@@ -277,8 +275,7 @@ class PartialBraid:
         children, label = self._get_children()
 
         t1 = time.time()
-        for child in children:
-            child.reduce()
+        children = [child.reduce() for child in children]
 
         t2 = time.time()
         children = [child for child in children if child.is_valid()]
@@ -293,24 +290,15 @@ class PartialBraid:
 
     def get_unconditional_descent(self):
         descents_to_avoid = self.word_s.left_descents | self.word_t.left_descents
-        unconditional = self.sigma.unconditional_descents
-
-        for i in self.sigma:
-            if i in unconditional:
-                continue
-            if all(
-                f <= 0 or any(f <= g for g in self.constraints.nonpositive_constraints)
-                for j, f in self.sigma[i]
-            ):
-                unconditional.add(i)
-
+        unconditional = {
+            i for i in self.sigma
+            if any(f < 0 for f in self.sigma[i].coefficients.values())
+        }
         intersection = unconditional & descents_to_avoid
         if intersection:
             return intersection.pop()
-
-        difference = unconditional - descents_to_avoid
-        if difference:
-            return difference.pop()
+        if unconditional:
+            return unconditional.pop()
 
     def get_conditional_descent(self):
         for i in self.sigma:
@@ -320,13 +308,14 @@ class PartialBraid:
                     nonpositive_part += CoxeterVector(self.graph, j, f)
             if nonpositive_part != 0:
                 return i, nonpositive_part
+        return None, None
 
     def _get_children(self):
         if len(self.sigma) == 0:
             children = self._get_first_children()
             return children, 'first iteration'
 
-        determinant = self.get_determinant()
+        determinant = self.sigma.determinant()
         if determinant is not None and determinant not in [-1, 1]:
             children = self._get_children_from_determinant_constraint(determinant)
             return children, 'determinant constraint'
@@ -345,10 +334,9 @@ class PartialBraid:
             children = self._get_children_from_unconditional_descent(unconditional)
             return children, 'unconditional descent'
 
-        conditional = self.get_conditional_descent()
+        conditional, nonpositive_root = self.get_conditional_descent()
         if conditional is not None:
-            descent, nonpositive_root = conditional
-            children = self._get_children_from_conditional_descent(descent, nonpositive_root)
+            children = self._get_children_from_conditional_descent(conditional, nonpositive_root)
             return children, 'conditional descent'
 
         if self.sigma.is_constant() and not self.sigma.is_complete():
@@ -400,30 +388,91 @@ class PartialBraid:
             ]  # pragma: no cover
 
         new = self
-        for _ in range(CyclicStateException.MAX_LENGTH):
-            commutes = (new.sigma[descent] == -CoxeterVector(new.graph, new.graph.star(descent)))
-            new = new._branch_from_descent(descent, commutes=commutes)
-            new.reduce()
-            if not new.is_valid():
-                return []
+        try:
+            while True:
+                commutes = new.sigma[descent] == -CoxeterVector(new.graph, new.graph.star(descent))
+                new = new._branch_from_descent(descent, commutes=commutes).reduce()
+                if not new.is_valid():
+                    return []
+                descent = new.get_unconditional_descent()
+                if descent is None or not new.sigma[descent].is_constant():
+                    return [new]
+                if new.is_recurrent():
+                    return []
+        except KeyboardInterrupt:
+            raise RecurrentStateException(new)
 
-            descent = new.get_unconditional_descent()
-            if descent is None or not new.sigma[descent].is_constant():
-                return [new]
+    def is_recurrent(self):
+        if not self.sigma.is_constant():
+            return False
+        n = 1
+        word_s = self.word_s.word
+        word_t = self.word_t.word
+        while True:
+            a = word_s[:n] == word_s[n:2 * n] == word_s[2 * n:3 * n]
+            b = word_t[:n] == word_t[n:2 * n] == word_t[2 * n:3 * n]
+            c = word_s[:n] == word_t[:n]
+            if a and b and c:
+                break
+            n += 1
+            if 3 * n >= len(word_s):
+                return False
 
-        raise CyclicStateException(new)
+        pattern = list(reversed(word_s[:n]))
+
+        def next_sigma(sigma, i):
+            if sigma[i] == -CoxeterVector(self.graph, self.graph.star(i)):
+                return sigma * i
+            else:
+                return self.graph.star(i) * sigma * i
+
+        sigma = self.sigma
+        first = []
+        second = []
+        for i in pattern:
+            first += [next_sigma(sigma, i)]
+            sigma = first[-1]
+        for i in pattern:
+            second += [next_sigma(sigma, i)]
+            sigma = second[-1]
+        pairs = list(zip(first, second))
+
+        g = self.graph
+        X = Polynomial('x')
+        formula = [
+            PartialTransform(g, {i: a[i] + X * (b[i] - a[i]) for i in g.generators})
+            for a, b in pairs
+        ]
+        expected = [
+            PartialTransform(g, {i: a[i] + (X + 1) * (b[i] - a[i]) for i in g.generators})
+            for a, b in pairs
+        ]
+
+        sigma = formula[0]
+        checks = []
+        for i in range(len(pattern)):
+            b = sigma == formula[i]
+            checks += [b]
+            sigma = next_sigma(sigma, pattern[(i + 1) % n])
+
+        for i in range(len(pattern)):
+            b = sigma == expected[i]
+            checks += [b]
+            sigma = next_sigma(sigma, pattern[(i + 1) % n])
+
+        return all(checks)
 
     def _get_children_from_conditional_descent(self, descent, nonpositive_root):
         """
         Returns list of three children constructed from a 'conditional descent'.
 
         The input `descent` is an element of self.graph.generators and the input `nonpositive_root`
-        is the "nonpositive part" of self.sigma[descent]: the CoxeterVector formed from a linear
+        is the nonpositive part of self.sigma[descent]: the CoxeterVector formed from a linear
         combination of simple roots by omitting all summands except those whose coefficients
         are constrained to be nonpositive. The value of `nonpositive_root` is determined by
         `descent`, and it is assumed that this value is not identically zero.
 
-        Since `nonpositive_root` is nontrivial, we may either assume that `descent` is a descent
+        Since `nonpositive_root` is nontrivial, we may assume either that `descent` is a descent
         of self.sigma, or that the additional constraint `nonpositive_root == 0` holds.
         The returned child states are constructed according to this alternative.
         """
@@ -528,14 +577,12 @@ class PartialBraid:
         return self.is_valid() and self.sigma.is_identity()
 
     def reduce(self):
-        """Reduce constraints and apply resulting simplifications to self.sigma."""
+        """Reduce constraints, apply resulting simplifications to self.sigma, and return self."""
         variable_substitutions = self.constraints.simplify()
         for var, substitution in variable_substitutions:
             for i in self.sigma:
                 self.sigma[i] = self.sigma[i].set_variable(var, substitution)
-
-    def get_determinant(self):
-        return self.sigma.get_determinant()
+        return self
 
 
 class BraidQueue:
@@ -570,7 +617,7 @@ class BraidQueue:
         else:
             self.queue = [PartialBraid(coxeter_graph, s, t)]
 
-        self.cyclic_states = []
+        self.recurrent_states = []
         self.sufficient_relations = set()
         self.minimal_relations = []
         self.verbose_level = verbose_level
@@ -613,7 +660,7 @@ class BraidQueue:
         self._print('Multiplicities by word length    : %s' % self.word_multiplicities())
         self._print('Multiplicities by non-blank roots: %s' % self.root_multiplicities())
         self._print('Relations found                  : %s' % len(self.sufficient_relations))
-        self._print('Cyclic states                    : %s' % len(self.cyclic_states))
+        self._print('Rcurrent states                  : %s' % len(self.recurrent_states))
 
     def _insert(self, child):
         """Insert child into queue so as to preserve ordering by length."""
@@ -649,8 +696,8 @@ class BraidQueue:
             next_state = self._get_next_state()
             try:
                 children, description = next_state.branch()
-            except CyclicStateException as e:
-                self.cyclic_states += [e.state]
+            except RecurrentStateException as e:
+                self.recurrent_states += [e.state]
             else:
                 self._update(children, description)
 
@@ -705,13 +752,13 @@ class BraidQueue:
         self._print_status('')
         self._print_status('Total duration: %s + %s = %s seconds' % (t1 - t0, t2 - t1, t2 - t0))
 
-        if len(self.cyclic_states) > 0:
+        if len(self.recurrent_states) > 0:
             self._print_status('')
-            self._print_status('--------------')
-            self._print_status('Cyclic states:')
-            self._print_status('--------------')
+            self._print_status('-----------------')
+            self._print_status('Recurrent states:')
+            self._print_status('-----------------')
             self._print_status('')
-            for i, state in enumerate(self.cyclic_states):
+            for i, state in enumerate(self.recurrent_states):
                 print('%s. %s' % (i + 1, state))
 
         if not do_sanity_check:
