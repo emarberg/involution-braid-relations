@@ -334,7 +334,7 @@ class CoxeterGraph:
 
     @staticmethod
     def A_tilde_twist(n):  # noqa
-        star = [(i, n + 1 - i) for i in range(1, n + 1)]
+        star = [(i, n + 2 - i) for i in range(1, n + 2)]
         return CoxeterGraph.A_tilde(n, star)
 
     @staticmethod
@@ -579,12 +579,12 @@ class TransformMixin:
     @property
     def graph(self):
         """Returns CoxeterGraph."""
-        raise NotImplementedError
+        raise NotImplementedError  # pragma: no cover
 
     @property
     def sigma(self):
         """Returns dict with keys in self.graph.generators, and whose values are CoxeterVectors."""
-        raise NotImplementedError
+        raise NotImplementedError  # pragma: no cover
 
     @classmethod
     def identity(cls, coxeter_graph):

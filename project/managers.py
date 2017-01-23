@@ -241,10 +241,7 @@ class PartialBraid:
 
     def __repr__(self):
         unconditional = self.get_unconditional_descent()
-        conditional = self.get_conditional_descent()
-        if conditional:
-            conditional = conditional[0]
-
+        conditional, _ = self.get_conditional_descent()
         s = ''
         s += 'PartialBraid data:\n'
         s += '----------------------------------------------------------------\n'
@@ -382,7 +379,10 @@ class PartialBraid:
                 self._branch_from_descent(descent, commutes=False)
             ]  # pragma: no cover
 
-        new = self
+        return self._iterate_descents(self, descent)
+
+    @classmethod
+    def _iterate_descents(cls, new, descent, recurrent_limit=32):
         try:
             iterations = 0
             while True:
@@ -393,18 +393,16 @@ class PartialBraid:
                 descent = new.get_unconditional_descent()
                 if descent is None or not new.sigma[descent].is_constant():
                     return [new]
-                if iterations > 16 and new.is_recurrent():
+                if iterations > recurrent_limit and new.is_recurrent():
                     return []
                 iterations += 1
         except KeyboardInterrupt:
             raise RecurrentStateException(new)
 
-    def is_recurrent(self):
-        if not self.sigma.is_constant():
-            return False
-        n = 1
+    def _find_pattern(self):
         word_s = self.word_s.word
         word_t = self.word_t.word
+        n = 2
         while True:
             a = word_s[:n] == word_s[n:2 * n] == word_s[2 * n:3 * n]
             b = word_t[:n] == word_t[n:2 * n] == word_t[2 * n:3 * n]
@@ -413,9 +411,16 @@ class PartialBraid:
                 break
             n += 1
             if 3 * n >= len(word_s):
-                return False
+                return None
+        return reverse_tuple(word_s[:n])
 
-        pattern = list(reversed(word_s[:n]))
+    def is_recurrent(self):
+        if not self.sigma.is_constant():
+            return False
+        pattern = self._find_pattern()
+        if pattern is None:
+            return False
+        n = len(pattern)
 
         def next_sigma(sigma, i):
             if sigma[i] == -CoxeterVector(self.graph, self.graph.star(i)):
@@ -720,7 +725,9 @@ class BraidQueue:
         """Returns string with multiplicities of lengths of word_s/t fields in queue states."""
         return self._get_multiplicities(lambda state: len(state.word_s))
 
-    def _summarize(self, do_sanity_check, t0, t1, sufficient):
+    def _summarize(self, verify, t0):
+        """Input `verify` should be a bool, and `t0` should be the start time in seconds."""
+        t1 = time.time()
         self._print_status('')
         self._print_status('Duration: %s seconds' % (t1 - t0))
         self._print_status('')
@@ -729,6 +736,8 @@ class BraidQueue:
         self._print_status('-----------------------')
         self._print_status(self.graph)
 
+        # sort by word length, then lexicographically
+        sufficient = sorted(self.sufficient_relations, key=lambda x: (len(x[0]), x))
         self._print_status('')
         self._print_status('---------------------')
         self._print_status('Sufficient relations:')
@@ -763,44 +772,39 @@ class BraidQueue:
             for i, state in enumerate(self.recurrent_states):
                 print('%s. %s' % (i + 1, state))
 
-        if not do_sanity_check:
+        if not verify:
             return
 
         self._print_status('')
         self._print_status('')
         self._print_status('Step 3: Verifying minimal relations.')
         self._print_status('')
-        self.sanity_check()
+        self.verify_relations()
         t3 = time.time()
 
         self._print('')
         self._print_status('Verifying relations took %s seconds' % (t3 - t2))
 
-    def go(self, do_sanity_check=False, limit=None):
+    def go(self, verify=False, limit=None):
         """
         Process all states in queue to find sufficient spanning relations,
         then reduce these to a minimal set.
 
-        If boolean input `do_sanity_check` is True, then we explicitly check that
+        If boolean input `verify` is True, then we explicitly check that
         minimal relations generate all sets of involution words.
 
         If integer input `limit` is provided, then we only look for relations of length
-        less than or equal to this limit. In this case, `do_sanity_check` must be True,
-        since the truncated algorithm is not guaranteed to find a sufficient set of relations.
+        less than or equal to this limit. In this case, `verify` must be True,
+        since the truncated algorithm may not find a sufficient set of relations.
         """
-        if limit is not None and not do_sanity_check:
+        if limit is not None and not verify:
             raise Exception('Error: `--verify` is required if `--limit` is given')
 
         self._print_status('Step 1: Finding sufficient relations.')
-
-        t0 = time.time()
+        start_time = time.time()
         while len(self) > 0 and (limit is None or len(self.queue[0]) <= limit):
             self.next()
-        # sort by word length, then lexicographically
-        sufficient = sorted(self.sufficient_relations, key=lambda x: (len(x[0]), x))
-        t1 = time.time()
-
-        self._summarize(do_sanity_check, t0, t1, sufficient)
+        self._summarize(verify, start_time)
 
     def minimize_relations(self):
         """
@@ -930,7 +934,7 @@ class BraidQueue:
                 next_level[next_involution] |= {w * i for w in atoms if i not in w.right_descents}
         return dict(next_level)
 
-    def sanity_check(self, upper_length=100):
+    def verify_relations(self, upper_length=100):
         """
         Checks whether self.minimal_relations span the set of atoms for any twisted involution
         whose involution length is at most upper_length, and prints out the results.
