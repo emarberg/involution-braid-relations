@@ -567,166 +567,43 @@ class CoxeterVector(VectorMixin, NumberMixin):
         return 'alpha_' + str(index)
 
 
-class PartialTransform:
+class TransformMixin:
 
     """
-    Class for objects which represent linear transformations T : U -> V where V is the
-    geometric representation of a Coxeter system and U is a subspace of V spanned by some
-    subset of simple roots.
+    Mixin class for methods shared by the PartialTransform and CoxeterTransform classes below,
+    implementing common operations for linear transforms of (subspaces of) the goemetric
+    representation of some Coxeter system. Most such methods are pretty trivial, with the
+    notable exception of the __mul__ and __rmul__ functions.
     """
 
-    def __init__(self, coxeter_graph, sigma={}):
-        """
-        Input `sigma` should be dict whose keys are elements of coxeter_graph.generators and
-        whose values are CoxeterVectors whose graph fields match coxeter_graph.
-        """
-        if all(i in coxeter_graph.generators for i in sigma) and \
-           all(type(r) == CoxeterVector and r.graph == coxeter_graph for r in sigma.values()):
-            self.graph = coxeter_graph
-            self.sigma = sigma.copy()
-            self._unconditional_descents = None
-            self._strong_conditional_descents = None
-            self._weak_conditional_descents = None
-        else:
-            raise InvalidInputException(self, (coxeter_graph, sigma))
+    @property
+    def graph(self):
+        """Returns CoxeterGraph."""
+        raise NotImplementedError
+
+    @property
+    def sigma(self):
+        """Returns dict with keys in self.graph.generators, and whose values are CoxeterVectors."""
+        raise NotImplementedError
+
+    @classmethod
+    def identity(cls, coxeter_graph):
+        """Returns object corresponding to identity map on geometric representation."""
+        sigma = {i: CoxeterVector(coxeter_graph, i) for i in coxeter_graph.generators}
+        return cls(coxeter_graph, sigma)
 
     def __eq__(self, other):
-        return isinstance(other, PartialTransform) and \
+        return isinstance(other, TransformMixin) and \
             other.graph == self.graph and other.sigma == self.sigma
-
-    def __getitem__(self, i):
-        return self.sigma[i]
 
     def __hash__(self):
         return hash((self.graph,) + tuple(sorted(self.sigma.items())))
 
-    def _unset_cached_properties(self):
-        self._unconditional_descents = None
-        self._strong_conditional_descents = None
-        self._weak_conditional_descents = None
-
-    def copy(self):
-        other = PartialTransform(self.graph, self.sigma)
-        other._unconditional_descents = self._unconditional_descents
-        other._strong_conditional_descents = self._unconditional_descents
-        other._weak_conditional_descents = self._weak_conditional_descents
-        return other
-
-    def __setitem__(self, i, val):
-        if i in self.graph.generators and type(val) == CoxeterVector and val.graph == self.graph:
-            self.sigma[i] = val
-            self._unset_cached_properties()
-        else:
-            raise InvalidInputException(self, (i, val), '__setitem__')
-
-    @property
-    def unconditional_descents(self):
-        """
-        Returns set of unconditional descents of a PartialTransform object.
-        An index i is an unconditional descent if alpha_i -> sum_j f_j alpha_j where for some j the
-        coefficient f_j is a polynomial with all negative coefficients and nonzero constant term.
-        """
-        if self._unconditional_descents is None:
-            self._unconditional_descents = {
-                i for i in self.sigma
-                if any(f < 0 for f in self.sigma[i].coefficients.values())
-            }
-        return self._unconditional_descents
-
-    @property
-    def strong_conditional_descents(self):
-        """
-        Returns set of strong unconditional descents of a PartialTransform object.
-        An index i is a strong unconditional descent if alpha_i -> sum_j f_j alpha_j where
-        for some j the coefficient f_j is a polynomial with all negative coefficients.
-        """
-        if self._strong_conditional_descents is None:
-            self._strong_conditional_descents = {
-                i for i in self.sigma
-                if any(f <= 0 for f in self.sigma[i].coefficients.values())
-            }
-        return self._strong_conditional_descents
-
-    @property
-    def weak_conditional_descents(self):
-        """
-        Returns set of weak unconditional descents of a PartialTransform object.
-        An index i is a weak unconditional descent if alpha_i -> sum_j f_j alpha_j where
-        for some j the coefficient f_j is a polynomial with a negative coefficient
-        or zero constant term.
-        """
-        if self._weak_conditional_descents is None:
-            self._weak_conditional_descents = {
-                i for i in self.sigma
-                if not any(0 < f for f in self.sigma[i].coefficients.values())
-            }
-        return self._weak_conditional_descents
-
-    def to_matrix(self):
-        def simplify(x):
-            if type(x) == Polynomial and x.is_constant():
-                x = x.get_constant_part()
-            if type(x) == QuadraticNumber and x.is_rational():
-                x = x.get_rational_part()
-            if type(x) == int:
-                x = RationalNumber(x)
-            return x
-
-        return [
-            [simplify(self.sigma[i][j]) for j in self.graph.generators]
-            for i in self.graph.generators
-        ]
-
-    def get_variables(self):
-        ans = set()
-        for i in self.sigma:
-            for j, f in self.sigma[i]:
-                if type(f) == Polynomial:
-                    ans = ans | f.get_variables()
-        return ans
-
-    @classmethod
-    def identity(cls, coxeter_graph):
-        """Returns PartialTransform corresponding to identity map on geometric representation."""
-        sigma = {i: CoxeterVector(coxeter_graph, i) for i in coxeter_graph.generators}
-        return cls(coxeter_graph, sigma)
-
-    def __mul__(self, j):
-        """Returns composition of PartialTransform with image of s_j in geometric representation."""
-        if j not in self.graph.generators:
-            raise InvalidInputException(self, j, '__mul__')
-        new = {}
-        for i in self.sigma:
-            root = CoxeterVector(self.graph, i).reflect(j)
-            for k, v in root:
-                if k not in self.sigma:
-                    raise InvalidInputException(self, j, '__mul__')
-                new[i] = new.get(i, 0) + self.sigma[k] * v
-        return self.__class__(self.graph, new)
-
-    def __rmul__(self, j):
-        """Returns composition of image of s_j in geometric representation with PartialTransform."""
-        if j not in self.graph.generators:
-            raise InvalidInputException(self, j, '__rmul__')
-        new = {}
-        for i in self.sigma:
-            new[i] = self.sigma[i].reflect(j)
-        return self.__class__(self.graph, new)
-
-    def to_coxeter_transform(self):
-        return CoxeterTransform(self.graph, self.sigma)
-
-    def is_constant(self):
-        return all(r.is_constant() for r in self.sigma.values())
-
-    def is_complete(self):
-        return set(self.sigma.keys()) == set(self.graph.generators)
-
-    def is_positive(self):
-        return all(r.is_positive() for r in self.sigma.values())
-
     def __len__(self):
         return len(self.sigma)
+
+    def __getitem__(self, i):
+        return self.sigma[i]
 
     def __contains__(self, i):
         return i in self.sigma
@@ -742,6 +619,28 @@ class PartialTransform:
             return all(self.sigma[i] == CoxeterVector(self.graph, i) for i in self.graph.generators)
         return False
 
+    def __mul__(self, j):
+        """Returns composition of transform with image of s_j in geometric representation."""
+        if j not in self.graph.generators:
+            raise InvalidInputException(self, j, '__mul__')
+        new = {}
+        for i in self.sigma:
+            root = CoxeterVector(self.graph, i).reflect(j)
+            for k, v in root:
+                if k not in self.sigma:
+                    raise InvalidInputException(self, j, '__mul__')
+                new[i] = new.get(i, 0) + self.sigma[k] * v
+        return self.__class__(self.graph, new)
+
+    def __rmul__(self, j):
+        """Returns composition of image of s_j in geometric representation with transform."""
+        if j not in self.graph.generators:
+            raise InvalidInputException(self, j, '__rmul__')
+        new = {}
+        for i in self.sigma:
+            new[i] = self.sigma[i].reflect(j)
+        return self.__class__(self.graph, new)
+
     def __repr__(self):
         s = '{\n'
         for i in self.graph.generators:
@@ -752,23 +651,79 @@ class PartialTransform:
         s += '}\n'
         return s
 
-    def get_determinant(self):
+
+class PartialTransform(TransformMixin):
+
+    """
+    Class for objects which represent linear transformations T : U -> V where V is the
+    geometric representation of a Coxeter system and U is a subspace of V spanned by some
+    subset of simple roots.
+    """
+
+    def __init__(self, coxeter_graph, sigma={}):
+        """
+        Input `sigma` should be dict whose keys are elements of coxeter_graph.generators and
+        whose values are CoxeterVectors whose graph fields match coxeter_graph.
+        """
+        if all(i in coxeter_graph.generators for i in sigma) and \
+           all(type(r) == CoxeterVector and r.graph == coxeter_graph for r in sigma.values()):
+            self._graph = coxeter_graph
+            self._sigma = sigma.copy()
+        else:
+            raise InvalidInputException(self, (coxeter_graph, sigma))
+
+    @property
+    def sigma(self):
+        return self._sigma
+
+    @property
+    def graph(self):
+        return self._graph
+
+    def copy(self):
+        return PartialTransform(self.graph, self.sigma)
+
+    def __setitem__(self, i, val):
+        if i in self.graph.generators and type(val) == CoxeterVector and val.graph == self.graph:
+            self._sigma[i] = val
+        else:
+            raise InvalidInputException(self, (i, val), '__setitem__')
+
+    def is_constant(self):
+        return all(r.is_constant() for r in self.sigma.values())
+
+    def is_complete(self):
+        return set(self.sigma.keys()) == set(self.graph.generators)
+
+    def is_positive(self):
+        return all(r.is_positive() for r in self.sigma.values())
+
+    def get_variables(self):
+        """Return set of indices for variables occuring in our (polynomials) coefficients."""
+        ans = set()
+        for i in self.sigma:
+            for j, f in self.sigma[i]:
+                if type(f) == Polynomial:
+                    ans = ans | f.get_variables()
+        return ans
+
+    def determinant(self):
         """
         Returns determinant of the linear transformation defined by PartialTransform,
         if its domain is the vector space spanned by all simple roots, and if all
         entries in its matrix (in the basis of simple roots) are linear or constant
         polynomails in the same variable. Returns None if these conditions do not hold.
         """
-        # domain does not include all simple roots
         if not self.is_complete():
             return None
 
-        # matrix has entries which are non-linear polynomials
-        matrix = self.to_matrix()
-        for row in matrix:
-            for x in row:
-                if type(x) == Polynomial and x.degree() > 1:
-                    return None
+        matrix = [
+            [self.sigma[i][j] for j in self.graph.generators]
+            for i in self.graph.generators
+        ]
+        # check if matrix has entries which are non-linear polynomials
+        if any(type(x) == Polynomial and x.degree() > 1 for row in matrix for x in row):
+            return None
 
         variables = self.get_variables()
         # entries of matrix involve more than one variable
@@ -778,6 +733,7 @@ class PartialTransform:
             variable = next(iter(variables))
         else:
             variable = None
+
         return self._compute_determinant(matrix, variable)
 
     @classmethod
@@ -875,12 +831,11 @@ class PartialTransform:
                     return j
 
 
-class CoxeterTransform(PartialTransform):
+class CoxeterTransform(TransformMixin):
 
     """
     Class for objects which encode the (invertible) linear transformations which arise as images
-    of elements of a Coxeter group in its geometric representation. This is implemented
-    as a subclass of PartialTransform, but has a new constructor and a few new properties.
+    of elements of a Coxeter group in its geometric representation.
     """
 
     def __init__(self, coxeter_graph, sigma=None):
@@ -897,15 +852,23 @@ class CoxeterTransform(PartialTransform):
             )
             nonvariable = all(r.is_constant() for r in sigma.values())
             if keys_valid and roots_valid and nonvariable:
-                self.sigma = sigma.copy()
+                self._sigma = sigma.copy()
             else:
                 raise InvalidInputException(self, sigma)
         else:
-            self.sigma = {i: CoxeterVector(coxeter_graph, i) for i in coxeter_graph.generators}
-        self.graph = coxeter_graph
+            self._sigma = {i: CoxeterVector(coxeter_graph, i) for i in coxeter_graph.generators}
+        self._graph = coxeter_graph
         self._right_descents = None
         self._minimal_right_descent = None
         self._minimal_reduced_word = None
+
+    @property
+    def sigma(self):
+        return self._sigma
+
+    @property
+    def graph(self):
+        return self._graph
 
     @classmethod
     def from_word(cls, coxeter_graph, word):
@@ -932,7 +895,7 @@ class CoxeterTransform(PartialTransform):
         elif i not in self.graph.generators:
             raise InvalidInputException(self, (i, value), '__setitem__')
         else:
-            self.sigma[i] = value
+            self._sigma[i] = value
             self._unset_cached_properties()
 
     @property
