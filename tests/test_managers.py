@@ -354,6 +354,29 @@ class TestPartialBraid:
         state.word_t = CoxeterWord(g, (2, 1))
         assert state._is_sigma_valid()
 
+    def test_is_recurrent(self):
+        g = CoxeterGraph.G_tilde(2)
+        state = PartialBraid(g, s=1, t=2)
+        word = (1, 2, 1, 2, 3, 2, 1, 2, 1, 2, 3, 2, 1, 2, 1, 2, 3, 2, 1, 2, 1, 2, 3,)
+        state.word_s = CoxeterWord(g, word + (1, 2, 1))
+        state.word_t = CoxeterWord(g, word + (2, 1, 2))
+
+        alpha = \
+            CoxeterVector(g, 1, 6 + 3 * QuadraticNumber.sqrt(3)) + \
+            CoxeterVector(g, 2, 6 + 4 * QuadraticNumber.sqrt(3)) + \
+            CoxeterVector(g, 3, 2 + 2 * QuadraticNumber.sqrt(3))
+        beta = \
+            CoxeterVector(g, 1, -1 - 2 * QuadraticNumber.sqrt(3)) + \
+            CoxeterVector(g, 2, -4 - QuadraticNumber.sqrt(3)) + \
+            CoxeterVector(g, 3, -2)
+        gamma = \
+            CoxeterVector(g, 1, -7 - 3 * QuadraticNumber.sqrt(3)) + \
+            CoxeterVector(g, 2, -6 - 4 * QuadraticNumber.sqrt(3)) + \
+            CoxeterVector(g, 3, -3 - 2 * QuadraticNumber.sqrt(3))
+
+        state.sigma = PartialTransform(g, {1: alpha, 2: beta, 3: gamma})
+        assert state.is_recurrent()
+
 
 class TestBraidQueue:
     def test_A3(self):  # noqa
