@@ -159,15 +159,15 @@ class TestCoxeterGraph:
         i = CoxeterGraph([(1, 2, np.infty)])
         j = CoxeterGraph([(1, 2, 7)])
 
-        A5 = CoxeterGraph.A_tilde(5)
-        B6 = CoxeterGraph.B_tilde(6)
-        C6 = CoxeterGraph.C_tilde(6)
-        D6 = CoxeterGraph.D_tilde(6)
-        E6 = CoxeterGraph.E_tilde(6)
-        E7 = CoxeterGraph.E_tilde(7)
-        E8 = CoxeterGraph.E_tilde(8)
-        F4 = CoxeterGraph.F_tilde(4)
-        G2 = CoxeterGraph.G_tilde(2)
+        A5 = CoxeterGraph.A_tilde(5)  # noqa
+        B6 = CoxeterGraph.B_tilde(6)  # noqa
+        C6 = CoxeterGraph.C_tilde(6)  # noqa
+        D6 = CoxeterGraph.D_tilde(6)  # noqa
+        E6 = CoxeterGraph.E_tilde(6)  # noqa
+        E7 = CoxeterGraph.E_tilde(7)  # noqa
+        E8 = CoxeterGraph.E_tilde(8)  # noqa
+        F4 = CoxeterGraph.F_tilde(4)  # noqa
+        G2 = CoxeterGraph.G_tilde(2)  # noqa
 
         a5_twist = CoxeterGraph.A_twist(5)
         b2_twist = CoxeterGraph.B_twist(2)
@@ -176,13 +176,20 @@ class TestCoxeterGraph:
         f4_twist = CoxeterGraph.F_twist(4)
         g2_twist = CoxeterGraph.G_twist(2)
 
-        A5_twist = CoxeterGraph.A_tilde_twist(5)
+        A5_twist = CoxeterGraph.A_tilde_twist(5)  # noqa
+        B6_twist = CoxeterGraph.B_tilde_twist(6)  # noqa
+        C6_twist = CoxeterGraph.C_tilde_twist(6)  # noqa
+        E6_twist = CoxeterGraph.E_tilde_twist(6)  # noqa
+        E7_twist = CoxeterGraph.E_tilde_twist(7)  # noqa
 
         simply_laced = [
-            a5, a5_twist, A5, A5_twist, d7, d7_twist, e6, e6_twist, e7, e8, E6, E7, E8, D6
+            a5, a5_twist, A5, A5_twist, d7, d7_twist, e6, e6_twist, e7, e8,
+            E6, E6_twist, E7, E7_twist, E8, D6
         ]
         crystallographic = \
-            simply_laced + [b2_twist, b6, f4, f4_twist, g2, g2_twist, B6, C6, F4, G2]
+            simply_laced + [
+                b2_twist, b6, f4, f4_twist, g2, g2_twist, B6, B6_twist, C6, C6_twist, F4, G2
+            ]
         quadratic = crystallographic + [h3, h4, i]
         combined = quadratic + [j]
         for g in combined:

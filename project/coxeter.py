@@ -352,6 +352,11 @@ class CoxeterGraph:
         return CoxeterGraph(edges, star=star)
 
     @staticmethod
+    def B_tilde_twist(n):  # noqa
+        star = [(n - 1, n)]
+        return CoxeterGraph.B_tilde(n, star)
+
+    @staticmethod
     def C_tilde(n, star=None):  # noqa
         """
         Dynkin diagram labeling is:
@@ -362,6 +367,11 @@ class CoxeterGraph:
         assert n >= 3
         edges = [(i, i + 1, 3) for i in range(1, n - 1)] + [(0, 1, 4)] + [(n - 1, n, 4)]
         return CoxeterGraph(edges, star=star)
+
+    @staticmethod
+    def C_tilde_twist(n):  # noqa
+        star = [(i, n - i) for i in range(n + 1)]
+        return CoxeterGraph.C_tilde(n, star)
 
     @staticmethod
     def D_tilde(n, star=None):  # noqa
@@ -406,6 +416,15 @@ class CoxeterGraph:
         elif n == 8:
             edges += [('8', '*', 3)]
         return CoxeterGraph(edges, star=star)
+
+    @staticmethod
+    def E_tilde_twist(n):  # noqa
+        assert n in [6, 7]
+        if n == 6:
+            star = [('1', '6'), ('2', '5')]
+        elif n == 7:
+            star = [('*', '7'), ('1', '6'), ('2', '5')]
+        return CoxeterGraph.E_tilde(n, star)
 
     @staticmethod
     def F_tilde(n=4):  # noqa

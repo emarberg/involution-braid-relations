@@ -399,7 +399,39 @@ class PartialBraid:
         except KeyboardInterrupt:
             raise RecurrentStateException(new)
 
+    def is_recurrent(self):
+        """
+        Returns True if we can determine automatically that sigma_j has a descent i_j
+        for all j (and therefore is never the identity), where we define
+
+            sigma_0 = self.sigma
+            sigma_{j+1} = s_{i_j}^* o sigma_j o s_{i_j}.
+
+        We achieve this by trying to interpolate a linear formula for sigma_j over
+        certain periods of j and then checking this formula by induction. If a PartialBraid
+        is recurrent in this sense, then self.sigma cannot represent a Coxeter group element,
+        so the PartialBraid is invalid and has no children.
+        """
+        if not self.sigma.is_constant():
+            return False
+
+        pattern = self._find_pattern()
+        if pattern is None:
+            return False
+
+        variable = 'x'
+
+        expected = self._get_generic_sequence(pattern, Polynomial(variable))
+        if expected is None:
+            return False
+
+        return self._confirm_generic_sequence(pattern, expected, variable)
+
     def _find_pattern(self):
+        """
+        Looks for repeated patterns of the form (i, j, k, ..., i, j, k, ... , i, j, k, ...)
+        if self.word_s and self.word_t. If a pattern occurs, returns its reverse (..., k, j, i).
+        """
         word_s = self.word_s.word
         word_t = self.word_t.word
         n = 2
@@ -414,68 +446,76 @@ class PartialBraid:
                 return None
         return reverse_tuple(word_s[:n])
 
-    def is_recurrent(self):
-        if not self.sigma.is_constant():
-            return False
-        pattern = self._find_pattern()
-        if pattern is None:
-            return False
-        n = len(pattern)
+    def _get_generic_sequence(self, pattern, X):
+        """
+        If pattern is (i, j, ...) and has length n, first computes
 
-        def next_sigma(sigma, i):
-            if sigma[i] == -CoxeterVector(self.graph, self.graph.star(i)):
-                return sigma * i
-            else:
-                return self.graph.star(i) * sigma * i
+            (f_1, f_2, ..., f_2n) = (s_i^* o f_0 o s_i, s_j^* o f_1 o s_j, ... )
 
-        sigma = self.sigma
-        first = []
-        second = []
-        for i in pattern:
-            first += [next_sigma(sigma, i)]
-            sigma = first[-1]
-        for i in pattern:
-            second += [next_sigma(sigma, i)]
-            sigma = second[-1]
-        pairs = list(zip(first, second))
+        where f_0 = self.sigma, then returns the sequence (g_1, g_2, .., g_2n) given by
 
-        g = self.graph
-        X = Polynomial('x')
-        formula = [
+            (f_i + X * (f_{n+i} - f_i) : i=1,2,..,n) + (f_i + (X+1) * (f_{n+i} - f_i) : i=1,2,..,n)
+
+        our hope being that one can check by induction, automatically, that this sequence
+        repeats for X = 0, 1, 2, ...
+        """
+        sigma, sequence = self.sigma, []
+        for _ in [0, 1]:
+            for i in pattern:
+                if not sigma[i].is_negative():
+                    return None
+                if sigma[i] == -CoxeterVector(self.graph, self.graph.star(i)):
+                    sigma = sigma * i
+                else:
+                    sigma = self.graph.star(i) * sigma * i
+                sequence += [sigma]
+
+        g, n = self.graph, len(pattern)
+        return [
             PartialTransform(g, {i: a[i] + X * (b[i] - a[i]) for i in g.generators})
-            for a, b in pairs
-        ]
-        expected = [
+            for a, b in zip(sequence[:n], sequence[n:])
+        ] + [
             PartialTransform(g, {i: a[i] + (X + 1) * (b[i] - a[i]) for i in g.generators})
-            for a, b in pairs
+            for a, b in zip(sequence[:n], sequence[n:])
         ]
 
-        sigma = formula[0]
-        checks = []
-        for i in range(len(pattern)):
-            checks += [sigma == formula[i]]
-            sigma = next_sigma(sigma, pattern[(i + 1) % n])
+    def _confirm_generic_sequence(self, pattern, expected, variable):
+        """
+        Given outputs from _find_pattern and _get_generic_sequence, check by induction
+        that linear interpolation of sigma values describes recurrent pattern of values.
+        """
+        sigma, n = expected[0], len(pattern)
+        for index in range(2 * n):
+            i = pattern[(index + 1) % n]
 
-        for i in range(len(pattern)):
-            checks += [sigma == expected[i]]
-            sigma = next_sigma(sigma, pattern[(i + 1) % n])
+            if sigma != expected[index] or not sigma[i].is_negative():
+                return False
 
-        return all(checks)
+            # s_i commutes with sigma if and only if the following is zero
+            root = sigma[i] + CoxeterVector(self.graph, self.graph.star(i))
+
+            # check that root is zero either for all values of X or no values of X.
+            # return False if this fails, as then the next value of sigma depends on X.
+            nonconstant_indices = [
+                j for j, f in root if type(f) == Polynomial and not f.is_constant()
+            ]
+            if nonconstant_indices:
+                j = nonconstant_indices[0]
+                # define a, b such that root[j] = a * X + b
+                a, b = root[j][variable], root[j][1]
+                if type(a) == int:
+                    a = RationalNumber(a)
+                if root.set_variable(variable, -b / a) == 0:
+                    return False
+
+            if root == 0:
+                sigma = sigma * i
+            else:
+                sigma = self.graph.star(i) * sigma * i
+        return True
 
     def _get_children_from_conditional_descent(self):
-        """
-        Returns list of three children constructed from a 'conditional descent'.
-
-        The input `descent` is an element of self.graph.generators and the input `nonpositive_root`
-        is the nonpositive part of self.sigma[descent]: the CoxeterVector formed from a linear
-        combination of simple roots by omitting all summands except those whose coefficients
-        are constrained to be nonpositive. The value of `nonpositive_root` is determined by
-        `descent`, and it is assumed that this value is not identically zero.
-
-        Since `nonpositive_root` is nontrivial, we may assume either that `descent` is a descent
-        of self.sigma, or that the additional constraint `nonpositive_root == 0` holds.
-        The returned child states are constructed according to this alternative.
-        """
+        """Returns list of three children constructed from a conditional descent, or None."""
         descent, nonpositive_root = self.get_conditional_descent()
         if descent is None:
             return None
