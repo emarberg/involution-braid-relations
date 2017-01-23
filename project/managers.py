@@ -273,14 +273,12 @@ class PartialBraid:
     def branch(self):
         t0 = time.time()
         children, label = self._get_children()
-
         t1 = time.time()
         children = [child.reduce() for child in children]
-
         t2 = time.time()
         children = [child for child in children if child.is_valid()]
-
         t3 = time.time()
+
         description = '\n'
         description += 'BRANCHING TYPE: %s\n' % label
         description += '  Time for construction : %s seconds\n' % (t1 - t0)
@@ -311,38 +309,18 @@ class PartialBraid:
         return None, None
 
     def _get_children(self):
-        if len(self.sigma) == 0:
-            children = self._get_first_children()
-            return children, 'first iteration'
-
-        determinant = self.sigma.determinant()
-        if determinant is not None and determinant not in [-1, 1]:
-            children = self._get_children_from_determinant_constraint(determinant)
-            return children, 'determinant constraint'
-
-        if len(self.constraints.quadratic_constraints) > 0:
-            constraint = next(iter(self.constraints.quadratic_constraints))
-            try:
-                children = self._get_children_from_quadratic_constraint(constraint)
-            except CannotFactorException:  # pragma: no cover
-                pass  # pragma: no cover
-            else:
-                return children, 'reducing quadratic constraint'
-
-        unconditional = self.get_unconditional_descent()
-        if unconditional is not None:
-            children = self._get_children_from_unconditional_descent(unconditional)
-            return children, 'unconditional descent'
-
-        conditional, nonpositive_root = self.get_conditional_descent()
-        if conditional is not None:
-            children = self._get_children_from_conditional_descent(conditional, nonpositive_root)
-            return children, 'conditional descent'
-
-        if self.sigma.is_constant() and not self.sigma.is_complete():
-            children = self._get_children_from_new_descent()
-            return children, 'new descent'
-
+        branching_methods = [
+            ('first iteration', self._get_first_children),
+            ('determinant constraint', self._get_children_from_determinant_constraint),
+            ('reducing quadratic constraint', self._get_children_from_quadratic_constraint),
+            ('unconditional descent', self._get_children_from_unconditional_descent),
+            ('conditional descent', self._get_children_from_conditional_descent),
+            ('new descent', self._get_children_from_new_descent)
+        ]
+        for label, child_getter in branching_methods:
+            children = child_getter()
+            if children is not None:
+                return children, label
         raise Exception('Current state does not match any branching rule: %s' % self)  # pragma: no cover
 
     def _extend_words(self, is_fixer):
@@ -352,6 +330,9 @@ class PartialBraid:
             self.word_t.extend_left(gens[(i + 1) % 2])
 
     def _get_first_children(self):
+        if len(self.sigma) > 0:
+            return None
+
         alpha = CoxeterVector(self.graph, self.graph.star(self.s))
         beta = CoxeterVector(self.graph, self.graph.star(self.t))
 
@@ -365,22 +346,36 @@ class PartialBraid:
 
         return [fixer, transposer]
 
-    def _get_children_from_determinant_constraint(self, determinant):
+    def _get_children_from_determinant_constraint(self):
+        determinant = self.sigma.determinant()
+        if determinant is None or determinant in [-1, 1]:
+            return None
         positive_child = self.copy()
         positive_child.constraints.add_zero_constraint(determinant - 1)
         negative_child = self.copy()
         negative_child.constraints.add_zero_constraint(determinant + 1)
         return [positive_child, negative_child]
 
-    def _get_children_from_quadratic_constraint(self, constraint):
+    def _get_children_from_quadratic_constraint(self):
+        if len(self.constraints.quadratic_constraints) == 0:
+            return None
+        constraint = next(iter(self.constraints.quadratic_constraints))
+        try:
+            factors = constraint.get_real_quadratic_factors()
+        except CannotFactorException:
+            return None
         children = []
-        for factor in constraint.get_real_quadratic_factors():
+        for factor in factors:
             child = self.copy()
             child.constraints.add_zero_constraint(factor)
             children.append(child)
         return children
 
-    def _get_children_from_unconditional_descent(self, descent):
+    def _get_children_from_unconditional_descent(self):
+        descent = self.get_unconditional_descent()
+        if descent is None:
+            return None
+
         if not self.sigma[descent].is_constant():
             return [
                 self._branch_from_descent(descent, commutes=True),
@@ -462,7 +457,7 @@ class PartialBraid:
 
         return all(checks)
 
-    def _get_children_from_conditional_descent(self, descent, nonpositive_root):
+    def _get_children_from_conditional_descent(self):
         """
         Returns list of three children constructed from a 'conditional descent'.
 
@@ -476,6 +471,10 @@ class PartialBraid:
         of self.sigma, or that the additional constraint `nonpositive_root == 0` holds.
         The returned child states are constructed according to this alternative.
         """
+        descent, nonpositive_root = self.get_conditional_descent()
+        if descent is None:
+            return None
+
         # in this child, `descent` is a commuting descent of sigma
         child_a = self._branch_from_descent(descent, commutes=True)
         child_a.constraints.add_nonzero_constraint(nonpositive_root)
@@ -508,6 +507,9 @@ class PartialBraid:
         return new
 
     def _get_children_from_new_descent(self):
+        if not self.sigma.is_constant() or self.sigma.is_complete():
+            return None
+
         g = self.graph
         # exclude the descents which will not give rise to valid states
         candidate_descents = [
