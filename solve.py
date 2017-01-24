@@ -84,8 +84,7 @@ def solve(coxeter_type, rank, verbosity, verify, limit):
         print('Invalid type and rank: (%s, %s)' % (coxeter_type, rank))
     else:
         q = BraidQueue(g, verbose_level=verbosity)
-        q.go(limit=limit)
-        q.summarize(verify=verify)
+        q.go(limit=limit, verify=verify)
 
 
 if __name__ == '__main__':

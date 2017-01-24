@@ -408,7 +408,7 @@ class PartialBraid:
                 if descent is None or not new.sigma[descent].is_constant():
                     return [new]
                 if iterations > recurrent_limit and new.is_recurrent():
-                    return []
+                        return []
                 iterations += 1
         except KeyboardInterrupt:  # pragma: no cover
             raise RecurrentStateException(new)  # pragma: no cover
@@ -491,10 +491,10 @@ class PartialBraid:
         g, n = self.graph, len(pattern)
         zipped = list(zip(sequence[:n], sequence[n:]))
         return [
-            PartialTransform(g, {i: a[i] + X * (b[i] - a[i]) for i in g.generators})
+            PartialTransform(g, {i: a[i] + X * (b[i] - a[i]) for i in self.sigma})
             for a, b in zipped
         ] + [
-            PartialTransform(g, {i: a[i] + (X + 1) * (b[i] - a[i]) for i in g.generators})
+            PartialTransform(g, {i: a[i] + (X + 1) * (b[i] - a[i]) for i in self.sigma})
             for a, b in zipped
         ]
 
@@ -806,12 +806,16 @@ class BraidQueue:
         """Returns string with multiplicities of lengths of word_s/t fields in queue states."""
         return self._get_multiplicities(lambda state: len(state.word_s))
 
-    def go(self, limit=None):
+    def go(self, limit=None, verify=False):
         """
         Process all states in queue to find sufficient spanning relations,
         then reduce these to a minimal set. If integer input `limit` is provided,
         then we only look for relations of length less than or equal to this limit.
         """
+        self.find_relations(limit)
+        self.summarize(verify)
+
+    def find_relations(self, limit=None):
         self._print_status('Step 1: Finding sufficient relations.')
         self.start_time = time.time()
         while len(self) > 0 and (limit is None or len(self.queue[0]) <= limit):
