@@ -19,7 +19,8 @@ from project.coxeter import (
 from project.utils import (
     reverse_tuple,
     InvalidInputException,
-    CannotFactorException
+    CannotFactorException,
+    RecurrentStateException
 )
 
 
@@ -208,12 +209,6 @@ class ConstraintsManager:
         )
 
 
-class RecurrentStateException(Exception):
-    def __init__(self, state):
-        self.state = state
-        super(RecurrentStateException, self).__init__('Recurrent state')
-
-
 class PartialBraid:
     def __init__(self, coxeter_graph, s, t):
         if s in coxeter_graph.generators and t in coxeter_graph.generators:
@@ -284,6 +279,12 @@ class PartialBraid:
         return children, description
 
     def get_unconditional_descent(self):
+        """
+        A generator index i is an unconditional descent if self.sigma[i] is a
+        CoxeterVector of the form sum_j f_j alpha_j and for some j it holds that
+        f_j is a polynomial with nonpositive coefficients and negative constant term.
+        Returns such an index i if one exists, and otherwise None.
+        """
         descents_to_avoid = self.word_s.left_descents | self.word_t.left_descents
         unconditional = {
             i for i in self.sigma
@@ -296,6 +297,15 @@ class PartialBraid:
             return unconditional.pop()
 
     def get_conditional_descent(self):
+        """
+        A generator index i is a conditional descent if self.sigma[i] is a
+        CoxeterVector of the form sum_j f_j alpha_j and for some j it holds that
+
+        (*)    f_j <= 0 or f_j <= g for some nonpositive constraint g.
+
+        If such an index i exists, then returns the pair (i, sum_j f_j alpha_j)
+        where the sum is over j such that (*) holds. Otherwise returns (None, None).
+        """
         for i in self.sigma:
             nonpositive_part = CoxeterVector(self.graph)
             for j, f in self.sigma[i]:
@@ -312,7 +322,7 @@ class PartialBraid:
             ('reducing quadratic constraint', self._get_children_from_quadratic_constraint),
             ('unconditional descent', self._get_children_from_unconditional_descent),
             ('conditional descent', self._get_children_from_conditional_descent),
-            ('new descent', self._get_children_from_new_descent)
+            ('new descent', self._get_children_with_new_descent)
         ]
         for label, child_getter in branching_methods:
             children = child_getter()
@@ -348,10 +358,14 @@ class PartialBraid:
         if determinant is None or determinant in [-1, 1]:
             return None
         positive_child = self.copy()
-        positive_child.constraints.add_zero_constraint(determinant - 1)
         negative_child = self.copy()
-        negative_child.constraints.add_zero_constraint(determinant + 1)
-        return [positive_child, negative_child]
+        try:
+            positive_child.constraints.add_zero_constraint(determinant - 1)
+            negative_child.constraints.add_zero_constraint(determinant + 1)
+        except InvalidInputException:
+            return None
+        else:
+            return [positive_child, negative_child]
 
     def _get_children_from_quadratic_constraint(self):
         if len(self.constraints.quadratic_constraints) == 0:
@@ -436,6 +450,7 @@ class PartialBraid:
         word_t = self.word_t.word
         n = 2
         while True:
+            # look for patterns that repeat at least 3 times; 3 is arbitrary, but seems to work
             a = word_s[:n] == word_s[n:2 * n] == word_s[2 * n:3 * n]
             b = word_t[:n] == word_t[n:2 * n] == word_t[2 * n:3 * n]
             c = word_s[:n] == word_t[:n]
@@ -448,22 +463,25 @@ class PartialBraid:
 
     def _get_generic_sequence(self, pattern, X):
         """
-        If pattern is (i, j, ...) and has length n, first computes
+        If pattern is (i, j, ...) and has length n, first computes sequence of PartialTransforms
 
             (f_1, f_2, ..., f_2n) = (s_i^* o f_0 o s_i, s_j^* o f_1 o s_j, ... )
 
-        where f_0 = self.sigma, then returns the sequence (g_1, g_2, .., g_2n) given by
+        where f_0 = self.sigma, then returns the sequence of (non-constant) PartialTransforms
 
             (f_i + X * (f_{n+i} - f_i) : i=1,2,..,n) + (f_i + (X+1) * (f_{n+i} - f_i) : i=1,2,..,n)
 
-        our hope being that one can check by induction, automatically, that this sequence
-        repeats for X = 0, 1, 2, ...
+        our hope being that one can check by induction that this sequence is repeating.
+        Returns None if it does not hold that i, j, ... are respective descents of f_0, f_1, ...
         """
         sigma, sequence = self.sigma, []
+        # iterate twice over pattern
         for _ in [0, 1]:
             for i in pattern:
+                # check that sigma has expected descent i
                 if not sigma[i].is_negative():
                     return None
+                # update sigma with its demazure conjugate
                 if sigma[i] == -CoxeterVector(self.graph, self.graph.star(i)):
                     sigma = sigma * i
                 else:
@@ -471,30 +489,33 @@ class PartialBraid:
                 sequence += [sigma]
 
         g, n = self.graph, len(pattern)
+        zipped = list(zip(sequence[:n], sequence[n:]))
         return [
             PartialTransform(g, {i: a[i] + X * (b[i] - a[i]) for i in g.generators})
-            for a, b in zip(sequence[:n], sequence[n:])
+            for a, b in zipped
         ] + [
             PartialTransform(g, {i: a[i] + (X + 1) * (b[i] - a[i]) for i in g.generators})
-            for a, b in zip(sequence[:n], sequence[n:])
+            for a, b in zipped
         ]
 
     def _confirm_generic_sequence(self, pattern, expected, variable):
         """
-        Given outputs from _find_pattern and _get_generic_sequence, check by induction
-        that linear interpolation of sigma values describes recurrent pattern of values.
+        Given outputs from _find_pattern and _get_generic_sequence, try to check
+        by induction that linear interpolation of sigma values describes recurrent
+        pattern. Returns True if this succeeds.
         """
         sigma, n = expected[0], len(pattern)
         for index in range(2 * n):
             i = pattern[(index + 1) % n]
 
+            # check that inductive hypothesis holds
             if sigma != expected[index] or not sigma[i].is_negative():
                 return False
 
             # s_i commutes with sigma if and only if the following is zero
             root = sigma[i] + CoxeterVector(self.graph, self.graph.star(i))
 
-            # check that root is zero either for all values of X or no values of X.
+            # check that if root is not zero for all values of X, then it is never zero.
             # return False if this fails, as then the next value of sigma depends on X.
             nonconstant_indices = [
                 j for j, f in root if type(f) == Polynomial and not f.is_constant()
@@ -536,6 +557,14 @@ class PartialBraid:
         return [child_a, child_b, child_c]
 
     def _branch_from_descent(self, i, commutes=True):
+        """
+        Returns PartialBraid derived from self with respect to generator index i,
+        which we define as the PartialBraid given by replacing self.sigma by its
+        Demazure conjugate by s_i, extending self.word_s and self.word_t by i on
+        the left, and adding the constraint that self.sigma[i] is a negative root.
+        If input `commutes` is True, we assume self.sigma s_i = s_i^* self.sigma
+        and include the relavent constraint in the derived PartialBraid.
+        """
         alpha = CoxeterVector(self.graph, self.graph.star(i))
         beta = self.sigma[i]
 
@@ -551,8 +580,18 @@ class PartialBraid:
             new.sigma = self.graph.star(i) * new.sigma * i
         return new
 
-    def _get_children_from_new_descent(self):
+    def _get_children_with_new_descent(self):
+        """
+        If self.sigma is not constant, or if self.sigma[i] is defined for all
+        generator indices i, or if self.sigma has a descent, returns None.
+        Otherwise, returns list of children constructed from current PartialBraid
+        by replacing a single undefined value of self.sigma[i] by a generic
+        CoxeterVector of the form - sum_i X_i alpha_i, so that i becomes a descent.
+        We also include in the returned list one child with no new descents.
+        """
         if not self.sigma.is_constant() or self.sigma.is_complete():
+            return None
+        if self.get_unconditional_descent() is not None:
             return None
 
         g = self.graph
@@ -574,12 +613,14 @@ class PartialBraid:
                 )
             children.append(child)
 
-        # add child with no new descents
+        # add child with no (new) descents
         child = self.copy()
         for i in g.generators:
             if i not in child.sigma:
+                # since child has no descents, it must act as identity element
                 child.sigma[i] = CoxeterVector(g, i)
         children.append(child)
+
         return children
 
     def is_valid(self):
@@ -668,6 +709,7 @@ class BraidQueue:
         self.sufficient_relations = set()
         self.minimal_relations = []
         self.verbose_level = verbose_level
+        self.start_time = 0
 
     def __len__(self):
         return len(self.queue)
@@ -693,13 +735,14 @@ class BraidQueue:
 
         i = 0
         for child in children:
-            if child not in self.queue:
-                if child.is_leaf():
-                    self._add_to_sufficient_relations(child)
-                else:
-                    self._insert(child)
-                    self._print_verbose('%s. %s' % (i + 1, child))
-                    i += 1
+            if child in self.queue:
+                continue
+            elif child.is_leaf():
+                self._add_to_sufficient_relations(child)
+            else:
+                self._insert(child)
+                self._print_verbose('%s. %s' % (i + 1, child))
+                i += 1
         if i == 0:
             self._print_verbose('\n(no states added)\n')
 
@@ -710,7 +753,7 @@ class BraidQueue:
         self._print('Unresolved states                : %s' % len(self.recurrent_states))
 
     def _insert(self, child):
-        """Insert child into queue so as to preserve ordering by length."""
+        """Insert child into queue in position preserving ordering by length."""
         i = 0
         while i < len(self.queue) and len(self.queue[i]) < len(child):
             i += 1
@@ -765,8 +808,19 @@ class BraidQueue:
         """Returns string with multiplicities of lengths of word_s/t fields in queue states."""
         return self._get_multiplicities(lambda state: len(state.word_s))
 
-    def _summarize(self, verify, t0):
-        """Input `verify` should be a bool, and `t0` should be the start time in seconds."""
+    def go(self, limit=None):
+        """
+        Process all states in queue to find sufficient spanning relations,
+        then reduce these to a minimal set. If integer input `limit` is provided,
+        then we only look for relations of length less than or equal to this limit.
+        """
+        self._print_status('Step 1: Finding sufficient relations.')
+        self.start_time = time.time()
+        while len(self) > 0 and (limit is None or len(self.queue[0]) <= limit):
+            self.next()
+
+    def summarize(self, verify=False):
+        t0 = self.start_time
         t1 = time.time()
         self._print_status('')
         self._print_status('Duration: %s seconds' % (t1 - t0))
@@ -824,27 +878,6 @@ class BraidQueue:
 
         self._print('')
         self._print_status('Verifying relations took %s seconds' % (t3 - t2))
-
-    def go(self, verify=False, limit=None):
-        """
-        Process all states in queue to find sufficient spanning relations,
-        then reduce these to a minimal set.
-
-        If boolean input `verify` is True, then we explicitly check that
-        minimal relations generate all sets of involution words.
-
-        If integer input `limit` is provided, then we only look for relations of length
-        less than or equal to this limit. In this case, `verify` must be True,
-        since the truncated algorithm may not find a sufficient set of relations.
-        """
-        if limit is not None and not verify:
-            raise Exception('Error: `--verify` is required if `--limit` is given')
-
-        self._print_status('Step 1: Finding sufficient relations.')
-        start_time = time.time()
-        while len(self) > 0 and (limit is None or len(self.queue[0]) <= limit):
-            self.next()
-        self._summarize(verify, start_time)
 
     def minimize_relations(self):
         """

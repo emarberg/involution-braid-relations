@@ -37,6 +37,12 @@ class CannotFactorException(Exception):
         super(CannotFactorException, self).__init__('Cannot factor `%s`' % str(self))
 
 
+class RecurrentStateException(Exception):
+    def __init__(self, state):
+        self.state = state  # pragma: no cover
+        super(RecurrentStateException, self).__init__('Recurrent state')  # pragma: no cover
+
+
 class OperatorMixin:
 
     """

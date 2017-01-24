@@ -377,6 +377,22 @@ class TestPartialBraid:
         state.sigma = PartialTransform(g, {1: alpha, 2: beta, 3: gamma})
         assert state.is_recurrent()
 
+        q = BraidQueue(g)
+        q.recurrent_states = [state]
+        q.summarize()
+
+        state.sigma = PartialTransform(g, {1: 2 * alpha, 2: beta, 3: gamma})
+        assert not state.is_recurrent()
+
+        state.sigma = PartialTransform(g, {1: Polynomial('x') * alpha, 2: beta, 3: gamma})
+        assert not state.is_recurrent()
+
+        word = (1, 2, 3)
+        state.word_s = CoxeterWord(g, word + (1, 2, 1))
+        state.word_t = CoxeterWord(g, word + (2, 1, 2))
+        state.sigma = PartialTransform(g, {1: alpha, 2: beta, 3: gamma})
+        assert not state.is_recurrent()
+
 
 class TestBraidQueue:
     def test_A3(self):  # noqa
@@ -398,6 +414,7 @@ class TestBraidQueue:
             ((1, 2), (2, 1)),
             ((2, 3), (3, 2))
         }
+        q.minimize_relations()
         assert q.minimal_relations == [
             ((1, 2), (2, 1)),
             ((2, 3), (3, 2))
@@ -412,6 +429,7 @@ class TestBraidQueue:
             ((0, 1, 0), (1, 0, 1)),
             ((0, 1, 2, 0, 1, 0), (0, 1, 2, 1, 0, 1))
         }
+        q.summarize()
         assert q.minimal_relations == [
             ((1, 2), (2, 1)),
             ((0, 1, 0), (1, 0, 1)),
@@ -422,12 +440,13 @@ class TestBraidQueue:
         # Test algorithm in small twisted case
         g = CoxeterGraph.A_twist(3)
         q = BraidQueue(g, verbose_level=BraidQueue.VERBOSE_LEVEL_LOW)
-        q.go(verify=True)
+        q.go()
         assert q.sufficient_relations == {
             ((1,), (3,)),
             ((2, 1, 2, 3), (2, 1, 3, 2)),
             ((2, 3, 1, 2), (2, 3, 2, 1))
         }
+        q.summarize(verify=True)
         assert q.minimal_relations == [
             ((1,), (3,)),
             ((2, 1, 2, 3), (2, 1, 3, 2))
@@ -462,14 +481,6 @@ class TestBraidQueue:
     def test_verify_relations(self):
         g = CoxeterGraph.B(3)
         q = BraidQueue(g)
-
-        # do_sanity_check must be True if limit is not None
-        e = None
-        try:
-            q.go(verify=False, limit=10)
-        except Exception as exception:
-            e = exception
-        assert type(e) == Exception
 
         # check error handling when too many relations are present
         q.minimal_relations = [((0, 1), (1, 0)), ((1, 2), (2, 1))]

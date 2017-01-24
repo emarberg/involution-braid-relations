@@ -75,13 +75,17 @@ def get_coxeter_graph(coxeter_type, rank):
 
 
 def solve(coxeter_type, rank, verbosity, verify, limit):
+    if limit is not None and not verify:
+        print('Error: `--verify` is required if `--limit` is given')
+        return
     try:
         g = get_coxeter_graph(coxeter_type, rank)
     except:
         print('Invalid type and rank: (%s, %s)' % (coxeter_type, rank))
     else:
         q = BraidQueue(g, verbose_level=verbosity)
-        q.go(verify=verify, limit=limit)
+        q.go(limit=limit)
+        q.summarize(verify=verify)
 
 
 if __name__ == '__main__':
