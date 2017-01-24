@@ -331,6 +331,49 @@ class TestPartialBraid:
         assert state.get_conditional_descent() == \
             (2, (x - 1) * (CoxeterVector(g, 1) + CoxeterVector(g, 3)))
 
+    def test_get_children_from_quadratic_constraint(self):
+        x = Polynomial('x')
+        g = CoxeterGraph.A(3)
+        state = PartialBraid(g, s=1, t=3)
+        state.word_s = CoxeterWord(g, (1,))
+        state.word_t = CoxeterWord(g, (3,))
+
+        alpha = CoxeterVector(g, 3)
+        beta = \
+            CoxeterVector(g, 1, -x) + \
+            CoxeterVector(g, 2, 1 - 2 * x) + \
+            CoxeterVector(g, 3, -x)
+        gamma = CoxeterVector(g, 1)
+        state.sigma = PartialTransform(g, {1: alpha, 2: beta, 3: gamma})
+
+        state.constraints.add_zero_constraint(2 * x**2 - 2 * x)
+        children = state._get_children_from_quadratic_constraint()
+        assert len(children) == 2
+        assert \
+            {tuple(c.constraints.linear_constraints) for c in children} == \
+            {(x,), (x - 1,)}
+
+    def test_get_children_from_conditional_descent(self):
+        x = Polynomial('x')
+        g = CoxeterGraph.A(3)
+        state = PartialBraid(g, s=1, t=3)
+        state.word_s = CoxeterWord(g, (1,))
+        state.word_t = CoxeterWord(g, (3,))
+
+        alpha = CoxeterVector(g, 3)
+        beta = \
+            CoxeterVector(g, 1, -x) + \
+            CoxeterVector(g, 2, 1 - 2 * x) + \
+            CoxeterVector(g, 3, -x)
+        gamma = CoxeterVector(g, 1)
+        state.sigma = PartialTransform(g, {1: alpha, 2: beta, 3: gamma})
+
+        children = state._get_children_from_conditional_descent()
+        assert len(children) == 3
+        assert \
+            sorted((c.word_s.word, c.word_t.word) for c in children) == \
+            [((1,), (3,)), ((2, 1), (2, 3)), ((2, 1), (2, 3))]
+
     def test_is_sigma_valid(self):
         g = CoxeterGraph.A(3)
         state = PartialBraid(g, s=1, t=2)

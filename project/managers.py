@@ -362,8 +362,8 @@ class PartialBraid:
         try:
             positive_child.constraints.add_zero_constraint(determinant - 1)
             negative_child.constraints.add_zero_constraint(determinant + 1)
-        except InvalidInputException:
-            return None
+        except InvalidInputException:  # pragma: no cover
+            return None  # pragma: no cover
         else:
             return [positive_child, negative_child]
 
@@ -373,8 +373,8 @@ class PartialBraid:
         constraint = next(iter(self.constraints.quadratic_constraints))
         try:
             factors = constraint.get_real_quadratic_factors()
-        except CannotFactorException:
-            return None
+        except CannotFactorException:  # pragma: no cover
+            return None  # pragma: no cover
         children = []
         for factor in factors:
             child = self.copy()
@@ -410,8 +410,8 @@ class PartialBraid:
                 if iterations > recurrent_limit and new.is_recurrent():
                     return []
                 iterations += 1
-        except KeyboardInterrupt:
-            raise RecurrentStateException(new)
+        except KeyboardInterrupt:  # pragma: no cover
+            raise RecurrentStateException(new)  # pragma: no cover
 
     def is_recurrent(self):
         """
@@ -735,9 +735,7 @@ class BraidQueue:
 
         i = 0
         for child in children:
-            if child in self.queue:
-                continue
-            elif child.is_leaf():
+            if child.is_leaf():
                 self._add_to_sufficient_relations(child)
             else:
                 self._insert(child)
