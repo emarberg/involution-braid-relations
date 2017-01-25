@@ -290,11 +290,11 @@ class PartialBraid:
             i for i in self.sigma
             if any(f < 0 for f in self.sigma[i].coefficients.values())
         }
-        intersection = unconditional & descents_to_avoid
+        intersection = sorted(unconditional & descents_to_avoid)
         if intersection:
-            return intersection.pop()
+            return intersection[0]
         if unconditional:
-            return unconditional.pop()
+            return sorted(unconditional)[0]
 
     def get_conditional_descent(self):
         """
@@ -398,19 +398,16 @@ class PartialBraid:
     @classmethod
     def _iterate_descents(cls, new, descent, recurrent_limit=32):
         try:
-            iterations = 0
             while True:
                 commutes = new.sigma[descent] == -CoxeterVector(new.graph, new.graph.star(descent))
                 new = new._branch_from_descent(descent, commutes=commutes).reduce()
-                if not new.is_valid():
+                if not new.is_valid() or new.is_recurrent():
                     return []
                 descent = new.get_unconditional_descent()
                 if descent is None or not new.sigma[descent].is_constant():
                     return [new]
-                if iterations > recurrent_limit and new.is_recurrent():
-                        return []
-                iterations += 1
         except KeyboardInterrupt:  # pragma: no cover
+            print(new)
             raise RecurrentStateException(new)  # pragma: no cover
 
     def is_recurrent(self):
@@ -449,17 +446,15 @@ class PartialBraid:
         word_s = self.word_s.word
         word_t = self.word_t.word
         n = 2
-        while True:
+        while 3 * n < len(word_s):
             # look for patterns that repeat at least 3 times; 3 is arbitrary, but seems to work
             a = word_s[:n] == word_s[n:2 * n] == word_s[2 * n:3 * n]
             b = word_t[:n] == word_t[n:2 * n] == word_t[2 * n:3 * n]
             c = word_s[:n] == word_t[:n]
             if a and b and c:
-                break
+                return reverse_tuple(word_s[:n])
             n += 1
-            if 3 * n >= len(word_s):
-                return None
-        return reverse_tuple(word_s[:n])
+        return None
 
     def _get_generic_sequence(self, pattern, X):
         """
