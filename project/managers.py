@@ -393,10 +393,10 @@ class PartialBraid:
                 self._branch_from_descent(descent, commutes=False)
             ]  # pragma: no cover
 
-        return self._iterate_descents(self, descent)
+        return self._iterate_descents(descent)
 
-    @classmethod
-    def _iterate_descents(cls, new, descent, recurrent_limit=32):
+    def _iterate_descents(self, descent, recurrent_limit=32):
+        new = self
         try:
             while True:
                 commutes = new.sigma[descent] == -CoxeterVector(new.graph, new.graph.star(descent))
@@ -407,7 +407,7 @@ class PartialBraid:
                 if descent is None or not new.sigma[descent].is_constant():
                     return [new]
         except KeyboardInterrupt:  # pragma: no cover
-            print(new)
+            print('\nCould not compute children for possibly recurrent state:\n%s' % self)  # pragma: no cover
             raise RecurrentStateException(new)  # pragma: no cover
 
     def is_recurrent(self):
