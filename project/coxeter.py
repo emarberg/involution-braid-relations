@@ -11,7 +11,8 @@ from project.utils import (
 from project.algebra import (
     RationalNumber,
     QuadraticNumber,
-    Polynomial
+    Polynomial,
+    Matrix
 )
 
 
@@ -753,101 +754,7 @@ class PartialTransform(TransformMixin):
         else:
             variable = None
 
-        return self._compute_determinant(matrix, variable)
-
-    @classmethod
-    def _compute_determinant(cls, matrix, variable=None):
-        """
-        Given a matrix, as a list of lists of Polynomials in the single provided variable,
-        returns its determinant. The default value of None for `variable` indicates that
-        the entries of the input matrix are all constants. It is assumed that all entries of
-        matrix are constant or linear polynomials.
-        """
-        det = QuadraticNumber(1)
-        for column in range(len(matrix)):
-            i = cls._find_invertible_entry_row(matrix, column, variable)
-            j = cls._find_nonzero_entry_row(matrix, column)
-            if i is None and j is None:
-                return 0
-            elif i is None and j is not None:
-                det *= matrix[j][column]
-                det *= cls._swap_rows(matrix, j, column)
-            else:
-                det *= cls._cancel_column(matrix, i, column)
-                det *= cls._swap_rows(matrix, i, column)
-        return det
-
-    @classmethod
-    def _swap_rows(cls, matrix, i, j):
-        if i == j:
-            return 1
-        else:
-            row_i = matrix[i]
-            matrix[i] = matrix[j]
-            matrix[j] = row_i
-            return -1
-
-    @classmethod
-    def _scale_row(cls, matrix, i, column):
-        scalar = matrix[i][column]
-        if type(scalar) == int:
-            scalar = RationalNumber(scalar)
-
-        for j in range(len(matrix)):
-            matrix[i][j] /= scalar
-        return scalar
-
-    @classmethod
-    def _add_row(cls, matrix, src_row, dest_row, scalar):
-        assert src_row != dest_row
-        for k in range(len(matrix)):
-            matrix[dest_row][k] += scalar * matrix[src_row][k]
-
-    @classmethod
-    def _cancel_column(cls, matrix, i, column):
-        ans = cls._scale_row(matrix, i, column)
-        for j in range(len(matrix)):
-            scalar = matrix[j][column]
-            if j == i or scalar == 0:
-                continue
-            cls._add_row(matrix, i, j, -scalar)
-        return ans
-
-    @classmethod
-    def _find_nonzero_entry_row(cls, matrix, column):
-        for i in range(column, len(matrix)):
-            scalar = matrix[i][column]
-            if scalar != 0:
-                return i
-        return None
-
-    @classmethod
-    def _find_invertible_entry_row(cls, matrix, column, variable=None):
-        for i in range(column, len(matrix)):
-            scalar = matrix[i][column]
-            if scalar != 0 and (type(scalar) != Polynomial or scalar.is_constant()):
-                return i
-
-        if variable is None:
-            return None
-
-        for i in range(column, len(matrix)):
-            for j in range(i + 1, len(matrix)):
-                f = matrix[i][column]
-                g = matrix[j][column]
-                if f == 0 or g == 0:
-                    continue
-
-                assert f.degree() <= 1 and g.degree() <= 1
-
-                a = f[{variable: 1}]
-                b = g[{variable: 1}]
-                if type(b) == int:
-                    b = RationalNumber(b)
-
-                cls._add_row(matrix, i, j, -b / a)
-                if matrix[j][column] != 0:
-                    return j
+        return Matrix(matrix, variable).determinant()
 
 
 class CoxeterTransform(TransformMixin):

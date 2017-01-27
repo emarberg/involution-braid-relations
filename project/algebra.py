@@ -894,3 +894,163 @@ class Polynomial(VectorMixin, OperatorMixin, NumberMixin):
             elif e == 0:
                 new[monomial] += coeff
         return new
+
+
+class Matrix:
+
+    def __init__(self, matrix, variable=None):
+        """
+        Constructs matrix from list of lists of Polynomials in the single provided variable.
+        The default value of None for `variable` indicates that the entries of the input matrix
+        are constant. It is assumed that all entries of matrix are constant or linear polynomials.
+        """
+        if len({len(row) for row in matrix}) > 1:
+            raise InvalidInputException(self, type(matrix))
+        self.rows = matrix
+        self.variable = variable
+        self.num_rows = len(matrix)
+        if matrix:
+            self.num_cols = len(matrix[0])
+        else:
+            self.num_cols = 0
+
+    def __repr__(self):
+        max_len = 0
+        for row in self.rows:
+            for e in row:
+                max_len = max([max_len, len(str(e))])
+
+        def pad(x):
+            ans = str(x)
+            return ans + (max_len - len(ans)) * ' '
+
+        return '\n'.join(['[' + '  '.join([pad(e) for e in row]) + ']' for row in self.rows])
+
+    def copy(self):
+        matrix = [[e for e in row] for row in self.rows]
+        return Matrix(matrix, self.variable)
+
+    def __eq__(self, other):
+        if type(other) != Matrix or self.num_rows != other.num_rows:
+            return False
+        for i in range(len(self.rows)):
+            if self.rows[i] != other.rows[i]:
+                return False
+        return True
+
+    def __getitem__(self, i):
+        return self.rows[i]
+
+    def __mul__(self, other):
+        if len(other) != self.num_cols:
+            raise OperatorException(self, other, '__mul__')
+        return [sum(row[i] * other[i] for i in range(len(other))) for row in self.rows]
+
+    def inverse(self):
+        n = self.num_rows
+        if n != self.num_cols:
+            return None
+
+        # augment matrix by identity matrix on the right
+        matrix = self.copy()
+        for i in range(n):
+            matrix.rows[i] += i * [0] + [1] + (n - 1 - i) * [0]
+        matrix.num_cols = 2 * n
+
+        # row reduce
+        for column in range(n):
+            i = matrix._find_invertible_entry_row(column)
+            if i is None:
+                return None
+            matrix._cancel_column(i, column)
+            matrix._swap_rows(i, column)
+
+        # cut off first n columns to get inverse
+        for i in range(n):
+            matrix.rows[i] = matrix.rows[i][n:]
+        matrix.num_cols = n
+        return matrix
+
+    def determinant(self):
+        matrix = self.copy()
+        det = QuadraticNumber(1)
+        for column in range(matrix.num_cols):
+            i = matrix._find_invertible_entry_row(column)
+            j = matrix._find_nonzero_entry_row(column)
+            if i is None and j is None:
+                return 0
+            elif i is None and j is not None:
+                det *= matrix[j][column]
+                det *= matrix._swap_rows(j, column)
+            else:
+                det *= matrix._cancel_column(i, column)
+                det *= matrix._swap_rows(i, column)
+        return det
+
+    def _swap_rows(self, i, j):
+        if i == j:
+            return 1
+        else:
+            row_i = self.rows[i]
+            self.rows[i] = self.rows[j]
+            self.rows[j] = row_i
+            return -1
+
+    def _normalize_row(self, i, column):
+        scalar = self[i][column]
+        if type(scalar) == int:
+            scalar = RationalNumber(scalar)
+        return self._scale_row(i, scalar)
+
+    def _scale_row(self, i, scalar):
+        for j in range(self.num_cols):
+            self.rows[i][j] /= scalar
+        return scalar
+
+    def _add_row(self, src_row, dest_row, scalar):
+        assert src_row != dest_row
+        for k in range(self.num_cols):
+            self.rows[dest_row][k] += scalar * self.rows[src_row][k]
+
+    def _cancel_column(self, i, column):
+        ans = self._normalize_row(i, column)
+        for j in range(self.num_rows):
+            scalar = self[j][column]
+            if j == i or scalar == 0:
+                continue
+            self._add_row(i, j, -scalar)
+        return ans
+
+    def _find_nonzero_entry_row(self, column):
+        for i in range(column, self.num_rows):
+            scalar = self[i][column]
+            if scalar != 0:
+                return i
+        return None
+
+    def _find_invertible_entry_row(self, column):
+        for i in range(column, self.num_rows):
+            scalar = self[i][column]
+            if scalar != 0 and (type(scalar) != Polynomial or scalar.is_constant()):
+                return i
+
+        if self.variable is None:
+            return None
+
+        for i in range(column, self.num_rows):
+            for j in range(i + 1, self.num_rows):
+                f = self[i][column]
+                g = self[j][column]
+                if f == 0 or g == 0:
+                    continue
+
+                assert f.degree() <= 1 and g.degree() <= 1
+
+                a = f[{self.variable: 1}]
+                b = g[{self.variable: 1}]
+                if type(b) == int:
+                    b = RationalNumber(b)
+
+                self._add_row(i, j, -b / a)
+                if self[j][column] != 0:
+                    return j

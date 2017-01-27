@@ -572,6 +572,25 @@ class TestPartialTransform:
         str(t)
         str(u)
 
+    def test_determinant(self):
+        X = Polynomial('X')  # noqa
+        Y = Polynomial('Y')  # noqa
+        g = CoxeterGraph.A(2)
+        t = PartialTransform(g, {1: CoxeterVector(g, 2, 1 + X)})
+        assert t.determinant() is None
+
+        t = PartialTransform(g, {1: CoxeterVector(g, 2, 1 + X), 2: CoxeterVector(g, 2, 1 + X**2)})
+        assert t.determinant() is None
+
+        t = PartialTransform(g, {1: CoxeterVector(g, 2, 1 + X), 2: CoxeterVector(g, 2, 1 + Y)})
+        assert t.determinant() is None
+
+        t = PartialTransform(g, {1: CoxeterVector(g, 2), 2: CoxeterVector(g, 1, -5)})
+        assert t.determinant() == 5
+
+        t = PartialTransform(g, {1: CoxeterVector(g, 2, Y), 2: CoxeterVector(g, 1, Y - 5)})
+        assert t.determinant() == 5 * Y - Y**2
+
 
 class TestCoxeterTransform:
     def test_constructor(self):
@@ -829,47 +848,3 @@ class TestCoxeterWord:
             e = exception
         assert type(e) == InvalidInputException
 
-
-X = Polynomial('x')
-Y = Polynomial('y')
-
-
-class TestDeterminant:
-
-    @pytest.mark.parametrize("matrix, variable, expected", [
-        ([[0]], None, 0),
-        ([[1]], None, 1),
-        ([[2]], None, 2),
-        ([[1, 2], [2, 4]], None, 0),
-        ([[1, 2], [3, 4]], None, -2),
-        ([[X, X + 1], [X + 2, X + 3]], 'x', -2),
-        ([[1 + 6 * X, 3 * X], [-14 * X, 1 - 7 * X]], 'x', 1 - X),
-        ([[1, 2, 3], [4, 5, 6], [7, 8, 9]], None, 0),
-        ([[0, 2, 3], [4, 5, 6], [7, 8, 9]], None, 3),
-        ([[0, 0, 1], [0, 1, 0], [1, 0, 0]], None, -1),
-        ([[0, 0, 1], [1, 0, 0], [0, 1, 0]], None, 1),
-        ([[1 - 5 * X, 1 - 5 * X, -5 * X, 1 - 5 * X],
-          [5 * X, 5 * X, 5 * X, 5 * X - 1],
-          [4 * X, 1 + 4 * X, 1 + 4 * X, 1 + 4 * X],
-          [-5 * X, -1 - 5 * X, -5 * X, -5 * X]], 'x', X - 1)
-    ])
-    def test_simple(self, matrix, variable, expected):
-        det = PartialTransform._compute_determinant(matrix, variable)
-        assert det == expected
-
-    def test_error(self):
-        g = CoxeterGraph.A(2)
-        t = PartialTransform(g, {1: CoxeterVector(g, 2, 1 + X)})
-        assert t.determinant() is None
-
-        t = PartialTransform(g, {1: CoxeterVector(g, 2, 1 + X), 2: CoxeterVector(g, 2, 1 + X**2)})
-        assert t.determinant() is None
-
-        t = PartialTransform(g, {1: CoxeterVector(g, 2, 1 + X), 2: CoxeterVector(g, 2, 1 + Y)})
-        assert t.determinant() is None
-
-        t = PartialTransform(g, {1: CoxeterVector(g, 2), 2: CoxeterVector(g, 1, -5)})
-        assert t.determinant() == 5
-
-        t = PartialTransform(g, {1: CoxeterVector(g, 2, Y), 2: CoxeterVector(g, 1, Y - 5)})
-        assert t.determinant() == 5 * Y - Y**2

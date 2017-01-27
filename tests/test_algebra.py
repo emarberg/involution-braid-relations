@@ -14,7 +14,8 @@ from project.algebra import (
     Polynomial,
     PrimeFactorization,
     QuadraticNumber,
-    RationalNumber
+    RationalNumber,
+    Matrix
 )
 
 
@@ -1171,3 +1172,78 @@ class TestPolynomial:
         assert Polynomial(QuadraticNumber(RationalNumber(7, 8))).is_rational()
         assert not Polynomial(QuadraticNumber.sqrt(2)).is_rational()
         assert not Polynomial('x').is_rational()
+
+
+X = Polynomial('x')
+Y = Polynomial('y')
+
+
+class TestMatrix:
+
+    @pytest.mark.parametrize("matrix, variable, expected", [
+        ([[0]], None, 0),
+        ([[1]], None, 1),
+        ([[2]], None, 2),
+        ([[1, 2], [2, 4]], None, 0),
+        ([[1, 2], [3, 4]], None, -2),
+        ([[X, X + 1], [X + 2, X + 3]], 'x', -2),
+        ([[1 + 6 * X, 3 * X], [-14 * X, 1 - 7 * X]], 'x', 1 - X),
+        ([[1, 2, 3], [4, 5, 6], [7, 8, 9]], None, 0),
+        ([[0, 2, 3], [4, 5, 6], [7, 8, 9]], None, 3),
+        ([[0, 0, 1], [0, 1, 0], [1, 0, 0]], None, -1),
+        ([[0, 0, 1], [1, 0, 0], [0, 1, 0]], None, 1),
+        ([[1 - 5 * X, 1 - 5 * X, -5 * X, 1 - 5 * X],
+          [5 * X, 5 * X, 5 * X, 5 * X - 1],
+          [4 * X, 1 + 4 * X, 1 + 4 * X, 1 + 4 * X],
+          [-5 * X, -1 - 5 * X, -5 * X, -5 * X]], 'x', X - 1)
+    ])
+    def test_determinant(self, matrix, variable, expected):
+        m = Matrix(matrix, variable)
+        det = m.determinant()
+        assert det == expected
+
+    @pytest.mark.parametrize("matrix, inverse", [
+        ([[0]], None),
+        ([[1]], [[1]]),
+        ([[2]], [[RationalNumber(1, 2)]]),
+        ([[1, 2], [2, 4]], None),
+        ([[1, 2], [3, 4]], [[-2, 1], [RationalNumber(3, 2), RationalNumber(-1, 2)]]),
+        ([[X, X + 1], [X + 2, X + 3]], [[-(3 + X) / 2, (1 + X) / 2], [1 + X / 2, -X / 2]]),
+        ([[0, 2, 3], [4, 5, 6], [7, 8, 9]],
+            [[-1, 2, -1], [2, -7, 4], [-1, RationalNumber(14, 3), RationalNumber(-8, 3)]]),
+        ([[0, 1, 2], [3, 5, 7]], None)
+    ])
+    def test_inverse(self, matrix, inverse):
+        if inverse is not None:
+            inverse = Matrix(inverse)
+        assert Matrix(matrix, 'x').inverse() == inverse
+
+    def test_neq(self):
+        assert Matrix([]) != Matrix([[]])
+        assert Matrix([[1, 2], [2, 3]]) != Matrix([[1], [2]])
+
+    def test_repr(self):
+        assert str(Matrix([])) == ""
+        assert str(Matrix([[]])) == "[]"
+        assert str(Matrix([[12, 1], [3, 123]])) == "[12   1  ]\n[3    123]"
+
+    def test_init(self):
+        e = None
+        try:
+            Matrix([[1, 2, 3], [2, 3, 4, 5]])
+        except Exception as exception:
+            e = exception
+        assert type(e) == InvalidInputException
+
+    def test_mul(self):
+        m = Matrix([[1, 2], [2, 3], [3, 4]])
+        v = (10, 100)
+        assert m * v == [210, 320, 430]
+
+        u = (10, 100, 1000)
+        e = None
+        try:
+            m * u
+        except Exception as exception:
+            e = exception
+        assert type(e) == OperatorException
