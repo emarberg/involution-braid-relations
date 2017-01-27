@@ -425,7 +425,7 @@ class TestPartialBraid:
 
         q = BraidQueue(g)
         q.recurrent_states = [state]
-        q.summarize()
+        q.minimize_relations()
 
         state.sigma = PartialTransform(g, {1: 2 * alpha, 2: beta, 3: gamma})
         assert not state.is_recurrent()
@@ -460,7 +460,6 @@ class TestBraidQueue:
             ((1, 2), (2, 1)),
             ((2, 3), (3, 2))
         }
-        q.minimize_relations()
         assert q.minimal_relations == [
             ((1, 2), (2, 1)),
             ((2, 3), (3, 2))
@@ -475,7 +474,6 @@ class TestBraidQueue:
             ((0, 1, 0), (1, 0, 1)),
             ((0, 1, 2, 0, 1, 0), (0, 1, 2, 1, 0, 1))
         }
-        q.summarize()
         assert q.minimal_relations == [
             ((1, 2), (2, 1)),
             ((0, 1, 0), (1, 0, 1)),
@@ -486,13 +484,12 @@ class TestBraidQueue:
         # Test algorithm in small twisted case
         g = CoxeterGraph.A_twist(3)
         q = BraidQueue(g, verbose_level=BraidQueue.VERBOSE_LEVEL_LOW)
-        q.go()
+        q.go(verify=True)
         assert q.sufficient_relations == {
             ((1,), (3,)),
             ((2, 1, 2, 3), (2, 1, 3, 2)),
             ((2, 3, 1, 2), (2, 3, 2, 1))
         }
-        q.summarize(verify=True)
         assert q.minimal_relations == [
             ((1,), (3,)),
             ((2, 1, 2, 3), (2, 1, 3, 2))

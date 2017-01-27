@@ -704,7 +704,6 @@ class BraidQueue:
         self.sufficient_relations = set()
         self.minimal_relations = []
         self.verbose_level = verbose_level
-        self.start_time = 0
 
     def __len__(self):
         return len(self.queue)
@@ -808,17 +807,17 @@ class BraidQueue:
         then we only look for relations of length less than or equal to this limit.
         """
         self.find_relations(limit)
-        self.summarize(verify)
+        self.minimize_relations()
+        if verify:
+            self.verify_relations()
 
     def find_relations(self, limit=None):
         self._print_status('Step 1: Finding sufficient relations.')
-        self.start_time = time.time()
+        t0 = time.time()
         while len(self) > 0 and (limit is None or len(self.queue[0]) <= limit):
             self.next()
-
-    def summarize(self, verify=False):
-        t0 = self.start_time
         t1 = time.time()
+
         self._print_status('')
         self._print_status('Duration: %s seconds' % (t1 - t0))
         self._print_status('')
@@ -836,10 +835,20 @@ class BraidQueue:
         for u, v in sufficient:
             self._print_status('%s <---> %s' % (u, v))
 
+    def minimize_relations(self):
+        """
+        Computes minimal subset of self.sufficient_relations which
+        generates the same equivalence classes.
+        """
         self._print_status('')
         self._print_status('')
         self._print_status('Step 2: Finding minimal sufficient relations.')
-        self.minimize_relations()
+
+        t1 = time.time()
+        sufficient = sorted(self.sufficient_relations, key=lambda x: (len(x[0]), x))
+        necessary, redundant = self._get_necessary_relations(sufficient)
+        rest = [x for x in sufficient if x not in necessary and x not in redundant]
+        self.minimal_relations = self._finalize_necessary_relations(necessary, rest)
         t2 = time.time()
 
         self._print_status('')
@@ -851,9 +860,6 @@ class BraidQueue:
         for u, v in self.minimal_relations:
             self._print_status('%s <---> %s' % (u, v))
 
-        self._print_status('')
-        self._print_status('Total duration: %s + %s = %s seconds' % (t1 - t0, t2 - t1, t2 - t0))
-
         if len(self.recurrent_states) > 0:
             self._print_status('')
             self._print_status('------------------')
@@ -862,29 +868,6 @@ class BraidQueue:
             self._print_status('')
             for i, state in enumerate(self.recurrent_states):
                 print('%s. %s' % (i + 1, state))
-
-        if not verify:
-            return
-
-        self._print_status('')
-        self._print_status('')
-        self._print_status('Step 3: Verifying minimal relations.')
-        self._print_status('')
-        self.verify_relations()
-        t3 = time.time()
-
-        self._print('')
-        self._print_status('Verifying relations took %s seconds' % (t3 - t2))
-
-    def minimize_relations(self):
-        """
-        Computes minimal subset of self.sufficient_relations which
-        generates the same equivalence classes.
-        """
-        sufficient = sorted(self.sufficient_relations, key=lambda x: (len(x[0]), x))
-        necessary, redundant = self._get_necessary_relations(sufficient)
-        rest = [x for x in sufficient if x not in necessary and x not in redundant]
-        self.minimal_relations = self._finalize_necessary_relations(necessary, rest)
 
     def are_atoms_connected(self, relations, start_word, target_word):
         """
@@ -1009,7 +992,12 @@ class BraidQueue:
         Checks whether self.minimal_relations span the set of atoms for any twisted involution
         whose involution length is at most upper_length, and prints out the results.
         """
-        g = self.graph
+        self._print_status('')
+        self._print_status('')
+        self._print_status('Step 3: Verifying minimal relations.')
+        self._print_status('')
+
+        t2 = time.time()
         max_length = self.graph.get_max_involution_word_length(upper_length)
 
         self._print('Checking that minimal relations generate the atoms of any twisted involution.')
@@ -1022,8 +1010,17 @@ class BraidQueue:
             self._print('  (If this still takes forever, you can quit with CONTROL+C.)')
             self._print('')
 
-        # first check that minimal relations are involution words for same twisted involution
+        self._check_preservation()
+        self._check_spanning(max_length)
+        t3 = time.time()
+
+        self._print('')
+        self._print_status('Verifying relations took %s seconds' % (t3 - t2))
+
+    def _check_preservation(self):
+        """Checks that minimal relations are involution words for same twisted involution."""
         self._print('  * Relations preserve atoms: ', end='')
+        g = self.graph
         for a, b in self.minimal_relations:
             y, z = CoxeterWord(g, a).to_involution(), CoxeterWord(g, b).to_involution()
             if y.left_action != z.left_action:
@@ -1031,10 +1028,14 @@ class BraidQueue:
                 raise Exception('Error: minimal relations do not preserve all sets of atoms.')
         self._print('yes')
 
+    def _check_spanning(self, max_length):
+        """
+        Checks that each atom's equivalence class under minimal relations gives
+        all atoms for the corresponding involution.
+        """
+        g = self.graph
         next_level = self._get_next_level_of_involutions_to_atoms(g)
         for length in range(max_length + 1):
-            # check that the equivalence class of each atom of current length
-            # generated by our relations gives all atoms for the corresponding involution
             self._print('  * Relations span atoms of length %s/%s: ' % (length, max_length), end='')
             for involution, atoms in next_level.items():
                 atom = next(iter(atoms))
