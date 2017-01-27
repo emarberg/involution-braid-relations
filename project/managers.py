@@ -6,7 +6,8 @@ from project.algebra import (
     Monomial,
     Polynomial,
     QuadraticNumber,
-    RationalNumber
+    RationalNumber,
+    Matrix
 )
 
 from project.coxeter import (
@@ -395,13 +396,20 @@ class PartialBraid:
 
         return self._iterate_descents(descent)
 
-    def _iterate_descents(self, descent, recurrent_limit=32):
-        new = self
+    def _iterate_descents(self, descent):
+        history = [self]
         try:
             while True:
+                new = history[-1]
                 commutes = new.sigma[descent] == -CoxeterVector(new.graph, new.graph.star(descent))
                 new = new._branch_from_descent(descent, commutes=commutes).reduce()
-                if not new.is_valid() or new.is_recurrent():
+                history.append(new)
+
+                if not new.is_valid():
+                    return []
+                print(len(history))
+                # periodically whether state is recurrent; 32 is an arbitrary number
+                if len(history) % 32 == 0 and new.is_recurrent(history):
                     return []
                 descent = new.get_unconditional_descent()
                 if descent is None or not new.sigma[descent].is_constant():
@@ -410,7 +418,7 @@ class PartialBraid:
             print('\nCould not compute children for possibly recurrent state:\n%s' % self)  # pragma: no cover
             raise RecurrentStateException(new)  # pragma: no cover
 
-    def is_recurrent(self):
+    def is_recurrent(self, history):
         """
         Returns True if we can determine automatically that sigma_j has a descent i_j
         for all j (and therefore is never the identity), where we define
@@ -418,7 +426,7 @@ class PartialBraid:
             sigma_0 = self.sigma
             sigma_{j+1} = s_{i_j}^* o sigma_j o s_{i_j}.
 
-        We achieve this by trying to interpolate a linear formula for sigma_j over
+        We achieve this by trying to interpolate a polynomial formula for sigma_j over
         certain periods of j and then checking this formula by induction. If a PartialBraid
         is recurrent in this sense, then self.sigma cannot represent a Coxeter group element,
         so the PartialBraid is invalid and has no children.
@@ -426,77 +434,86 @@ class PartialBraid:
         if not self.sigma.is_constant():
             return False
 
-        pattern = self._find_pattern()
-        if pattern is None:
-            return False
-
+        patterns = self._find_patterns(len(history))
         variable = 'x'
+        for pattern, repetitions in patterns:
+            print(pattern, repetitions)
+            n = len(pattern) * repetitions
+            expected = self._get_generic_sequence(history[-n:], pattern, repetitions, variable)
+            if self._confirm_generic_sequence(pattern, expected, variable):
+                return True
 
-        expected = self._get_generic_sequence(pattern, Polynomial(variable))
-        if expected is None:
-            return False
+        return False
 
-        return self._confirm_generic_sequence(pattern, expected, variable)
-
-    def _find_pattern(self):
+    def _find_patterns(self, search_length):
         """
         Looks for repeated patterns of the form (i, j, k, ..., i, j, k, ... , i, j, k, ...)
-        if self.word_s and self.word_t. If a pattern occurs, returns its reverse (..., k, j, i).
+        in self.word_s and self.word_t. Returns list of pairs (sequence, n) where sequence is
+        the reversed pattern (..., k, j, i) and n is the number of times it repeatedly occurs.
         """
+        patterns = []
         word_s = self.word_s.word
         word_t = self.word_t.word
         n = 2
-        while 3 * n < len(word_s):
-            # look for patterns that repeat at least 3 times; 3 is arbitrary, but seems to work
-            a = word_s[:n] == word_s[n:2 * n] == word_s[2 * n:3 * n]
-            b = word_t[:n] == word_t[n:2 * n] == word_t[2 * n:3 * n]
-            c = word_s[:n] == word_t[:n]
-            if a and b and c:
-                return reverse_tuple(word_s[:n])
+        while 2 * n <= search_length:
+            # skip patterns which are just multiples of smaller ones
+            if not any(n % len(p) == 0 for p, _ in patterns):
+                i = 1
+                while True:
+                    a = word_s[(i - 1) * n:i * n]
+                    b = word_s[i * n:(i + 1) * n]
+                    c = word_t[(i - 1) * n:i * n]
+                    d = word_t[i * n:(i + 1) * n]
+                    if a == b == c == d and (i + 1) * n <= search_length:
+                        i += 1
+                    else:
+                        if i > 1:
+                            pattern = reverse_tuple(word_s[:n])
+                            patterns += [(pattern, i)]
+                        break
             n += 1
-        return None
+        # sort so that pattern with largest number of repetitions appears first
+        return sorted(patterns, key=lambda x: -x[1])
 
-    def _get_generic_sequence(self, pattern, X):
+    def _get_generic_sequence(self, history, pattern, repetitions, variable):
         """
-        If pattern is (i, j, ...) and has length n, first computes sequence of PartialTransforms
+        If the pattern (i, j, ...) has length n and is repeated r times,
+        and history is the list of PartialTransforms
 
-            (f_1, f_2, ..., f_2n) = (s_i^* o f_0 o s_i, s_j^* o f_1 o s_j, ... )
+            (f_1, f_2, ..., f_nr) = (s_i^* o f_0 o s_i, s_j^* o f_1 o s_j, ... )
 
         where f_0 = self.sigma, then returns the sequence of (non-constant) PartialTransforms
-
-            (f_i + X * (f_{n+i} - f_i) : i=1,2,..,n) + (f_i + (X+1) * (f_{n+i} - f_i) : i=1,2,..,n)
-
-        our hope being that one can check by induction that this sequence is repeating.
-        Returns None if it does not hold that i, j, ... are respective descents of f_0, f_1, ...
+        whose coefficients are polynomial interpolations of the f_i's. We hope that
+        one can then check by induction that this sequence is repeating.
         """
-        sigma, sequence = self.sigma, []
-        # iterate twice over pattern
-        for _ in [0, 1]:
-            for i in pattern:
-                # check that sigma has expected descent i
-                if not sigma[i].is_negative():
-                    return None
-                # update sigma with its demazure conjugate
-                if sigma[i] == -CoxeterVector(self.graph, self.graph.star(i)):
-                    sigma = sigma * i
-                else:
-                    sigma = self.graph.star(i) * sigma * i
-                sequence += [sigma]
+        n = len(pattern)
+        matrix = Matrix.vandermonde_inverse(repetitions)
 
-        g, n = self.graph, len(pattern)
-        zipped = list(zip(sequence[:n], sequence[n:]))
+        vectors = [{
+            i: [history[j * n + k].sigma[i] for j in range(repetitions)]
+            for i in self.sigma
+        } for k in range(n)]
+        solved = [{
+            i: matrix * vectors[k][i]
+            for i in self.sigma
+        } for k in range(n)]
+
+        x = Polynomial(variable)
+        base = Matrix([[x**i for i in range(repetitions)]])
+        induction = Matrix([[(x + 1)**i for i in range(repetitions)]])
+
         return [
-            PartialTransform(g, {i: a[i] + X * (b[i] - a[i]) for i in self.sigma})
-            for a, b in zipped
+            PartialTransform(self.graph, {i: (base * sol[i])[0] for i in self.sigma})
+            for sol in solved
         ] + [
-            PartialTransform(g, {i: a[i] + (X + 1) * (b[i] - a[i]) for i in self.sigma})
-            for a, b in zipped
+            PartialTransform(self.graph, {i: (induction * sol[i])[0] for i in self.sigma})
+            for sol in solved
         ]
 
     def _confirm_generic_sequence(self, pattern, expected, variable):
         """
         Given outputs from _find_pattern and _get_generic_sequence, try to check
-        by induction that linear interpolation of sigma values describes recurrent
+        by induction that polynomial interpolation of sigma values describes recurrent
         pattern. Returns True if this succeeds.
         """
         sigma, n = expected[0], len(pattern)
@@ -512,17 +529,8 @@ class PartialBraid:
 
             # check that if root is not zero for all values of X, then it is never zero.
             # return False if this fails, as then the next value of sigma depends on X.
-            nonconstant_indices = [
-                j for j, f in root if type(f) == Polynomial and not f.is_constant()
-            ]
-            if nonconstant_indices:
-                j = nonconstant_indices[0]
-                # define a, b such that root[j] = a * X + b
-                a, b = root[j][variable], root[j][1]
-                if type(a) == int:
-                    a = RationalNumber(a)
-                if root.set_variable(variable, -b / a) == 0:
-                    return False
+            if not any(f < 0 or f > 0 for _, f in root):
+                return False
 
             if root == 0:
                 sigma = sigma * i

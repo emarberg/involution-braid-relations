@@ -182,9 +182,12 @@ class TestCoxeterGraph:
         E6_twist = CoxeterGraph.E_tilde_twist(6)  # noqa
         E7_twist = CoxeterGraph.E_tilde_twist(7)  # noqa
 
+        rA5 = CoxeterGraph.A_tilde_rotate(5)  # noqa
+        fA5 = CoxeterGraph.A_tilde_flip(5)  # noqa
+
         simply_laced = [
             a5, a5_twist, A5, A5_twist, d7, d7_twist, e6, e6_twist, e7, e8,
-            E6, E6_twist, E7, E7_twist, E8, D6
+            E6, E6_twist, E7, E7_twist, E8, D6, rA5, fA5
         ]
         crystallographic = \
             simply_laced + [

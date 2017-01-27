@@ -339,6 +339,20 @@ class CoxeterGraph:
         return CoxeterGraph.A_tilde(n, star)
 
     @staticmethod
+    def A_tilde_flip(n):  # noqa
+        assert n % 2 != 0
+        star = [(i, n + 1 - i) for i in range(1, n + 1)]
+        return CoxeterGraph.A_tilde(n, star)
+
+    @staticmethod
+    def A_tilde_rotate(n):  # noqa
+        assert n % 2 != 0
+        r = (n + 1) // 2
+        star = [(i, (i - 1 + r) % (n + 1) + 1) for i in range(1, n + 2)]
+        return CoxeterGraph.A_tilde(n, star)
+
+
+    @staticmethod
     def B_tilde(n, star=None):  # noqa
         """
         Dynkin diagram labeling is:

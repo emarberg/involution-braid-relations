@@ -403,9 +403,8 @@ class TestPartialBraid:
     def test_is_recurrent(self):
         g = CoxeterGraph.G_tilde(2)
         state = PartialBraid(g, s=1, t=2)
-        word = (1, 2, 1, 2, 3, 2, 1, 2, 1, 2, 3, 2, 1, 2, 1, 2, 3, 2, 1, 2, 1, 2, 3,)
-        state.word_s = CoxeterWord(g, word + (1, 2, 1))
-        state.word_t = CoxeterWord(g, word + (2, 1, 2))
+        state.word_s = CoxeterWord(g, (1, 2, 1))
+        state.word_t = CoxeterWord(g, (2, 1, 2))
 
         alpha = \
             CoxeterVector(g, 1, 6 + 3 * QuadraticNumber.sqrt(3)) + \
@@ -421,23 +420,24 @@ class TestPartialBraid:
             CoxeterVector(g, 3, -3 - 2 * QuadraticNumber.sqrt(3))
 
         state.sigma = PartialTransform(g, {1: alpha, 2: beta, 3: gamma})
-        assert state.is_recurrent()
+        history = [state]
+        for _ in range(16):
+            new = history[-1]
+            descent = new.get_unconditional_descent()
+            commutes = new.sigma[descent] == -CoxeterVector(new.graph, new.graph.star(descent))
+            new = new._branch_from_descent(descent, commutes=commutes).reduce()
+            history.append(new)
+        assert new.is_recurrent(history)
 
         q = BraidQueue(g)
         q.recurrent_states = [state]
         q.minimize_relations()
 
         state.sigma = PartialTransform(g, {1: 2 * alpha, 2: beta, 3: gamma})
-        assert not state.is_recurrent()
+        assert not state.is_recurrent([state])
 
         state.sigma = PartialTransform(g, {1: Polynomial('x') * alpha, 2: beta, 3: gamma})
-        assert not state.is_recurrent()
-
-        word = (1, 2, 3)
-        state.word_s = CoxeterWord(g, word + (1, 2, 1))
-        state.word_t = CoxeterWord(g, word + (2, 1, 2))
-        state.sigma = PartialTransform(g, {1: alpha, 2: beta, 3: gamma})
-        assert not state.is_recurrent()
+        assert not state.is_recurrent([state])
 
 
 class TestBraidQueue:

@@ -946,6 +946,14 @@ class Matrix:
             raise OperatorException(self, other, '__mul__')
         return [sum(row[i] * other[i] for i in range(len(other))) for row in self.rows]
 
+    @classmethod
+    def vandermonde_matrix(cls, n):
+        return Matrix([[i**j for j in range(n)] for i in range(n)])
+
+    @classmethod
+    def vandermonde_inverse(cls, n):
+        return cls.vandermonde_matrix(n).inverse()
+
     def inverse(self):
         n = self.num_rows
         if n != self.num_cols:
