@@ -1107,6 +1107,8 @@ class TestPolynomial:
         (X**2 - 2 * X, {X - 2, X}),
         (X**2 - 2 * X + 1, {X - 1}),
         (X**2 - 2 * X, {X - 2, X}),
+        (X * Y, {X, Y}),
+        (X**2 + X * Y + X, {X + Y + 1, X})
     ])
     def test_get_real_quadratic_factors(self, f, expected):
         factors = f.get_real_quadratic_factors()
@@ -1116,21 +1118,21 @@ class TestPolynomial:
         if len(factors) == 0:
             return
         elif len(factors) == 1:
-            monic_root_a = factors.pop()
-            monic_root_b = monic_root_a
+            g = factors.pop()
+            if f.degree() == 2:
+                g = g**2
         else:
-            monic_root_a, monic_root_b = tuple(factors)
+            root_a, root_b = tuple(factors)
+            g = root_a * root_b
 
-        leading_coeff = f[{'x': 2}]
-        if leading_coeff == 0:
-            leading_coeff = f[{'x': 1}]
-            assert f == leading_coeff * monic_root_a
-        else:
-            assert f == leading_coeff * monic_root_a * monic_root_b
+        monomial = next(iter(f.coefficients.keys()))
+        old_coeff = f[monomial]
+        new_coeff = g[monomial]
+        assert new_coeff * f == old_coeff * g
 
     @pytest.mark.parametrize("f, expected", [
         (Polynomial(), CannotFactorException),
-        (X * Y, CannotFactorException),
+        (X * Y + 1, CannotFactorException),
         (X**3 - 1, CannotFactorException),
         (X + QuadraticNumber.sqrt(-1), CannotFactorException),
         (X**2 - QuadraticNumber.sqrt(3), Exception)

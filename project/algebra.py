@@ -813,13 +813,24 @@ class Polynomial(VectorMixin, OperatorMixin, NumberMixin):
         two and real coefficients, then this returns set of self's real-rooted monic linear factors.
         Returns empty set if self has no real roots, and raises Exception if cannot uniquely factor.
         """
-        # check that self is not zero and does not involve multiple variables
-        if self == 0 or len(self.get_variables()) > 1:
+        # check that self is not zero
+        if self == 0:
             raise CannotFactorException(self)
 
         # case: polynomial is nonzero and constant, so has no real roots
         if self.is_constant():
             return set()
+
+        # case: multiple variables
+        if len(self.get_variables()) > 1:
+            # is polynomial divisible by some variable x?
+            factorable_variables = set(next(iter(self.coefficients)).exponents.keys())
+            for monomial in self.coefficients:
+                factorable_variables &= monomial.exponents.keys()
+            if factorable_variables:
+                v = next(iter(factorable_variables))
+                return {self * Polynomial(Monomial({v: -1})), Polynomial({v: 1})}
+            raise CannotFactorException(self)
 
         # if we get here, self is univariate and not constant
         a, b, c, x = self._get_monic_quadratic_coefficients()
