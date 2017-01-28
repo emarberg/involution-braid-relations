@@ -433,7 +433,7 @@ class PartialBraid:
         """
         if not self.sigma.is_constant():
             return False
-
+        print(history[-1])
         patterns = self._find_patterns(len(history))
         variable = 'x'
         for pattern, repetitions in patterns:
@@ -456,24 +456,22 @@ class PartialBraid:
         word_t = self.word_t.word
         n = 2
         while 2 * n <= search_length:
-            # skip patterns which are just multiples of smaller ones
-            if not any(n % len(p) == 0 for p, _ in patterns):
-                i = 1
-                while True:
-                    a = word_s[(i - 1) * n:i * n]
-                    b = word_s[i * n:(i + 1) * n]
-                    c = word_t[(i - 1) * n:i * n]
-                    d = word_t[i * n:(i + 1) * n]
-                    if a == b == c == d and (i + 1) * n <= search_length:
-                        i += 1
-                    else:
-                        if i > 1:
-                            pattern = reverse_tuple(word_s[:n])
-                            patterns += [(pattern, i)]
-                        break
+            i = 1
+            while True:
+                a = word_s[(i - 1) * n:i * n]
+                b = word_s[i * n:(i + 1) * n]
+                c = word_t[(i - 1) * n:i * n]
+                d = word_t[i * n:(i + 1) * n]
+                if a == b == c == d and (i + 1) * n <= search_length:
+                    i += 1
+                else:
+                    if i > 1:
+                        pattern = reverse_tuple(word_s[:n])
+                        patterns += [(pattern, i)]
+                    break
             n += 1
-        # sort so that pattern with largest number of repetitions appears first
-        return sorted(patterns, key=lambda x: -x[1])
+        # sort so that largest patterns appear first
+        return sorted(patterns, key=lambda x: -len(x[0]))
 
     def _get_generic_sequence(self, history, pattern, repetitions, variable):
         """

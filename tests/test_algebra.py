@@ -448,12 +448,7 @@ class TestQuadraticNumbers:
             e = exception
         assert type(e) == QuadraticNumber.IndeterminateComparisonException
 
-        e = None
-        try:
-            2 - a < b + c + d
-        except Exception as exception:
-            e = exception
-        assert type(e) == QuadraticNumber.IndeterminateComparisonException
+        assert 2 - a < b + c + d
 
     @pytest.mark.parametrize("a, b, expected", [
         (QuadraticNumber(0), 0, {}),

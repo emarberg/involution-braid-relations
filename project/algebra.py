@@ -332,11 +332,33 @@ class QuadraticNumber(VectorMixin, OperatorMixin, NumberMixin):
         elif all(c < 0 for c in diff.coefficients.values()):
             return False
 
-        positive_part, negative_part = diff.decompose()
-        if max(len(positive_part), len(negative_part)) > 2:
+        positive_part, negative_part, boolean = diff._get_normalized_parts()
+        if boolean is not None:
+            return boolean
+        elif max(len(positive_part), len(negative_part)) > 2:
             raise QuadraticNumber.IndeterminateComparisonException(negative_part, positive_part)
         else:
             return (negative_part**2).lt__quadratic_number(positive_part**2)
+
+    def _get_normalized_parts(self):
+        """
+        Decompose QuadraticNumber into positive and negative parts. If either
+        or these is rational, renormalize both values and attempt to compare.
+        Returns renormalized values and output of comparison, which may be None.
+        """
+        positive_part, negative_part = self.decompose()
+        boolean = None
+        if positive_part.is_rational():
+            negative_part = negative_part / positive_part
+            positive_part = QuadraticNumber(1)
+            if any(pf.n * coeff**2 > 1 for pf, coeff in negative_part.coefficients.items()):
+                boolean = False
+        elif negative_part.is_rational():
+            positive_part = positive_part / negative_part
+            negative_part = QuadraticNumber(1)
+            if any(pf.n * coeff**2 > 1 for pf, coeff in positive_part.coefficients.items()):
+                boolean = True
+        return positive_part, negative_part, boolean
 
     def lt__polynomial(self, other):
         return Polynomial(self).lt__polynomial(other)
