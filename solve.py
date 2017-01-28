@@ -13,7 +13,7 @@ def get_arguments():
         choices=['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H',
                  '2A', '2B', '2C', '2D', '2E', '2F', '2G',
                  'A~', 'B~', 'C~', 'D~', 'E~', 'F~', 'G~',
-                 '2A~', '2B~', '2C~', '2E~',
+                 '2A~', '2B~', '2C~', '2D~', '2E~',
                  'rA~', 'fA~']
     )
     parser.add_argument(
@@ -70,6 +70,7 @@ def get_coxeter_graph(coxeter_type, rank):
         '2A~': CoxeterGraph.A_tilde_twist,
         '2B~': CoxeterGraph.B_tilde_twist,
         '2C~': CoxeterGraph.C_tilde_twist,
+        '2D~': CoxeterGraph.D_tilde_twist,
         '2E~': CoxeterGraph.E_tilde_twist,
         'rA~': CoxeterGraph.A_tilde_rotate,
         'fA~': CoxeterGraph.A_tilde_flip

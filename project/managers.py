@@ -410,7 +410,7 @@ class PartialBraid:
                 print(len(history))
                 # periodically whether state is recurrent; 32 is an arbitrary number
                 if len(history) % 32 == 0 and new.is_recurrent(history):
-                    return []
+                    return []  # pragma: no cover
                 descent = new.get_unconditional_descent()
                 if descent is None or not new.sigma[descent].is_constant():
                     return [new]
@@ -520,7 +520,7 @@ class PartialBraid:
 
             # check that inductive hypothesis holds
             if sigma != expected[index] or not sigma[i].is_negative():
-                return False
+                return False  # pragma: no cover
 
             # s_i commutes with sigma if and only if the following is zero
             root = sigma[i] + CoxeterVector(self.graph, self.graph.star(i))
@@ -528,7 +528,7 @@ class PartialBraid:
             # check that if root is not zero for all values of X, then it is never zero.
             # return False if this fails, as then the next value of sigma depends on X.
             if not any(f < 0 or f > 0 for _, f in root):
-                return False
+                return False  # pragma: no cover
 
             if root == 0:
                 sigma = sigma * i
@@ -591,9 +591,9 @@ class PartialBraid:
         We also include in the returned list one child with no new descents.
         """
         if not self.sigma.is_constant() or self.sigma.is_complete():
-            return None
+            return None  # pragma: no cover
         if self.get_unconditional_descent() is not None:
-            return None
+            return None  # pragma: no cover
 
         g = self.graph
         # exclude the descents which will not give rise to valid states
