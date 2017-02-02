@@ -351,7 +351,6 @@ class CoxeterGraph:
         star = [(i, (i - 1 + r) % (n + 1) + 1) for i in range(1, n + 2)]
         return CoxeterGraph.A_tilde(n, star)
 
-
     @staticmethod
     def B_tilde(n, star=None):  # noqa
         """
@@ -379,7 +378,7 @@ class CoxeterGraph:
             0==1--2--...--(n-1)==n
 
         """
-        assert n >= 3
+        assert n >= 2
         edges = [(i, i + 1, 3) for i in range(1, n - 1)] + [(0, 1, 4)] + [(n - 1, n, 4)]
         return CoxeterGraph(edges, star=star)
 
@@ -403,7 +402,7 @@ class CoxeterGraph:
         return CoxeterGraph(edges, star=star)
 
     @staticmethod
-    def D_tilde_twist(n):
+    def D_tilde_twist(n):  # noqa
         star = [(i, n - i) for i in range(n + 1)]
         return CoxeterGraph.D_tilde(n, star)
 

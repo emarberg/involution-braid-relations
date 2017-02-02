@@ -931,6 +931,11 @@ class Polynomial(VectorMixin, OperatorMixin, NumberMixin):
 
 class Matrix:
 
+    """
+    Custom class implementing simple matrix operations -- essentially just determinants, inverses,
+    multplication of matrices by vectors, and Vandermonde matrices.
+    """
+
     def __init__(self, matrix, variable=None):
         """
         Constructs matrix from list of lists of Polynomials in the single provided variable.
@@ -975,6 +980,7 @@ class Matrix:
         return self.rows[i]
 
     def __mul__(self, other):
+        """Other should be iterable representing a vector."""
         if len(other) != self.num_cols:
             raise OperatorException(self, other, '__mul__')
         return [sum(row[i] * other[i] for i in range(len(other))) for row in self.rows]
@@ -1029,6 +1035,7 @@ class Matrix:
         return det
 
     def _swap_rows(self, i, j):
+        """Swaps rows i and j of given matrix, returns -1 if i != j and otherwise 1."""
         if i == j:
             return 1
         else:
@@ -1038,22 +1045,29 @@ class Matrix:
             return -1
 
     def _normalize_row(self, i, column):
+        """Divides all entries in row i by scalar in given column of that row. Returns scalar."""
         scalar = self[i][column]
         if type(scalar) == int:
             scalar = RationalNumber(scalar)
         return self._scale_row(i, scalar)
 
     def _scale_row(self, i, scalar):
+        """Divides all entries in row i by given scalar, and returns scalar."""
         for j in range(self.num_cols):
             self.rows[i][j] /= scalar
         return scalar
 
     def _add_row(self, src_row, dest_row, scalar):
+        """Add scalar multiple of src_row of matrix to dest_row."""
         assert src_row != dest_row
         for k in range(self.num_cols):
             self.rows[dest_row][k] += scalar * self.rows[src_row][k]
 
     def _cancel_column(self, i, column):
+        """
+        Rescales row i so that entry in given column is 1, then adds copies of rescaled row to
+        cancel all other entries in given column. Returns original value of self[i][column].
+        """
         ans = self._normalize_row(i, column)
         for j in range(self.num_rows):
             scalar = self[j][column]
@@ -1063,6 +1077,7 @@ class Matrix:
         return ans
 
     def _find_nonzero_entry_row(self, column):
+        """Return first row index i >= column such that self[i][column] is nonzero, or None."""
         for i in range(column, self.num_rows):
             scalar = self[i][column]
             if scalar != 0:
@@ -1070,6 +1085,12 @@ class Matrix:
         return None
 
     def _find_invertible_entry_row(self, column):
+        """
+        Tries to find index of row with invertible entry in given column. Returns index if found.
+        If all entries in column are (linear) polynomials, adds multiples of one row to the
+        others in order to cancel entries in all but this row, then returns this row's index.
+        If this fails, returns None.
+        """
         for i in range(column, self.num_rows):
             scalar = self[i][column]
             if scalar != 0 and (type(scalar) != Polynomial or scalar.is_constant()):
