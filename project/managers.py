@@ -42,6 +42,7 @@ class ConstraintsManager:
         self.nonpositive_constraints = set()
         # list of CoxeterVectors which must be != 0
         self.nonzero_constraints = set()
+        self.nonnegative_constraints = set()
 
     def __eq__(self, other):
         return \
@@ -50,7 +51,8 @@ class ConstraintsManager:
             self.quadratic_constraints == other.quadratic_constraints and \
             self.nonpositive_constraints == other.nonpositive_constraints and \
             self.nonzero_constraints == other.nonzero_constraints and \
-            self.quadratic_constraints == other.quadratic_constraints
+            self.quadratic_constraints == other.quadratic_constraints and \
+            self.nonnegative_constraints == other.nonnegative_constraints
 
     def copy(self):
         other = ConstraintsManager()
@@ -58,6 +60,7 @@ class ConstraintsManager:
         other.linear_constraints = self.linear_constraints.copy()
         other.nonzero_constraints = self.nonzero_constraints.copy()
         other.quadratic_constraints = self.quadratic_constraints.copy()
+        other.nonnegative_constraints = self.nonnegative_constraints.copy()
         return other
 
     def add_zero_constraint(self, constraint):
@@ -73,6 +76,9 @@ class ConstraintsManager:
             constraint = Polynomial(constraint)
         elif type(constraint) != Polynomial:
             raise InvalidInputException(self, constraint, 'add_zero_constraint')
+
+        for index in constraint.get_variables():
+            self.nonnegative_constraints.add(Polynomial({index: 1}))
 
         degree = constraint.degree()
         if degree in [0, 1]:
@@ -154,6 +160,9 @@ class ConstraintsManager:
         self.quadratic_constraints = {
             f.set_variable(var, substitution) for f in self.quadratic_constraints
         }
+        self.nonnegative_constraints = {
+            f.set_variable(var, substitution) for f in self.nonnegative_constraints
+        }
 
     def remove_vacuous_constraints(self):
         self.linear_constraints = {
@@ -170,6 +179,10 @@ class ConstraintsManager:
             r for r in self.nonzero_constraints
             if not any(v < 0 or 0 < v for v in r.coefficients.values())
         }
+        self.nonnegative_constraints = {
+            f for f in self.nonnegative_constraints
+            if not (f.is_constant() and f >= 0)
+        }
 
     def __repr__(self):
         s = '\nconstraints:\n'
@@ -180,6 +193,9 @@ class ConstraintsManager:
 
         for c in self.nonpositive_constraints:
             s += '%s. 0 >= %s\n' % (pad(i), c)
+            i += 1
+        for c in self.nonnegative_constraints:
+            s += '%s. 0 <= %s\n' % (pad(i), c)
             i += 1
 
         for c in self.linear_constraints:
@@ -206,16 +222,18 @@ class ConstraintsManager:
             # instead, we want to determine if f has all positive/negative coeffs
             any(0 < f or f < 0 for f in self.linear_constraints) or
             any(0 < f or f < 0 for f in self.quadratic_constraints) or
-            any(r == 0 for r in self.nonzero_constraints)
+            any(r == 0 for r in self.nonzero_constraints) or
+            any(f < 0 for f in self.nonnegative_constraints)
         )
 
 
 class PartialBraid:
-    def __init__(self, coxeter_graph, s, t):
+    def __init__(self, coxeter_graph, s, t, is_fixer=True):
         if s in coxeter_graph.generators and t in coxeter_graph.generators:
             self.graph = coxeter_graph
             self.s = s
             self.t = t
+            self.is_fixer = is_fixer
             self.sigma = PartialTransform(coxeter_graph)
             self.word_s = CoxeterWord(coxeter_graph)
             self.word_t = CoxeterWord(coxeter_graph)
@@ -243,6 +261,10 @@ class PartialBraid:
         s += '----------------------------------------------------------------\n'
         s += 's = %s, word_s = %s\n' % (self.s, self.word_s)
         s += 't = %s, word_t = %s\n' % (self.t, self.word_t)
+        if self.is_fixer:
+            s += '\ninitial sigma: alpha_s -> alpha_s^*, alpha_t -> alpha_t^*\n'
+        else:
+            s += '\ninitial sigma: alpha_s -> alpha_t^*, alpha_t -> alpha_s^*\n'
         s += '\n'
         s += 'sigma = %s' % self.sigma
         s += '\n'
@@ -263,21 +285,103 @@ class PartialBraid:
     def _clear_constraints(self):
         self.constraints = ConstraintsManager()
 
-    def branch(self):
-        t0 = time.time()
-        children, label = self._get_children()
-        t1 = time.time()
-        children = [child.reduce() for child in children]
-        t2 = time.time()
-        children = [child for child in children if child.is_valid()]
-        t3 = time.time()
+    def get_children(self):
+        if len(self.sigma) == 0:
+            return self._get_first_children()
 
-        description = '\n'
-        description += 'BRANCHING TYPE: %s\n' % label
-        description += '  Time for construction : %s seconds\n' % (t1 - t0)
-        description += '  Time for reduction    : %s seconds\n' % (t2 - t1)
-        description += '  Time to check validity: %s seconds' % (t3 - t2)
-        return children, description
+        children = []
+        queue = [self.copy().reduce()]
+        while queue:
+            child = queue.pop(0)
+            if child.sigma.is_constant() and child.sigma.is_positive():
+                if len(child.word_s) > len(self.word_s) and not child.is_implied_by_induction():
+                    children.extend(child._get_children_with_new_descent())
+            else:
+                queue.extend(child.branch())
+        return children
+
+    def _get_first_children(self):
+        if self.is_fixer:
+            i, j = self.s, self.t
+        else:
+            i, j = self.t, self.s
+
+        alpha = CoxeterVector(self.graph, self.graph.star(i))
+        beta = CoxeterVector(self.graph, self.graph.star(j))
+
+        child = PartialBraid(self.graph, self.s, self.t, self.is_fixer)
+        child.sigma = PartialTransform(self.graph, {self.s: alpha, self.t: beta})
+        child._extend_words()
+        return child._get_children_with_new_descent()
+
+    def _extend_words(self):
+        gens = [self.s, self.t]
+        for i in range(self.graph.get_semiorder(self.s, self.t, self.is_fixer)):
+            self.word_s.extend_left(gens[i % 2])
+            self.word_t.extend_left(gens[(i + 1) % 2])
+
+    def _get_children_with_new_descent(self):
+        """
+        If self.sigma is not constant, or if self.sigma[i] is defined for all
+        generator indices i, or if self.sigma has a descent, returns None.
+        Otherwise, returns list of children constructed from current PartialBraid
+        by replacing a single undefined value of self.sigma[i] by a generic
+        CoxeterVector of the form - sum_i X_i alpha_i, so that i becomes a descent.
+        We also include in the returned list one child with no new descents.
+        """
+        if len(self.sigma) == 0 or not self.sigma.is_constant() or not self.sigma.is_positive():
+            raise Exception  # pragma: no cover
+        if self.sigma.is_complete():
+            return [self]
+
+        g = self.graph
+        # exclude the descents which will not give rise to valid states
+        candidate_descents = [
+            i for i in g.generators
+            if i not in self.sigma and any(g.get_order(i, j) != 2 for j in self.sigma)
+        ]
+
+        children = []
+        for i in candidate_descents:
+            # add child with new descent i
+            child = self.copy()
+            child._clear_constraints()
+            child.sigma[i] = sum([-Polynomial({j: 1}) * CoxeterVector(g, j) for j in g.generators])
+            for j in child.sigma:
+                child.constraints.add_zero_constraint(
+                    child.sigma[i].eval_bilinear(child.sigma[j]) - g.eval_bilinear(i, j)
+                )
+            children.append(child)
+
+        # add child with no (new) descents
+        child = self.copy()
+        for i in g.generators:
+            if i not in self.sigma:
+                # since child has no descents, it must act as identity element
+                child.sigma[i] = CoxeterVector(g, i)
+        if child.is_valid():
+            descents = set(self.sigma) | set(candidate_descents)
+            child.sigma = PartialTransform(g, {i: child.sigma[i] for i in descents})
+            children.append(child)
+
+        return children
+
+    def branch(self):
+        child_getters = [
+            self._get_children_from_determinant_constraint,
+            self._get_children_from_quadratic_constraint,
+            self._get_children_from_unconditional_descent,
+            self._get_children_from_conditional_descent
+        ]
+        for getter in child_getters:
+            childen = getter()
+            if childen is not None:
+                for child in childen:
+                    child = child.reduce()
+                    if child.is_valid():
+                        yield child
+                return
+        raise Exception('Current state does not match any branching rule: %s' % self)
 
     def get_unconditional_descent(self):
         """
@@ -315,44 +419,6 @@ class PartialBraid:
             if nonpositive_part != 0:
                 return i, nonpositive_part
         return None, None
-
-    def _get_children(self):
-        branching_methods = [
-            ('first iteration', self._get_first_children),
-            ('determinant constraint', self._get_children_from_determinant_constraint),
-            ('reducing quadratic constraint', self._get_children_from_quadratic_constraint),
-            ('unconditional descent', self._get_children_from_unconditional_descent),
-            ('conditional descent', self._get_children_from_conditional_descent),
-            ('new descent', self._get_children_with_new_descent)
-        ]
-        for label, child_getter in branching_methods:
-            children = child_getter()
-            if children is not None:
-                return children, label
-        raise Exception('Current state does not match any branching rule: %s' % self)  # pragma: no cover
-
-    def _extend_words(self, is_fixer):
-        gens = [self.s, self.t]
-        for i in range(self.graph.get_semiorder(self.s, self.t, is_fixer)):
-            self.word_s.extend_left(gens[i % 2])
-            self.word_t.extend_left(gens[(i + 1) % 2])
-
-    def _get_first_children(self):
-        if len(self.sigma) > 0:
-            return None
-
-        alpha = CoxeterVector(self.graph, self.graph.star(self.s))
-        beta = CoxeterVector(self.graph, self.graph.star(self.t))
-
-        fixer = PartialBraid(self.graph, self.s, self.t)
-        fixer.sigma = PartialTransform(self.graph, {self.s: alpha, self.t: beta})
-        fixer._extend_words(is_fixer=True)
-
-        transposer = PartialBraid(self.graph, self.s, self.t)
-        transposer.sigma = PartialTransform(self.graph, {self.s: beta, self.t: alpha})
-        transposer._extend_words(is_fixer=False)
-
-        return [fixer, transposer]
 
     def _get_children_from_determinant_constraint(self):
         determinant = self.sigma.determinant()
@@ -581,49 +647,6 @@ class PartialBraid:
             new.sigma = self.graph.star(i) * new.sigma * i
         return new
 
-    def _get_children_with_new_descent(self):
-        """
-        If self.sigma is not constant, or if self.sigma[i] is defined for all
-        generator indices i, or if self.sigma has a descent, returns None.
-        Otherwise, returns list of children constructed from current PartialBraid
-        by replacing a single undefined value of self.sigma[i] by a generic
-        CoxeterVector of the form - sum_i X_i alpha_i, so that i becomes a descent.
-        We also include in the returned list one child with no new descents.
-        """
-        if not self.sigma.is_constant() or self.sigma.is_complete():
-            return None  # pragma: no cover
-        if self.get_unconditional_descent() is not None:
-            return None  # pragma: no cover
-
-        g = self.graph
-        # exclude the descents which will not give rise to valid states
-        candidate_descents = [
-            i for i in g.generators
-            if i not in self.sigma and any(g.get_order(i, j) != 2 for j in self.sigma)
-        ]
-
-        children = []
-        for i in candidate_descents:
-            # add child with new descent i
-            child = self.copy()
-            child._clear_constraints()
-            child.sigma[i] = sum([-Polynomial({j: 1}) * CoxeterVector(g, j) for j in g.generators])
-            for j in child.sigma:
-                child.constraints.add_zero_constraint(
-                    child.sigma[i].eval_bilinear(child.sigma[j]) - g.eval_bilinear(i, j)
-                )
-            children.append(child)
-
-        # add child with no (new) descents
-        child = self.copy()
-        for i in g.generators:
-            if i not in child.sigma:
-                # since child has no descents, it must act as identity element
-                child.sigma[i] = CoxeterVector(g, i)
-        children.append(child)
-
-        return children
-
     def is_valid(self):
         """Return True if current state could be parent of final state for a braid relation."""
         return \
@@ -646,10 +669,64 @@ class PartialBraid:
                 return False
         return True
 
+    def is_implied_by_induction(self):
+        """
+        Returns True if prospective relation encoded by PartialBraid reduces to a shorter
+        relation that holds by induction, or is rendered invalid by such a relation.
+        """
+        sigma = self.sigma
+        if len(self.word_s.word) > 2 and sigma.is_constant() and not sigma.is_complete():
+            if self._words_can_be_reduced(self.word_s.word, self.word_t.word):
+                return True
+        return False
+
+    def _words_can_be_reduced(self, start_word, target_word):
+        """
+        Returns True if relation between start_word and target_word reduces to a shorter
+        relation that holds by induction, or is rendered invalid by such a relation.
+        """
+        relations = self.sigma.get_relations()
+
+        def extract_descents(word):
+            """
+            Generates equivalence class of group elements from given relations,
+            starting from the product s_1s_2...s_n of simple generators corresponding
+            to the input word. It is assumed that every relations has the form
+            (s, t, s, ...) ~ (t, s, t, ...). If any element in the generated class
+            contains both s and t as a left descent for some relations, returns None.
+            Otherwise, returns union of left descent sets over equivalence class.
+            """
+            descents = set()
+            for w in self.graph.get_inverse_atoms(relations, word):
+                for a, b in relations:
+                    if all(i in w.right_descents for i in set(a + b)):
+                        return None
+                descents |= w.get_inverse().right_descents
+            return descents
+
+        descents_start = extract_descents(start_word)
+        if descents_start is None:
+            return True
+
+        descents_target = extract_descents(target_word)
+        if descents_target is None:
+            return True
+
+        # if descents intersect then can pull out common descent to reduce to shorter relation.
+        if descents_start & descents_target:
+            return True
+
+        # return True if we can pull out descents s', t' in each word with m(s',t') > m(s,t)
+        return any(
+            self.graph.get_order(self.s, self.t) < self.graph.get_order(i, j)
+            for i in descents_start for j in descents_target
+        )
+
     def _is_sigma_valid(self):
         # invalid if sigma sends any root to 0 or non-negative/positive combination of simple roots
         if any(not root.is_valid() for root in self.sigma.values()):
             return False
+
         # if sigma sends all roots to positive roots, and no variables remain
         if self.sigma.is_constant() and self.sigma.is_complete() and self.sigma.is_positive():
             # invalid if sigma is not trivial
@@ -663,7 +740,7 @@ class PartialBraid:
         return True
 
     def is_leaf(self):
-        return self.is_valid() and self.sigma.is_identity()
+        return self.sigma.is_constant()
 
     def reduce(self):
         """Reduce constraints, apply resulting simplifications to self.sigma, and return self."""
@@ -693,21 +770,26 @@ class BraidQueue:
     VERBOSE_LEVEL_MEDIUM = 2
     VERBOSE_LEVEL_HIGH = 3
 
-    def __init__(self, coxeter_graph, s=None, t=None, verbose_level=VERBOSE_LEVEL_MEDIUM):
+    def __init__(self, coxeter_graph, s=None, t=None, is_fixer=True,
+                 verbose_level=VERBOSE_LEVEL_MEDIUM):
         """Inputs `s` and `t` should be elements of `coxeter_graph.generators`."""
         self.graph = coxeter_graph
 
         # if s or t is not provided, initialize queue with all pairs of generators (s, t)
-        if not s or not t:
+        if s is None or t is None:
             self.queue = [
-                PartialBraid(coxeter_graph, s, t)
+                PartialBraid(coxeter_graph, s, t, b)
                 for s in coxeter_graph.generators for t in coxeter_graph.generators if s < t
+                for b in [True, False]
             ]
+            self.neighborhood = set(self.graph.generators)
         else:
-            self.queue = [PartialBraid(coxeter_graph, s, t)]
+            self.queue = [PartialBraid(coxeter_graph, s, t, is_fixer)]
+            self.neighborhood = {s, t}
 
         self.recurrent_states = []
         self.sufficient_relations = set()
+        self.leaf_states = []
         self.minimal_relations = []
         self.verbose_level = verbose_level
 
@@ -723,71 +805,6 @@ class BraidQueue:
 
     def _print_verbose(self, string, end=None):
         self._print(string, end=end, level=self.VERBOSE_LEVEL_HIGH)
-
-    def _update(self, children, description):
-        """Add new states from input list `children` to self.queue or to self.final."""
-        self._print(description)
-        self._print_verbose('')
-        self._print_verbose('-------------')
-        self._print_verbose('Child states:')
-        self._print_verbose('-------------')
-        self._print_verbose('')
-
-        i = 0
-        for child in children:
-            if child.is_leaf():
-                self._add_to_sufficient_relations(child)
-            else:
-                self._insert(child)
-                self._print_verbose('%s. %s' % (i + 1, child))
-                i += 1
-        if i == 0:
-            self._print_verbose('\n(no states added)\n')
-
-        self._print('States in queue                  : %s' % len(self))
-        self._print('Multiplicities by word length    : %s' % self.word_multiplicities())
-        self._print('Multiplicities by non-blank roots: %s' % self.root_multiplicities())
-        self._print('Relations found                  : %s' % len(self.sufficient_relations))
-        self._print('Unresolved states                : %s' % len(self.recurrent_states))
-
-    def _insert(self, child):
-        """Insert child into queue in position preserving ordering by length."""
-        i = 0
-        while i < len(self.queue) and len(self.queue[i]) < len(child):
-            i += 1
-        self.queue.insert(i, child)
-
-    def _add_to_sufficient_relations(self, child):
-        """Convert PartialBraid `child` to pair of words and add to self.sufficient_relations."""
-        u = tuple(child.word_s.word)
-        v = tuple(child.word_t.word)
-        if u < v:
-            self.sufficient_relations.add((u, v))
-        else:
-            self.sufficient_relations.add((v, u))
-
-    def _get_next_state(self):
-        next_state = self.queue.pop(0)
-        self._print_verbose('')
-        self._print_verbose('-----------')
-        self._print_verbose('Next state:')
-        self._print_verbose('-----------')
-        self._print_verbose('')
-        self._print_verbose(next_state)
-        return next_state
-
-    def next(self):
-        """Pop first state from queue, compute its children, then append these to the queue."""
-        if len(self) == 0:
-            self._print('Queue is empty')
-        else:
-            next_state = self._get_next_state()
-            try:
-                children, description = next_state.branch()
-            except RecurrentStateException as e:
-                self.recurrent_states += [e.state]
-            else:
-                self._update(children, description)
 
     def _get_multiplicities(self, state_to_length_fn):
         multiplicities = defaultdict(int)
@@ -841,6 +858,76 @@ class BraidQueue:
         for u, v in sufficient:
             self._print_status('%s <---> %s' % (u, v))
 
+    def next(self):
+        """Pop first state from queue, compute its children, then append these to the queue."""
+        if len(self) == 0:
+            self._print('Queue is empty')
+        else:
+            next_state = self._get_next_state()
+            try:
+                t0 = time.time()
+                children = next_state.get_children()
+                t1 = time.time()
+                description = "\nTime: %s seconds" % (t1 - t0)
+            except RecurrentStateException as e:
+                self.recurrent_states += [e.state]
+            else:
+                self._update(children, description)
+
+    def _get_next_state(self):
+        next_state = self.queue.pop(0)
+        self._print_verbose('')
+        self._print_verbose('-----------')
+        self._print_verbose('Next state:')
+        self._print_verbose('-----------')
+        self._print_verbose('')
+        self._print_verbose(next_state)
+        return next_state
+
+    def _update(self, children, description):
+        """Add new states from input list `children` to self.queue or to self.final."""
+        self._print(description)
+        self._print_verbose('')
+        self._print_verbose('-------------')
+        self._print_verbose('Child states:')
+        self._print_verbose('-------------')
+        self._print_verbose('')
+
+        i = 0
+        for child in children:
+            self.neighborhood |= set(child.sigma)
+            if child.is_leaf():
+                self._add_to_sufficient_relations(child)
+            else:
+                self._insert(child)
+                self._print_verbose('%s. %s' % (i + 1, child))
+                i += 1
+        if i == 0:
+            self._print_verbose('\n(no states added)\n')
+
+        self._print('States in queue                  : %s' % len(self))
+        self._print('Multiplicities by word length    : %s' % self.word_multiplicities())
+        self._print('Multiplicities by non-blank roots: %s' % self.root_multiplicities())
+        self._print('Relations found                  : %s' % len(self.sufficient_relations))
+        self._print('Unresolved states                : %s' % len(self.recurrent_states))
+
+    def _insert(self, child):
+        """Insert child into queue in position preserving ordering by length."""
+        i = 0
+        while i < len(self.queue) and len(self.queue[i]) < len(child):
+            i += 1
+        self.queue.insert(i, child)
+
+    def _add_to_sufficient_relations(self, child):
+        """Convert PartialBraid `child` to pair of words and add to self.sufficient_relations."""
+        u = tuple(child.word_s.word)
+        v = tuple(child.word_t.word)
+        if u < v:
+            self.sufficient_relations.add((u, v))
+        else:
+            self.sufficient_relations.add((v, u))
+        self.leaf_states.append(child)
+
     def minimize_relations(self):
         """
         Computes minimal subset of self.sufficient_relations which
@@ -883,16 +970,7 @@ class BraidQueue:
         made at the start of a word.
         """
         target = CoxeterTransform.from_word(self.graph, reverse_tuple(target_word))
-        return target in self.get_inverse_atoms(relations, start_word)
-
-    def get_inverse_atoms(self, relations, start_word):
-        """
-        Return set of CoxeterTransforms which represent inverses of the elements spanned by
-        the input `relations` plus the orindary braid relations.
-        """
-        start = CoxeterTransform.from_word(self.graph, reverse_tuple(start_word))
-        relations = {(reverse_tuple(a), reverse_tuple(b)) for a, b in relations}
-        return start.span_by_right_relations(relations)
+        return target in self.graph.get_inverse_atoms(relations, start_word)
 
     def _get_necessary_relations(self, final):
         """
@@ -966,7 +1044,7 @@ class BraidQueue:
             while 0 < i and u[:i] != v[:i]:
                 i -= 1
             start_word = u[:i]
-            inverse_atoms = self.get_inverse_atoms(relations, start_word)
+            inverse_atoms = self.graph.get_inverse_atoms(relations, start_word)
             w = min(reverse_tuple(a.minimal_reduced_word) for a in inverse_atoms)
             finalized += [(w + u[i:], w + v[i:])]
         return finalized
@@ -1046,7 +1124,7 @@ class BraidQueue:
             for involution, atoms in next_level.items():
                 atom = next(iter(atoms))
                 word = atom.minimal_reduced_word
-                if len(self.get_inverse_atoms(self.minimal_relations, word)) < len(atoms):
+                if len(self.graph.get_inverse_atoms(self.minimal_relations, word)) < len(atoms):
                     self._print('no')
                     raise Exception('Error: minimal relations fail to span all sets of atoms.')
             self._print('yes')

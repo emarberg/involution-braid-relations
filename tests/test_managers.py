@@ -276,10 +276,10 @@ class TestPartialBraid:
     def test_extend_words(self, m, is_fixer, expected):
         g = CoxeterGraph([(1, 2, m)])
 
-        state = PartialBraid(g, 1, 2)
+        state = PartialBraid(g, 1, 2, is_fixer)
         assert state.word_s.word == () and state.word_s.word == ()
 
-        state._extend_words(is_fixer)
+        state._extend_words()
         assert state.word_s.word == expected
 
         other = tuple(map(lambda i: 3 - i, expected))
@@ -288,7 +288,7 @@ class TestPartialBraid:
     def test_get_unconditional_descent(self):
         g = CoxeterGraph.A(3)
         state = PartialBraid(g, s=1, t=2)
-        state._extend_words(True)
+        state._extend_words()
 
         state.sigma = PartialTransform(g, {1: -CoxeterVector(g, 1), 3: -CoxeterVector(g, 3)})
         assert state.get_unconditional_descent() == 1
@@ -438,6 +438,16 @@ class TestPartialBraid:
 
         state.sigma = PartialTransform(g, {1: Polynomial('x') * alpha, 2: beta, 3: gamma})
         assert not state.is_recurrent([state])
+
+    def test_is_implied_by_induction(self):
+        g = CoxeterGraph.A_twist(5)
+        alpha = {i: CoxeterVector(g, i) for i in g.generators}
+        state = PartialBraid(g, 3, 4, True)
+        state.word_s = CoxeterWord(g, (1, 2, 4, 3))
+        state.word_t = CoxeterWord(g, (1, 2, 3, 4))
+
+        state.sigma = PartialTransform(g, {1: alpha[5], 2: alpha[4], 3: alpha[3], 4: alpha[2]})
+        assert state.is_implied_by_induction()
 
 
 class TestBraidQueue:

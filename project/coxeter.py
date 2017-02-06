@@ -216,6 +216,15 @@ class CoxeterGraph:
             max_len += 1
         return max_len
 
+    def get_inverse_atoms(self, relations, start_word):
+        """
+        Return set of CoxeterTransforms which represent inverses of the elements spanned by
+        the input `relations` plus the orindary braid relations.
+        """
+        start = CoxeterTransform.from_word(self, reverse_tuple(start_word))
+        relations = {(reverse_tuple(a), reverse_tuple(b)) for a, b in relations}
+        return start.span_by_right_relations(relations)
+
     @staticmethod
     def A(n, star=None):  # noqa
         """
@@ -773,6 +782,44 @@ class PartialTransform(TransformMixin):
             variable = None
 
         return Matrix(matrix, variable).determinant()
+
+    def get_relations(self):
+        """
+        Returns set of pairs of form ((s, t, s, ...), (t, s, t, ...)) where s, t belong
+        to self.graph.generators such that (1) the PartialTransform maps {alpha_s, alpha_t}
+        to {alpha_s^*, alpha_t^*} and (2) the length of each tuple in the pair is
+        self.graph.get_semiorder(s, t, b), where b is True or False according to
+        whether alpha_s -> alpha_s^* or alpha_s -> alpha_t^*, and this length is < m(s,t).
+        """
+        relations = set()
+        for i in self.sigma:
+            for j in self.sigma:
+                # relations encode symmetric data, so can skip half of them
+                if i >= j:
+                    continue
+
+                # determine length of prospective relation
+                a = CoxeterVector(self.graph, self.graph.star(i))
+                b = CoxeterVector(self.graph, self.graph.star(j))
+                if self.sigma[i] == a and self.sigma[j] == b:
+                    n = self.graph.get_semiorder(i, j, True)
+                elif self.sigma[i] == b and self.sigma[j] == a:
+                    n = self.graph.get_semiorder(i, j, False)
+                else:
+                    continue
+
+                # skip if relation gives an ordinary braid relation
+                if n == self.graph.get_order(i, j):
+                    continue
+
+                # generate relation
+                gens = [i, j]
+                rel_i, rel_j = [], []
+                for k in range(n):
+                    rel_i += [gens[k % 2]]
+                    rel_j += [gens[(k + 1) % 2]]
+                relations.add((tuple(rel_i), tuple(rel_j)))
+        return relations
 
 
 class CoxeterTransform(TransformMixin):
