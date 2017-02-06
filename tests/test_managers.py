@@ -22,7 +22,7 @@ from project.coxeter import (
 
 from project.managers import (
     ConstraintsManager,
-    PartialBraid,
+    BraidSystem,
     BraidQueue
 )
 
@@ -255,14 +255,14 @@ class TestConstraintsManager:
         assert not manager.is_viable()
 
 
-class TestPartialBraid:
+class TestBraidSystem:
     def test_partial_braid_constructor_errors(self):
         g = CoxeterGraph.A(3)
 
         # input (s, t) must both be in g.generators
         e = None
         try:
-            PartialBraid(g, s=0, t=1)
+            BraidSystem(g, s=0, t=1)
         except Exception as exception:
             e = exception
         assert type(e) == InvalidInputException
@@ -276,7 +276,7 @@ class TestPartialBraid:
     def test_extend_words(self, m, is_fixer, expected):
         g = CoxeterGraph([(1, 2, m)])
 
-        state = PartialBraid(g, 1, 2, is_fixer)
+        state = BraidSystem(g, 1, 2, is_fixer)
         assert state.word_s.word == () and state.word_s.word == ()
 
         state._extend_words()
@@ -287,7 +287,7 @@ class TestPartialBraid:
 
     def test_get_unconditional_descent(self):
         g = CoxeterGraph.A(3)
-        state = PartialBraid(g, s=1, t=2)
+        state = BraidSystem(g, s=1, t=2)
         state._extend_words()
 
         state.sigma = PartialTransform(g, {1: -CoxeterVector(g, 1), 3: -CoxeterVector(g, 3)})
@@ -314,7 +314,7 @@ class TestPartialBraid:
     def test_get_conditional_descent(self):
         x = Polynomial('x')
         g = CoxeterGraph.A(3)
-        state = PartialBraid(g, s=1, t=2)
+        state = BraidSystem(g, s=1, t=2)
 
         state.sigma = PartialTransform(g, {1: -CoxeterVector(g, 1), 3: -CoxeterVector(g, 3)})
         assert state.get_conditional_descent() == (1, -CoxeterVector(g, 1))
@@ -337,7 +337,7 @@ class TestPartialBraid:
     def test_get_children_from_quadratic_constraint(self):
         x = Polynomial('x')
         g = CoxeterGraph.A(3)
-        state = PartialBraid(g, s=1, t=3)
+        state = BraidSystem(g, s=1, t=3)
         state.word_s = CoxeterWord(g, (1,))
         state.word_t = CoxeterWord(g, (3,))
 
@@ -359,7 +359,7 @@ class TestPartialBraid:
     def test_get_children_from_conditional_descent(self):
         x = Polynomial('x')
         g = CoxeterGraph.A(3)
-        state = PartialBraid(g, s=1, t=3)
+        state = BraidSystem(g, s=1, t=3)
         state.word_s = CoxeterWord(g, (1,))
         state.word_t = CoxeterWord(g, (3,))
 
@@ -379,7 +379,7 @@ class TestPartialBraid:
 
     def test_is_sigma_valid(self):
         g = CoxeterGraph.A(3)
-        state = PartialBraid(g, s=1, t=2)
+        state = BraidSystem(g, s=1, t=2)
 
         state.sigma = PartialTransform(g, {1: CoxeterVector(g, 1) - CoxeterVector(g, 2)})
         assert not state._is_sigma_valid()
@@ -402,7 +402,7 @@ class TestPartialBraid:
 
     def test_is_recurrent(self):
         g = CoxeterGraph.G_tilde(2)
-        state = PartialBraid(g, s=1, t=2)
+        state = BraidSystem(g, s=1, t=2)
         state.word_s = CoxeterWord(g, (1, 2, 1))
         state.word_t = CoxeterWord(g, (2, 1, 2))
 
@@ -442,7 +442,7 @@ class TestPartialBraid:
     def test_is_implied_by_induction(self):
         g = CoxeterGraph.A_twist(5)
         alpha = {i: CoxeterVector(g, i) for i in g.generators}
-        state = PartialBraid(g, 3, 4, True)
+        state = BraidSystem(g, 3, 4, True)
         state.word_s = CoxeterWord(g, (1, 2, 4, 3))
         state.word_t = CoxeterWord(g, (1, 2, 3, 4))
 

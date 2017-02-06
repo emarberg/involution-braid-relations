@@ -228,7 +228,7 @@ class ConstraintsManager:
         )
 
 
-class PartialBraid:
+class BraidSystem:
     def __init__(self, coxeter_graph, s, t, is_fixer=True):
         if s in coxeter_graph.generators and t in coxeter_graph.generators:
             self.graph = coxeter_graph
@@ -244,7 +244,7 @@ class PartialBraid:
 
     def __eq__(self, other):
         return \
-            PartialBraid == type(other) and \
+            BraidSystem == type(other) and \
             self.graph == other.graph and \
             self.sigma == other.sigma and \
             self.word_s.left_action == other.word_s.left_action and \
@@ -258,7 +258,7 @@ class PartialBraid:
         unconditional = self.get_unconditional_descent()
         conditional, _ = self.get_conditional_descent()
         s = ''
-        s += 'PartialBraid data:\n'
+        s += 'BraidSystem data:\n'
         s += '----------------------------------------------------------------\n'
         s += 's = %s, word_s = %s\n' % (self.s, self.word_s)
         s += 't = %s, word_t = %s\n' % (self.t, self.word_t)
@@ -276,7 +276,7 @@ class PartialBraid:
         return s
 
     def copy(self):
-        other = PartialBraid(self.graph, self.s, self.t)
+        other = BraidSystem(self.graph, self.s, self.t)
         other.sigma = self.sigma.copy()
         other.word_s = self.word_s.copy()
         other.word_t = self.word_t.copy()
@@ -310,7 +310,7 @@ class PartialBraid:
         alpha = CoxeterVector(self.graph, self.graph.star(i))
         beta = CoxeterVector(self.graph, self.graph.star(j))
 
-        child = PartialBraid(self.graph, self.s, self.t, self.is_fixer)
+        child = BraidSystem(self.graph, self.s, self.t, self.is_fixer)
         child.sigma = PartialTransform(self.graph, {self.s: alpha, self.t: beta})
         child._extend_words()
         return child._get_children_with_new_descent()
@@ -325,7 +325,7 @@ class PartialBraid:
         """
         If self.sigma is not constant, or if self.sigma[i] is defined for all
         generator indices i, or if self.sigma has a descent, returns None.
-        Otherwise, returns list of children constructed from current PartialBraid
+        Otherwise, returns list of children constructed from current BraidSystem
         by replacing a single undefined value of self.sigma[i] by a generic
         CoxeterVector of the form - sum_i X_i alpha_i, so that i becomes a descent.
         We also include in the returned list one child with no new descents.
@@ -494,9 +494,9 @@ class PartialBraid:
             sigma_{j+1} = s_{i_j}^* o sigma_j o s_{i_j}.
 
         We achieve this by trying to interpolate a polynomial formula for sigma_j over
-        certain periods of j and then checking this formula by induction. If a PartialBraid
+        certain periods of j and then checking this formula by induction. If a BraidSystem
         is recurrent in this sense, then self.sigma cannot represent a Coxeter group element,
-        so the PartialBraid is invalid and has no children.
+        so the BraidSystem is invalid and has no children.
         """
         if not self.sigma.is_constant():
             return False
@@ -626,12 +626,12 @@ class PartialBraid:
 
     def _branch_from_descent(self, i, commutes=True):
         """
-        Returns PartialBraid derived from self with respect to generator index i,
-        which we define as the PartialBraid given by replacing self.sigma by its
+        Returns BraidSystem derived from self with respect to generator index i,
+        which we define as the BraidSystem given by replacing self.sigma by its
         Demazure conjugate by s_i, extending self.word_s and self.word_t by i on
         the left, and adding the constraint that self.sigma[i] is a negative root.
         If input `commutes` is True, we assume self.sigma s_i = s_i^* self.sigma
-        and include the relavent constraint in the derived PartialBraid.
+        and include the relavent constraint in the derived BraidSystem.
         """
         alpha = CoxeterVector(self.graph, self.graph.star(i))
         beta = self.sigma[i]
@@ -672,7 +672,7 @@ class PartialBraid:
 
     def is_implied_by_induction(self):
         """
-        Returns True if prospective relation encoded by PartialBraid reduces to a shorter
+        Returns True if prospective relation encoded by BraidSystem reduces to a shorter
         relation that holds by induction, or is rendered invalid by such a relation.
         """
         sigma = self.sigma
@@ -693,25 +693,15 @@ class PartialBraid:
             Generates equivalence class of group elements from given relations,
             starting from the product s_1s_2...s_n of simple generators corresponding
             to the input word. It is assumed that every relations has the form
-            (s, t, s, ...) ~ (t, s, t, ...). If any element in the generated class
-            contains both s and t as a left descent for some relations, returns None.
-            Otherwise, returns union of left descent sets over equivalence class.
+            (s, t, s, ...) ~ (t, s, t, ...). Returns union of left descent sets over class.
             """
             descents = set()
             for w in self.graph.get_inverse_atoms(relations, word):
-                for a, b in relations:
-                    if all(i in w.right_descents for i in set(a + b)):
-                        return None
                 descents |= w.get_inverse().right_descents
             return descents
 
         descents_start = extract_descents(start_word)
-        if descents_start is None:
-            return True
-
         descents_target = extract_descents(target_word)
-        if descents_target is None:
-            return True
 
         # if descents intersect then can pull out common descent to reduce to shorter relation.
         if descents_start & descents_target:
@@ -755,9 +745,9 @@ class PartialBraid:
 class BraidQueue:
 
     """
-    Class implementing a queue for storing PartialBraid objects.
+    Class implementing a queue for storing BraidSystem objects.
 
-    The queue is processed by popping the first PartialBraid, computing its children,
+    The queue is processed by popping the first BraidSystem, computing its children,
     and then either adding each of these back into the queue or, when a child is a leaf,
     converting it to a involution braid relation. See methods `next` and `go`.
 
@@ -779,13 +769,13 @@ class BraidQueue:
         # if s or t is not provided, initialize queue with all pairs of generators (s, t)
         if s is None or t is None:
             self.queue = [
-                PartialBraid(coxeter_graph, s, t, b)
+                BraidSystem(coxeter_graph, s, t, b)
                 for s in coxeter_graph.generators for t in coxeter_graph.generators if s < t
                 for b in [True, False]
             ]
             self.neighborhood = set(self.graph.generators)
         else:
-            self.queue = [PartialBraid(coxeter_graph, s, t, is_fixer)]
+            self.queue = [BraidSystem(coxeter_graph, s, t, is_fixer)]
             self.neighborhood = {s, t}
 
         self.recurrent_states = []
@@ -920,7 +910,7 @@ class BraidQueue:
         self.queue.insert(i, child)
 
     def _add_to_sufficient_relations(self, child):
-        """Convert PartialBraid `child` to pair of words and add to self.sufficient_relations."""
+        """Convert BraidSystem `child` to pair of words and add to self.sufficient_relations."""
         u = tuple(child.word_s.word)
         v = tuple(child.word_t.word)
         if u < v:
