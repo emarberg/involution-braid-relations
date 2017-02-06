@@ -42,7 +42,7 @@ class ConstraintsManager:
         self.nonpositive_constraints = set()
         # list of CoxeterVectors which must be != 0
         self.nonzero_constraints = set()
-        self.nonnegative_constraints = set()
+        self.nonnegative_indeterminates = set()
 
     def __eq__(self, other):
         return \
@@ -52,7 +52,7 @@ class ConstraintsManager:
             self.nonpositive_constraints == other.nonpositive_constraints and \
             self.nonzero_constraints == other.nonzero_constraints and \
             self.quadratic_constraints == other.quadratic_constraints and \
-            self.nonnegative_constraints == other.nonnegative_constraints
+            self.nonnegative_indeterminates == other.nonnegative_indeterminates
 
     def copy(self):
         other = ConstraintsManager()
@@ -60,7 +60,7 @@ class ConstraintsManager:
         other.linear_constraints = self.linear_constraints.copy()
         other.nonzero_constraints = self.nonzero_constraints.copy()
         other.quadratic_constraints = self.quadratic_constraints.copy()
-        other.nonnegative_constraints = self.nonnegative_constraints.copy()
+        other.nonnegative_indeterminates = self.nonnegative_indeterminates.copy()
         return other
 
     def add_zero_constraint(self, constraint):
@@ -78,7 +78,7 @@ class ConstraintsManager:
             raise InvalidInputException(self, constraint, 'add_zero_constraint')
 
         for index in constraint.get_variables():
-            self.nonnegative_constraints.add(Polynomial({index: 1}))
+            self.nonnegative_indeterminates.add(Polynomial({index: 1}))
 
         degree = constraint.degree()
         if degree in [0, 1]:
@@ -160,8 +160,8 @@ class ConstraintsManager:
         self.quadratic_constraints = {
             f.set_variable(var, substitution) for f in self.quadratic_constraints
         }
-        self.nonnegative_constraints = {
-            f.set_variable(var, substitution) for f in self.nonnegative_constraints
+        self.nonnegative_indeterminates = {
+            f.set_variable(var, substitution) for f in self.nonnegative_indeterminates
         }
 
     def remove_vacuous_constraints(self):
@@ -179,8 +179,8 @@ class ConstraintsManager:
             r for r in self.nonzero_constraints
             if not any(v < 0 or 0 < v for v in r.coefficients.values())
         }
-        self.nonnegative_constraints = {
-            f for f in self.nonnegative_constraints
+        self.nonnegative_indeterminates = {
+            f for f in self.nonnegative_indeterminates
             if not (f.is_constant() and f >= 0)
         }
 
@@ -194,7 +194,7 @@ class ConstraintsManager:
         for c in self.nonpositive_constraints:
             s += '%s. 0 >= %s\n' % (pad(i), c)
             i += 1
-        for c in self.nonnegative_constraints:
+        for c in self.nonnegative_indeterminates:
             s += '%s. 0 <= %s\n' % (pad(i), c)
             i += 1
 
@@ -215,7 +215,7 @@ class ConstraintsManager:
         else:
             return s
 
-    def is_valid(self):
+    def is_viable(self):
         return not (
             any(0 < f for f in self.nonpositive_constraints) or
             # we do not check f != 0 since this would be true for any nontrivial polynomial;
@@ -223,7 +223,8 @@ class ConstraintsManager:
             any(0 < f or f < 0 for f in self.linear_constraints) or
             any(0 < f or f < 0 for f in self.quadratic_constraints) or
             any(r == 0 for r in self.nonzero_constraints) or
-            any(f < 0 for f in self.nonnegative_constraints)
+            any(f < 0 for f in self.nonnegative_indeterminates) or
+            (len(self.nonnegative_indeterminates) > 0 and sum(self.nonnegative_indeterminates) == 0)
         )
 
 
@@ -359,7 +360,7 @@ class PartialBraid:
             if i not in self.sigma:
                 # since child has no descents, it must act as identity element
                 child.sigma[i] = CoxeterVector(g, i)
-        if child.is_valid():
+        if child.is_viable():
             descents = set(self.sigma) | set(candidate_descents)
             child.sigma = PartialTransform(g, {i: child.sigma[i] for i in descents})
             children.append(child)
@@ -378,7 +379,7 @@ class PartialBraid:
             if childen is not None:
                 for child in childen:
                     child = child.reduce()
-                    if child.is_valid():
+                    if child.is_viable():
                         yield child
                 return
         raise Exception('Current state does not match any branching rule: %s' % self)
@@ -471,7 +472,7 @@ class PartialBraid:
                 new = new._branch_from_descent(descent, commutes=commutes).reduce()
                 history.append(new)
 
-                if not new.is_valid():
+                if not new.is_viable():
                     return []
                 print(len(history))
                 # periodically whether state is recurrent; 32 is an arbitrary number
@@ -647,13 +648,13 @@ class PartialBraid:
             new.sigma = self.graph.star(i) * new.sigma * i
         return new
 
-    def is_valid(self):
+    def is_viable(self):
         """Return True if current state could be parent of final state for a braid relation."""
         return \
             self._are_descents_valid() and \
             self.word_s.is_reduced and self.word_t.is_reduced and \
             self._is_sigma_valid() and \
-            self.constraints.is_valid()
+            self.constraints.is_viable()
 
     def _are_descents_valid(self):
         """

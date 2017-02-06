@@ -252,7 +252,7 @@ class TestConstraintsManager:
         assert manager.quadratic_constraints == {4}
         assert manager.nonpositive_constraints == {1}
         assert manager.nonzero_constraints == {CoxeterVector(g)}
-        assert not manager.is_valid()
+        assert not manager.is_viable()
 
 
 class TestPartialBraid:
