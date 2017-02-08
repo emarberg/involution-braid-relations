@@ -252,7 +252,7 @@ class TestConstraintsManager:
         assert manager.quadratic_constraints == {4}
         assert manager.nonpositive_constraints == {1}
         assert manager.nonzero_constraints == {CoxeterVector(g)}
-        assert not manager.is_viable()
+        assert not manager.is_valid()
 
 
 class TestBraidSystem:
@@ -403,21 +403,21 @@ class TestBraidSystem:
     def test_is_recurrent(self):
         g = CoxeterGraph.G_tilde(2)
         state = BraidSystem(g, s=1, t=2)
-        state.word_s = CoxeterWord(g, (1, 2, 1))
-        state.word_t = CoxeterWord(g, (2, 1, 2))
+        state.word_s = CoxeterWord(g, (3, 2, 1, 2, 1, 2, 3, 1, 2, 1))
+        state.word_t = CoxeterWord(g, (3, 2, 1, 2, 1, 2, 3, 2, 1, 2))
 
         alpha = \
-            CoxeterVector(g, 1, 6 + 3 * QuadraticNumber.sqrt(3)) + \
-            CoxeterVector(g, 2, 6 + 4 * QuadraticNumber.sqrt(3)) + \
-            CoxeterVector(g, 3, 2 + 2 * QuadraticNumber.sqrt(3))
+            CoxeterVector(g, 1, 5 * QuadraticNumber.sqrt(3)) + \
+            CoxeterVector(g, 2, 11) + \
+            CoxeterVector(g, 3, 6)
         beta = \
-            CoxeterVector(g, 1, -1 - 2 * QuadraticNumber.sqrt(3)) + \
-            CoxeterVector(g, 2, -4 - QuadraticNumber.sqrt(3)) + \
-            CoxeterVector(g, 3, -2)
+            CoxeterVector(g, 1, -16 - 6 * QuadraticNumber.sqrt(3)) + \
+            CoxeterVector(g, 2, -12 - 11 * QuadraticNumber.sqrt(3)) + \
+            CoxeterVector(g, 3, -6 - 6 * QuadraticNumber.sqrt(3))
         gamma = \
-            CoxeterVector(g, 1, -7 - 3 * QuadraticNumber.sqrt(3)) + \
-            CoxeterVector(g, 2, -6 - 4 * QuadraticNumber.sqrt(3)) + \
-            CoxeterVector(g, 3, -3 - 2 * QuadraticNumber.sqrt(3))
+            CoxeterVector(g, 1, 17 + 11 * QuadraticNumber.sqrt(3)) + \
+            CoxeterVector(g, 2, 22 + 11 * QuadraticNumber.sqrt(3)) + \
+            CoxeterVector(g, 3, 11 + 6 * QuadraticNumber.sqrt(3))
 
         state.sigma = PartialTransform(g, {1: alpha, 2: beta, 3: gamma})
         history = [state]
@@ -425,6 +425,7 @@ class TestBraidSystem:
             new = history[-1]
             descent = new.get_unconditional_descent()
             commutes = new.sigma[descent] == -CoxeterVector(new.graph, new.graph.star(descent))
+            print(descent, new)
             new = new._branch_from_descent(descent, commutes=commutes).reduce()
             history.append(new)
         assert new.is_recurrent(history)
@@ -439,7 +440,7 @@ class TestBraidSystem:
         state.sigma = PartialTransform(g, {1: Polynomial('x') * alpha, 2: beta, 3: gamma})
         assert not state.is_recurrent([state])
 
-    def test_is_implied_by_induction(self):
+    def test_is_redundant(self):
         g = CoxeterGraph.A_twist(5)
         alpha = {i: CoxeterVector(g, i) for i in g.generators}
         state = BraidSystem(g, 3, 4, True)
@@ -447,7 +448,7 @@ class TestBraidSystem:
         state.word_t = CoxeterWord(g, (1, 2, 3, 4))
 
         state.sigma = PartialTransform(g, {1: alpha[5], 2: alpha[4], 3: alpha[3], 4: alpha[2]})
-        assert state.is_implied_by_induction()
+        assert state.is_redundant()
 
 
 class TestBraidQueue:

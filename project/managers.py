@@ -215,7 +215,7 @@ class ConstraintsManager:
         else:
             return s
 
-    def is_viable(self):
+    def is_valid(self):
         return not (
             any(0 < f for f in self.nonpositive_constraints) or
             # we do not check f != 0 since this would be true for any nontrivial polynomial;
@@ -295,24 +295,25 @@ class BraidSystem:
         while queue:
             child = queue.pop(0)
             if child.sigma.is_constant() and child.sigma.is_positive():
-                if len(child.word_s) > len(self.word_s) and not child.is_implied_by_induction():
+                if len(child.word_s) > len(self.word_s) and not child.is_redundant():
                     children.extend(child._get_children_with_new_descent())
             else:
                 queue.extend(child.branch())
         return children
 
     def _get_first_children(self):
+        child = BraidSystem(self.graph, self.s, self.t, self.is_fixer)
+        child._extend_words()
+        if not child._are_words_valid():
+            return []
+
         if self.is_fixer:
             i, j = self.s, self.t
         else:
             i, j = self.t, self.s
-
         alpha = CoxeterVector(self.graph, self.graph.star(i))
         beta = CoxeterVector(self.graph, self.graph.star(j))
-
-        child = BraidSystem(self.graph, self.s, self.t, self.is_fixer)
         child.sigma = PartialTransform(self.graph, {self.s: alpha, self.t: beta})
-        child._extend_words()
         return child._get_children_with_new_descent()
 
     def _extend_words(self):
@@ -357,13 +358,13 @@ class BraidSystem:
         # add child with no (new) descents
         child = self.copy()
         for i in g.generators:
-            if i not in self.sigma:
-                # since child has no descents, it must act as identity element
+            # since child has no descents, it must act as identity element
+            if i in self.sigma:
+                child.constraints.add_zero_constraint(self.sigma[i] - CoxeterVector(g, i))
+            elif i in candidate_descents:
                 child.sigma[i] = CoxeterVector(g, i)
-        if child.is_viable():
-            descents = set(self.sigma) | set(candidate_descents)
-            child.sigma = PartialTransform(g, {i: child.sigma[i] for i in descents})
-            children.append(child)
+        if child.is_valid():
+            children.append(child.reduce())
 
         return children
 
@@ -379,7 +380,7 @@ class BraidSystem:
             if childen is not None:
                 for child in childen:
                     child = child.reduce()
-                    if child.is_viable():
+                    if child.is_valid():
                         yield child
                 return
         raise Exception('Current state does not match any branching rule: %s' % self)
@@ -456,10 +457,11 @@ class BraidSystem:
             return None
 
         if not self.sigma[descent].is_constant():
-            return [
+            children = [
                 self._branch_from_descent(descent, commutes=True),
                 self._branch_from_descent(descent, commutes=False)
-            ]  # pragma: no cover
+            ]
+            return [c for c in children if c is not None]
 
         return self._iterate_descents(descent)
 
@@ -469,15 +471,21 @@ class BraidSystem:
             while True:
                 new = history[-1]
                 commutes = new.sigma[descent] == -CoxeterVector(new.graph, new.graph.star(descent))
-                new = new._branch_from_descent(descent, commutes=commutes).reduce()
-                history.append(new)
-
-                if not new.is_viable():
+                new = new._branch_from_descent(descent, commutes=commutes)
+                if new is None:
                     return []
+
+                new = new.reduce()
+                if not new.is_valid():
+                    return []
+
+                history.append(new)
                 print(len(history))
+
                 # periodically whether state is recurrent; 32 is an arbitrary number
                 if len(history) % 32 == 0 and new.is_recurrent(history):
                     return []  # pragma: no cover
+
                 descent = new.get_unconditional_descent()
                 if descent is None or not new.sigma[descent].is_constant():
                     return [new]
@@ -609,20 +617,27 @@ class BraidSystem:
         if descent is None:
             return None
 
+        children = []
+
         # in this child, `descent` is a commuting descent of sigma
         child_a = self._branch_from_descent(descent, commutes=True)
-        child_a.constraints.add_nonzero_constraint(nonpositive_root)
+        if child_a is not None:
+            child_a.constraints.add_nonzero_constraint(nonpositive_root)
+            children.append(child_a)
 
         # in this child, `descent` is a non-commuting descent of sigma
         child_b = self._branch_from_descent(descent, commutes=False)
-        child_b.constraints.add_nonzero_constraint(nonpositive_root)
+        if child_b is not None:
+            child_b.constraints.add_nonzero_constraint(nonpositive_root)
+            children.append(child_b)
 
         # in last child, `descent` is not a descent of sigma, so nonpositive_root must be 0
         child_c = self.copy()
         for _, f in nonpositive_root:
             child_c.constraints.add_zero_constraint(f)
+        children.append(child_c)
 
-        return [child_a, child_b, child_c]
+        return children
 
     def _branch_from_descent(self, i, commutes=True):
         """
@@ -640,6 +655,9 @@ class BraidSystem:
         new.constraints.add_nonpositive_constraint(beta)
         new.word_s.extend_left(i)
         new.word_t.extend_left(i)
+        if not new._are_words_valid():
+            return None
+
         if commutes:
             new.constraints.add_zero_constraint(alpha + beta)
             new.sigma = new.sigma * i
@@ -648,20 +666,20 @@ class BraidSystem:
             new.sigma = self.graph.star(i) * new.sigma * i
         return new
 
-    def is_viable(self):
+    def is_valid(self):
         """Return True if current state could be parent of final state for a braid relation."""
         return \
-            self._are_descents_valid() and \
-            self.word_s.is_reduced and self.word_t.is_reduced and \
             self._is_sigma_valid() and \
-            self.constraints.is_viable()
+            self.constraints.is_valid()
 
-    def _are_descents_valid(self):
+    def _are_words_valid(self):
         """
-        Returns False if word_s and word_t share a right descent, or have (distinct)
-        right descents with product of order greater than m_st. These cases may be
-        excluded by induction.
+        Returns False if word_s and word_t are not reduced, or share a right descent,
+        or have (distinct) right descents with product of order greater than m_st.
+        These cases may be excluded by induction.
         """
+        if not (self.word_s.is_reduced and self.word_t.is_reduced):
+            return False
         if not self.word_s.right_descents.isdisjoint(self.word_t.right_descents):
             return False
         if any(self.graph.get_order(self.s, self.t) < self.graph.get_order(u, v)
@@ -670,7 +688,7 @@ class BraidSystem:
                 return False
         return True
 
-    def is_implied_by_induction(self):
+    def is_redundant(self):
         """
         Returns True if prospective relation encoded by BraidSystem reduces to a shorter
         relation that holds by induction, or is rendered invalid by such a relation.
