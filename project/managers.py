@@ -682,7 +682,7 @@ class BraidSystem:
             return False
         if not self.word_s.right_descents.isdisjoint(self.word_t.right_descents):
             return False
-        if any(self.graph.get_order(self.s, self.t) < self.graph.get_order(u, v)
+        if any(self.graph.get_order(u, v) < self.graph.get_order(self.s, self.t)
            for u in self.word_s.right_descents
            for v in self.word_t.right_descents):
                 return False
@@ -722,12 +722,12 @@ class BraidSystem:
         descents_target = extract_descents(target_word)
 
         # if descents intersect then can pull out common descent to reduce to shorter relation.
-        if descents_start & descents_target:
+        if not self.word_s.right_descents.isdisjoint(self.word_t.right_descents):
             return True
 
         # return True if we can pull out descents s', t' in each word with m(s',t') > m(s,t)
         return any(
-            self.graph.get_order(self.s, self.t) < self.graph.get_order(i, j)
+            self.graph.get_order(i, j) < self.graph.get_order(self.s, self.t)
             for i in descents_start for j in descents_target
         )
 

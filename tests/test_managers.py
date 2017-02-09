@@ -402,22 +402,22 @@ class TestBraidSystem:
 
     def test_is_recurrent(self):
         g = CoxeterGraph.G_tilde(2)
-        state = BraidSystem(g, s=1, t=2)
-        state.word_s = CoxeterWord(g, (3, 2, 1, 2, 1, 2, 3, 1, 2, 1))
-        state.word_t = CoxeterWord(g, (3, 2, 1, 2, 1, 2, 3, 2, 1, 2))
+        state = BraidSystem(g, s=2, t=3)
+        state.word_s = CoxeterWord(g, (2, 3, 2, 1, 2, 1, 2, 3, 2, 1, 2, 1, 2, 3, 2, 1, 2, 1, 2, 3, 2, 1, 2, 1, 2, 3, 1, 2, 1, 2, 1, 3, 2))
+        state.word_t = CoxeterWord(g, (2, 3, 2, 1, 2, 1, 2, 3, 2, 1, 2, 1, 2, 3, 2, 1, 2, 1, 2, 3, 2, 1, 2, 1, 2, 3, 1, 2, 1, 2, 1, 2, 3))
 
         alpha = \
-            CoxeterVector(g, 1, 5 * QuadraticNumber.sqrt(3)) + \
-            CoxeterVector(g, 2, 11) + \
-            CoxeterVector(g, 3, 6)
+            CoxeterVector(g, 1, -32) + \
+            CoxeterVector(g, 2, -22 * QuadraticNumber.sqrt(3)) + \
+            CoxeterVector(g, 3, -11 * QuadraticNumber.sqrt(3))
         beta = \
-            CoxeterVector(g, 1, -16 - 6 * QuadraticNumber.sqrt(3)) + \
-            CoxeterVector(g, 2, -12 - 11 * QuadraticNumber.sqrt(3)) + \
-            CoxeterVector(g, 3, -6 - 6 * QuadraticNumber.sqrt(3))
+            CoxeterVector(g, 1, 11 * QuadraticNumber.sqrt(3)) + \
+            CoxeterVector(g, 2, 23) + \
+            CoxeterVector(g, 3, 11)
         gamma = \
-            CoxeterVector(g, 1, 17 + 11 * QuadraticNumber.sqrt(3)) + \
-            CoxeterVector(g, 2, 22 + 11 * QuadraticNumber.sqrt(3)) + \
-            CoxeterVector(g, 3, 11 + 6 * QuadraticNumber.sqrt(3))
+            CoxeterVector(g, 1, 9 * QuadraticNumber.sqrt(3)) + \
+            CoxeterVector(g, 2, 18) + \
+            CoxeterVector(g, 3, 10)
 
         state.sigma = PartialTransform(g, {1: alpha, 2: beta, 3: gamma})
         history = [state]
@@ -480,11 +480,6 @@ class TestBraidQueue:
         g = CoxeterGraph.B(3)
         q = BraidQueue(g, verbose_level=BraidQueue.VERBOSE_LEVEL_LOW)
         q.go()
-        assert q.sufficient_relations == {
-            ((1, 2), (2, 1)),
-            ((0, 1, 0), (1, 0, 1)),
-            ((0, 1, 2, 0, 1, 0), (0, 1, 2, 1, 0, 1))
-        }
         assert q.minimal_relations == [
             ((1, 2), (2, 1)),
             ((0, 1, 0), (1, 0, 1)),
