@@ -25,6 +25,8 @@ from project.utils import (
     RecurrentStateException
 )
 
+logger = logging.getLogger(__name__)
+
 
 class ConstraintsManager:
 
@@ -329,6 +331,8 @@ class BraidSystem:
         return children
 
     def _get_first_children(self):
+        logger.debug("Constructing first set of children.")
+
         child = BraidSystem(self.graph, self.s, self.t, self.is_fixer)
         child._extend_words()
         if not child._are_words_valid():
@@ -363,6 +367,7 @@ class BraidSystem:
         if self.sigma.is_complete():
             return [self]
 
+        logger.debug("Constructing children with new descent.")
         g = self.graph
         # exclude the descents which will not give rise to valid states
         candidate_descents = [
@@ -456,6 +461,8 @@ class BraidSystem:
         determinant = self.sigma.determinant()
         if determinant is None or determinant in [-1, 1]:
             return None
+
+        logger.debug("Constructing children from determinant constraint.")
         positive_child = self.copy()
         negative_child = self.copy()
         try:
@@ -469,6 +476,8 @@ class BraidSystem:
     def _get_children_from_quadratic_constraint(self):
         if len(self.constraints.quadratic_constraints) == 0:
             return None
+
+        logger.debug("Constructing children from quadratic constraint.")
         constraint = next(iter(self.constraints.quadratic_constraints))
         try:
             factors = constraint.get_real_quadratic_factors()
@@ -486,6 +495,7 @@ class BraidSystem:
         if descent is None:
             return None
 
+        logger.debug("Constructing children from unconditional descents.")
         if not self.sigma[descent].is_constant():
             children = [
                 self._branch_from_descent(descent, commutes=True),
@@ -509,9 +519,10 @@ class BraidSystem:
                 if not new.is_valid():
                     return []
 
+                logger.debug("  descent depth: %s", len(history))
                 history.append(new)
 
-                # periodically whether state is recurrent; 32 is an arbitrary number
+                # periodically check whether state is recurrent; 32 is an arbitrary number
                 if len(history) % 32 == 0 and new.is_recurrent(history):
                     return []  # pragma: no cover
 
@@ -519,7 +530,7 @@ class BraidSystem:
                 if descent is None or not new.sigma[descent].is_constant():
                     return [new]
         except KeyboardInterrupt:  # pragma: no cover
-            print('\nCould not compute children for possibly recurrent state:\n%s' % self)  # pragma: no cover
+            logger.warning('Could not compute children for possibly recurrent state:\n%s' % self)  # pragma: no cover
             raise RecurrentStateException(new)  # pragma: no cover
 
     def is_recurrent(self, history):
@@ -538,15 +549,18 @@ class BraidSystem:
         if not self.sigma.is_constant():
             return False
 
+        logger.debug("Checking recurrence of system:\n%s", self)
         patterns = self._find_patterns(len(history))
         variable = 'x'
         for pattern, repetitions in patterns:
-            print(pattern, repetitions)
+            logger.debug("Found pattern with %i repetitions: %s", repetitions, pattern)
             n = len(pattern) * repetitions
             expected = self._get_generic_sequence(history[-n:], pattern, repetitions, variable)
             if self._confirm_generic_sequence(pattern, expected, variable):
+                logger.debug("System is recurrent.")
                 return True
 
+        logger.debug("Could not determine if system is recurrent.")
         return False
 
     def _find_patterns(self, search_length):
@@ -646,6 +660,7 @@ class BraidSystem:
         if descent is None:
             return None
 
+        logger.debug("Constructing children from conditional descent.")
         children = []
 
         # in this child, `descent` is a commuting descent of sigma
@@ -803,13 +818,7 @@ class BraidQueue:
     and to do some sanity checks.
     """
 
-    VERBOSE_LEVEL_NONE = 0
-    VERBOSE_LEVEL_LOW = 1
-    VERBOSE_LEVEL_MEDIUM = 2
-    VERBOSE_LEVEL_HIGH = 3
-
-    def __init__(self, coxeter_graph, s=None, t=None, is_fixer=True,
-                 verbose_level=VERBOSE_LEVEL_MEDIUM):
+    def __init__(self, coxeter_graph, s=None, t=None, is_fixer=True):
         """Inputs `s` and `t` should be elements of `coxeter_graph.generators`."""
         self.graph = coxeter_graph
 
@@ -829,20 +838,9 @@ class BraidQueue:
         self.sufficient_relations = set()
         self.leaf_states = []
         self.minimal_relations = []
-        self.verbose_level = verbose_level
 
     def __len__(self):
         return len(self.queue)
-
-    def _print(self, string, end=None, level=VERBOSE_LEVEL_MEDIUM):
-        if level <= self.verbose_level:
-            print(string, end=end)  # noqa
-
-    def _print_status(self, string, end=None):
-        self._print(string, end=end, level=self.VERBOSE_LEVEL_LOW)
-
-    def _print_verbose(self, string, end=None):
-        self._print(string, end=end, level=self.VERBOSE_LEVEL_HIGH)
 
     def _get_multiplicities(self, state_to_length_fn):
         multiplicities = defaultdict(int)
@@ -873,81 +871,71 @@ class BraidQueue:
             self.verify_relations()
 
     def find_relations(self, limit=None):
-        self._print_status('Step 1: Finding sufficient relations.')
+        logger.info('Step 1: Finding sufficient relations.')
         t0 = time.time()
         while len(self) > 0 and (limit is None or len(self.queue[0]) <= limit):
             self.next()
         t1 = time.time()
 
-        self._print_status('')
-        self._print_status('Duration: %s seconds' % (t1 - t0))
-        self._print_status('')
-        self._print_status('-----------------------')
-        self._print_status('Twisted Coxeter system:')
-        self._print_status('-----------------------')
-        self._print_status(self.graph)
+        logger.info('')
+        logger.info('Duration: %s seconds' % (t1 - t0))
 
         # sort by word length, then lexicographically
         sufficient = sorted(self.sufficient_relations, key=lambda x: (len(x[0]), x))
-        self._print_status('')
-        self._print_status('---------------------')
-        self._print_status('Sufficient relations:')
-        self._print_status('---------------------')
+        logger.info('')
+        logger.info('---------------------')
+        logger.info('Sufficient relations:')
+        logger.info('---------------------')
         for u, v in sufficient:
-            self._print_status('%s <---> %s' % (u, v))
+            logger.info('%s <---> %s' % (u, v))
 
     def next(self):
         """Pop first state from queue, compute its children, then append these to the queue."""
         if len(self) == 0:
-            self._print('Queue is empty')
+            logger.info('Queue is empty')
         else:
             next_state = self._get_next_state()
             try:
                 t0 = time.time()
                 children = next_state.get_children()
                 t1 = time.time()
-                description = "\nTime: %s seconds" % (t1 - t0)
+                logger.info("")
+                logger.info("Time: %s seconds" % (t1 - t0))
             except RecurrentStateException as e:
                 self.recurrent_states += [e.state]
             else:
-                self._update(children, description)
+                self._update(children)
 
     def _get_next_state(self):
         next_state = self.queue.pop(0)
-        self._print_verbose('')
-        self._print_verbose('-----------')
-        self._print_verbose('Next state:')
-        self._print_verbose('-----------')
-        self._print_verbose('')
-        self._print_verbose(next_state)
+        logger.debug('')
+        logger.debug('Next state. %s', next_state)
         return next_state
 
-    def _update(self, children, description):
+    def _update(self, children):
         """Add new states from input list `children` to self.queue or to self.final."""
-        self._print(description)
-        self._print_verbose('')
-        self._print_verbose('-------------')
-        self._print_verbose('Child states:')
-        self._print_verbose('-------------')
-        self._print_verbose('')
-
-        i = 0
+        new_states = []
         for child in children:
             self.neighborhood |= set(child.sigma)
             if child.is_leaf():
                 self._add_to_sufficient_relations(child)
             else:
                 self._insert(child)
-                self._print_verbose('%s. %s' % (i + 1, child))
-                i += 1
-        if i == 0:
-            self._print_verbose('\n(no states added)\n')
+                new_states.append(child)
 
-        self._print('States in queue                  : %s' % len(self))
-        self._print('Multiplicities by word length    : %s' % self.word_multiplicities())
-        self._print('Multiplicities by non-blank roots: %s' % self.root_multiplicities())
-        self._print('Relations found                  : %s' % len(self.sufficient_relations))
-        self._print('Unresolved states                : %s' % len(self.recurrent_states))
+        logger.info('States in queue                  : %s' % len(self))
+        logger.info('Multiplicities by word length    : %s' % self.word_multiplicities())
+        logger.info('Multiplicities by non-blank roots: %s' % self.root_multiplicities())
+        logger.info('Relations found                  : %s' % len(self.sufficient_relations))
+        logger.info('Unresolved states                : %s' % len(self.recurrent_states))
+
+        logger.debug('')
+        logger.debug('Child states.')
+        for i, child in enumerate(new_states):
+            logger.debug('%s. %s' % (i + 1, child))
+        if len(new_states) == 0:
+            logger.debug('(no states added)')
+            logger.debug('')
 
     def _insert(self, child):
         """Insert child into queue in position preserving ordering by length."""
@@ -971,9 +959,9 @@ class BraidQueue:
         Computes minimal subset of self.sufficient_relations which
         generates the same equivalence classes.
         """
-        self._print_status('')
-        self._print_status('')
-        self._print_status('Step 2: Finding minimal sufficient relations.')
+        logger.info('')
+        logger.info('')
+        logger.info('Step 2: Finding minimal sufficient relations.')
 
         t1 = time.time()
         sufficient = sorted(self.sufficient_relations, key=lambda x: (len(x[0]), x))
@@ -982,21 +970,28 @@ class BraidQueue:
         self.minimal_relations = self._finalize_necessary_relations(necessary, rest)
         t2 = time.time()
 
-        self._print_status('')
-        self._print_status('Duration: %s seconds' % (t2 - t1))
-        self._print_status('')
-        self._print_status('-----------------------------')
-        self._print_status('Minimal sufficient relations:')
-        self._print_status('-----------------------------')
+        logger.info('')
+        logger.info('Duration: %s seconds' % (t2 - t1))
+
+        print('')
+        print('-----------------------')
+        print('Twisted Coxeter system:')
+        print('-----------------------')
+        print(self.graph)
+
+        print('')
+        print('-----------------------------')
+        print('Minimal sufficient relations:')
+        print('-----------------------------')
         for u, v in self.minimal_relations:
-            self._print_status('%s <---> %s' % (u, v))
+            print('%s <---> %s' % (u, v))
 
         if len(self.recurrent_states) > 0:
-            self._print_status('')
-            self._print_status('------------------')
-            self._print_status('Unresolved states:')
-            self._print_status('------------------')
-            self._print_status('')
+            print('')
+            print('------------------')
+            print('Unresolved states:')
+            print('------------------')
+            print('')
             for i, state in enumerate(self.recurrent_states):
                 print('%s. %s' % (i + 1, state))
 
@@ -1017,8 +1012,8 @@ class BraidQueue:
         in `final` which cannot be generated by all others combined, and the `redundant`
         is the list of relations in `final` which are generated by earlier relations.
         """
-        self._print("")
-        self._print("  1. Get relations which cannot be generated by all others combined.")
+        logger.info("")
+        logger.info("  1. Get relations which cannot be generated by all others combined.")
 
         necessary, redundant = [], []
         for i in range(len(final)):
@@ -1039,7 +1034,7 @@ class BraidQueue:
                 label = "not redundant or independent"
 
             t1 = time.time()
-            self._print("%s (%s), computation took %s seconds" % (tag, label, t1 - t0))
+            logger.info("%s (%s), computation took %s seconds" % (tag, label, t1 - t0))
         return necessary, redundant
 
     def _finalize_necessary_relations(self, necessary, rest):
@@ -1048,21 +1043,22 @@ class BraidQueue:
         and the list `rest` of the remaining relations which are not redundant,
         searches through all combinations of relations to return smallest set which spans.
         """
-        self._print("\n  2. Get smallest set of relations which generate all the others.")
+        logger.info("")
+        logger.info("  2. Get smallest set of relations which generate all the others.")
 
         for i in range(len(rest) + 1):
             for current in itertools.combinations(rest, i):
                 candidate = necessary + list(current)
-                self._print("     * Trying combination of relations:")
+                logger.info("     * Trying combination of relations:")
                 for rel in candidate:
-                    self._print("         %s <---> %s" % rel)
+                    logger.info("         %s <---> %s" % rel)
 
                 complement = [x for x in rest if x not in current]
                 if all(self.are_atoms_connected(candidate, u, v) for u, v in complement):
-                    self._print("       Works!")
+                    logger.info("       Works!")
                     return self._finalize_relations(candidate)
                 else:
-                    self._print("       Does not span.")
+                    logger.info("       Does not span.")
 
         raise Exception('Error in BraidQueue._finalize_necessary_relations: returning None')  # pragma: no cover
 
@@ -1114,41 +1110,41 @@ class BraidQueue:
         Checks whether self.minimal_relations span the set of atoms for any twisted involution
         whose involution length is at most upper_length, and prints out the results.
         """
-        self._print_status('')
-        self._print_status('')
-        self._print_status('Step 3: Verifying minimal relations.')
-        self._print_status('')
+        logger.info('')
+        logger.info('')
+        logger.info('Step 3: Verifying minimal relations.')
+        logger.info('')
 
         t2 = time.time()
         max_length = self.graph.get_max_involution_word_length(upper_length)
 
-        self._print('Checking that minimal relations generate the atoms of any twisted involution.')
-        self._print('')
+        logger.info('Checking that minimal relations generate the atoms of any twisted involution.')
+        logger.info('')
 
         if max_length == upper_length:
-            self._print('\u26A0 Coxeter group appears to be very large or infinite.')
-            self._print('  Only checking atoms up to length %s.' % max_length)
-            self._print('')
-            self._print('  (If this still takes forever, you can quit with CONTROL+C.)')
-            self._print('')
+            logger.info('\u26A0 Coxeter group appears to be very large or infinite.')
+            logger.info('  Only checking atoms up to length %s.' % max_length)
+            logger.info('')
+            logger.info('  (If this still takes forever, you can quit with CONTROL+C.)')
+            logger.info('')
 
         self._check_preservation()
         self._check_spanning(max_length)
         t3 = time.time()
 
-        self._print('')
-        self._print_status('Verifying relations took %s seconds' % (t3 - t2))
+        logger.info('')
+        logger.info('Verifying relations took %s seconds' % (t3 - t2))
 
     def _check_preservation(self):
         """Checks that minimal relations are involution words for same twisted involution."""
-        self._print('  * Relations preserve atoms: ', end='')
+        logger.info('  * Relations preserve atoms: ', end='')
         g = self.graph
         for a, b in self.minimal_relations:
             y, z = CoxeterWord(g, a).to_involution(), CoxeterWord(g, b).to_involution()
             if y.left_action != z.left_action:
-                self._print('no')
+                logger.info('no')
                 raise Exception('Error: minimal relations do not preserve all sets of atoms.')
-        self._print('yes')
+        logger.info('yes')
 
     def _check_spanning(self, max_length):
         """
@@ -1158,12 +1154,12 @@ class BraidQueue:
         g = self.graph
         next_level = self._get_next_level_of_involutions_to_atoms(g)
         for length in range(max_length + 1):
-            self._print('  * Relations span atoms of length %s/%s: ' % (length, max_length), end='')
+            logger.info('  * Relations span atoms of length %s/%s: ' % (length, max_length), end='')
             for involution, atoms in next_level.items():
                 atom = next(iter(atoms))
                 word = atom.minimal_reduced_word
                 if len(self.graph.get_inverse_atoms(self.minimal_relations, word)) < len(atoms):
-                    self._print('no')
+                    logger.info('no')
                     raise Exception('Error: minimal relations fail to span all sets of atoms.')
-            self._print('yes')
+            logger.info('yes')
             next_level = self._get_next_level_of_involutions_to_atoms(g, next_level)

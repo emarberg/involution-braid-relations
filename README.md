@@ -23,15 +23,15 @@ python3.5 solve.py --type <Coxeter graph type> \
 				   --rank <Coxeter graph rank> \
 				   [--verify] \
 				   [--limit <maximum braid length>] \
-				   [--verbosity <verbosity level>]
+				   [--log=<logging level>]
 ```
 The last three parameters are optional.
 Including the `--verify` flag will make the program explicitly check that the relations
 it finds actually span and preserve all sets of involution words for the group under consideration.
 This flag is required if a numeric value for `--limit` is provided.
 When `--limit` is set, the program will only search for relations of length up to the given limit.
-This is a useful option if the Coxeter group is infinite. The `--verbosity` flag controls
-how much output the program prints to system out during execution.
+This is a useful option if the Coxeter group is infinite. The `--log` flag controls
+how much output the program logs during execution.
 
 * Some examples (which should terminate in finite time):
 ```

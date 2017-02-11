@@ -1,7 +1,10 @@
 import argparse
+import logging
 
 from project.coxeter import CoxeterGraph
 from project.managers import BraidQueue
+
+logger = logging.getLogger(__name__)
 
 
 def get_arguments():
@@ -28,17 +31,17 @@ def get_arguments():
         help='verify relations after constructing them (required if limit is set)'
     )
     parser.add_argument(
-        '--verbosity',
-        type=int,
-        help='amount of output to print',
-        default=2,
-        choices=[0, 1, 2, 3]
-    )
-    parser.add_argument(
         '--limit',
         type=int,
         default=None,
         help='only look for relations of length up to this (optional) limit'
+    )
+    parser.add_argument(
+        '--log',
+        dest='loglevel',
+        type=str,
+        help="desired level of logging ('DEBUG', 'INFO', 'WARNING', 'ERROR')",
+        default='INFO'
     )
     return parser.parse_args()
 
@@ -78,7 +81,15 @@ def get_coxeter_graph(coxeter_type, rank):
     return coxeter_graph_constructor_dict[coxeter_type](rank)
 
 
-def solve(coxeter_type, rank, verbosity, verify, limit):
+def setup_logging(loglevel):
+    loglevel = args.loglevel
+    numeric_level = getattr(logging, loglevel.upper(), None)
+    if not isinstance(numeric_level, int):
+        raise ValueError('Invalid log level: %s' % loglevel)
+    logging.basicConfig(level=numeric_level)
+
+
+def solve(coxeter_type, rank, verify, limit):
     if limit is not None and not verify:
         print('Error: `--verify` is required if `--limit` is given')
         return
@@ -87,10 +98,11 @@ def solve(coxeter_type, rank, verbosity, verify, limit):
     except:
         print('Invalid type and rank: (%s, %s)' % (coxeter_type, rank))
     else:
-        q = BraidQueue(g, verbose_level=verbosity)
+        q = BraidQueue(g)
         q.go(limit=limit, verify=verify)
 
 
 if __name__ == '__main__':
     args = get_arguments()
-    solve(args.type, args.rank, args.verbosity, args.verify, args.limit)
+    setup_logging(args.loglevel)
+    solve(args.type, args.rank, args.verify, args.limit)

@@ -446,12 +446,12 @@ class TestBraidQueue:
         g = CoxeterGraph.A(3)
 
         # test algorithm where trivial output is expected
-        q = BraidQueue(g, 1, 3, verbose_level=BraidQueue.VERBOSE_LEVEL_HIGH)
+        q = BraidQueue(g, 1, 3)
         q.go()
         assert q.sufficient_relations == set() and q.minimal_relations == []
 
         # test algorithm in small case where nontrivial output is expected
-        q = BraidQueue(g, verbose_level=BraidQueue.VERBOSE_LEVEL_HIGH)
+        q = BraidQueue(g)
         assert {(state.s, state.t) for state in q.queue} == {(1, 2), (1, 3), (2, 3)}
         assert q.sufficient_relations == set()
         assert q.minimal_relations == []
@@ -468,7 +468,7 @@ class TestBraidQueue:
 
     def test_B3(self):  # noqa
         g = CoxeterGraph.B(3)
-        q = BraidQueue(g, verbose_level=BraidQueue.VERBOSE_LEVEL_LOW)
+        q = BraidQueue(g)
         q.go()
         assert q.minimal_relations == [
             ((1, 2), (2, 1)),
@@ -479,7 +479,7 @@ class TestBraidQueue:
     def test_2A3(self):  # noqa
         # Test algorithm in small twisted case
         g = CoxeterGraph.A_twist(3)
-        q = BraidQueue(g, verbose_level=BraidQueue.VERBOSE_LEVEL_LOW)
+        q = BraidQueue(g)
         q.go(verify=True)
         assert q.sufficient_relations == {
             ((1,), (3,)),
