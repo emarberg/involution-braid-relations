@@ -101,7 +101,7 @@ class TestConstraintsManager:
         f = -Polynomial('x')**3
 
         g = CoxeterGraph.A(5)
-        r = CoxeterVector(g, 1, a) + CoxeterVector(g, 4, d) + CoxeterVector(g, 5, e)
+        r = CoxeterVector(g, 1, a) + CoxeterVector(g, 4, 1 + d) + CoxeterVector(g, 5, 1 + e)
 
         manager.add_nonpositive_constraint(a)
         manager.add_nonpositive_constraint(b)
@@ -109,7 +109,7 @@ class TestConstraintsManager:
         manager.add_nonpositive_constraint(d)
         manager.add_nonpositive_constraint(e)
         manager.add_nonpositive_constraint(f)
-        assert manager.nonpositive_constraints == {a, b, c, d, e, f}
+        assert manager.nonpositive_constraints == set()
 
         exception = None
         try:
@@ -122,24 +122,14 @@ class TestConstraintsManager:
         assert len(manager.nonpositive_constraints) == 0
 
         # check that adding CoxeterVector as constraint introduces constraint for each coeff
-        manager.add_nonpositive_constraint(r)
-        assert manager.nonpositive_constraints == {a, d, e}
+        manager.add_nonpositive_constraint(-r)
+        assert manager.nonpositive_constraints == {-1 - d, -1 - e}
+        assert manager.linear_constraints == {-a}
 
-        # check that if nonpositive constraints contains bothx and -x,
+        # check that if nonpositive constraints contains both x and -x,
         # then x gets added as a zero constraints
-        manager.add_nonpositive_constraint(-e)
-        assert -e in manager.quadratic_constraints
-
-        manager.nonpositive_constraints = set()
-        assert len(manager.nonpositive_constraints) == 0
-
-        manager.add_nonpositive_constraint(c)
-        manager.add_nonpositive_constraint(b)
-        manager.add_nonpositive_constraint(a)
-        manager.add_nonpositive_constraint(d)
-        manager.add_nonpositive_constraint(d + e)
-        # since a <= b < c and d + e <= d, we should observe only the following constraints:
-        assert manager.nonpositive_constraints == {c, d}
+        manager.add_nonpositive_constraint(1 + e)
+        assert 1 + e in manager.quadratic_constraints
 
     def test_add_nonzero_constraint(self):
         manager = ConstraintsManager()
@@ -215,7 +205,7 @@ class TestConstraintsManager:
         manager.add_nonpositive_constraint(-x - 1)
         manager.add_nonpositive_constraint(x - 2)
         manager.add_nonpositive_constraint(x - 1)
-        assert manager.nonpositive_constraints == {-x - 1, x - 2, x - 1}
+        assert manager.nonpositive_constraints == {x - 2, x - 1}
         manager.remove_vacuous_constraints()
         assert manager.nonpositive_constraints == {x - 1}
 

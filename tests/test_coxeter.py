@@ -595,6 +595,17 @@ class TestPartialTransform:
         t = PartialTransform(g, {1: CoxeterVector(g, 2, Y), 2: CoxeterVector(g, 1, Y - 5)})
         assert t.determinant() == 5 * Y - Y**2
 
+    def test_get_relations(self):
+        g = CoxeterGraph.B(3)
+        t = PartialTransform(g, {0: CoxeterVector(g, 0), 1: CoxeterVector(g, 1)})
+        assert t.get_relations() == {((0, 1, 0), (1, 0, 1))}
+
+        t = PartialTransform(g, {0: CoxeterVector(g, 1), 1: CoxeterVector(g, 0)})
+        assert t.get_relations() == {((0, 1), (1, 0))}
+
+        t = PartialTransform(g, {0: CoxeterVector(g, 1), 1: CoxeterVector(g, 2)})
+        assert t.get_relations() == set()
+
 
 class TestCoxeterTransform:
     def test_constructor(self):

@@ -628,6 +628,13 @@ class Polynomial(VectorMixin, OperatorMixin, NumberMixin):
     """
 
     @property
+    def leading_coefficient(self):
+        if self.coefficients:
+            monomial = max(self.coefficients.keys())
+            return self.coefficients[monomial]
+        return 0
+
+    @property
     def coefficients(self):
         return self._coefficients
 

@@ -1,6 +1,7 @@
 from collections import defaultdict
 import time
 import itertools
+import logging
 
 from project.algebra import (
     Monomial,
@@ -63,6 +64,22 @@ class ConstraintsManager:
         other.nonnegative_indeterminates = self.nonnegative_indeterminates.copy()
         return other
 
+    def is_value_nonpositive(self, f):
+        """
+        If the function returns True, then current nonpositive constraints imply that f
+        is nonpositive for all nonnegative indeterminates. If the function returns False,
+        then this property either fails or could not be determined by our naive methods.
+
+        TODO: the implementation of this method works for all finite and affine cases, but
+        could be improved a lot. The current implementation is sensitive to rescalings of
+        the input, for example; it would be easy to fix this, at the cost of performance.
+        """
+        return f <= 0 or any(f <= g for g in self.nonpositive_constraints)
+
+    def is_value_negative(self, f):
+        """TODO: improve this method by incorporating current nonpositive constraints."""
+        return f < 0
+
     def add_zero_constraint(self, constraint):
         """
         Add input Polynomial `constraint` to linear or quadratic constraints accordingly.
@@ -98,18 +115,29 @@ class ConstraintsManager:
             for v in constraint.coefficients.values():
                 self.add_nonpositive_constraint(v)
             return
-        elif type(constraint) in [int, RationalNumber, QuadraticNumber]:
-            constraint = Polynomial(constraint)
-        elif type(constraint) != Polynomial:
+        elif type(constraint) not in [int, RationalNumber, QuadraticNumber, Polynomial]:
             raise InvalidInputException(self, constraint, 'add_nonpositive_constraint')
 
-        if -constraint in self.nonpositive_constraints:
+        constraint = self._normalize_input(constraint)
+        if self.is_value_nonpositive(-constraint):
             self.add_zero_constraint(constraint)
-        elif not any(constraint <= f for f in self.nonpositive_constraints):
+        elif not self.is_value_nonpositive(constraint):
             self.nonpositive_constraints.add(constraint)
+
+    def _normalize_input(self, f):
+        """
+        Trivially normalize input by coverting to Polynomial object.
+
+        TODO: actually normalize the input (e.g., by dividing by absolute value of leading
+        coefficient) to avoid storying duplicate constraints.
+        """
+        if type(f) in [int, RationalNumber, QuadraticNumber]:
+            f = Polynomial(f)
+        return f
 
     def add_nonzero_constraint(self, root):
         if type(root) == CoxeterVector:
+            # TODO: normalize `root` to avoid storing duplicate constraints.
             self.nonzero_constraints.add(root)
         else:
             raise InvalidInputException(self, root, 'add_nonzero_constraint')
@@ -148,21 +176,16 @@ class ConstraintsManager:
         return variable_substitutions
 
     def apply_variable_substitution(self, var, substitution):
-        self.linear_constraints = {
-            f.set_variable(var, substitution) for f in self.linear_constraints
-        }
-        self.nonpositive_constraints = {
-            f.set_variable(var, substitution) for f in self.nonpositive_constraints
-        }
-        self.nonzero_constraints = {
-            r.set_variable(var, substitution) for r in self.nonzero_constraints
-        }
-        self.quadratic_constraints = {
-            f.set_variable(var, substitution) for f in self.quadratic_constraints
-        }
-        self.nonnegative_indeterminates = {
-            f.set_variable(var, substitution) for f in self.nonnegative_indeterminates
-        }
+        def replace(f):
+            return f.set_variable(var, substitution)
+
+        # TODO: use dedicated add_xxxx_constraint methods rather than doing in place substitutions.
+        # This is slightly tricky to get right, and simple implementation is usually good enough.
+        self.linear_constraints = {replace(f) for f in self.linear_constraints}
+        self.nonpositive_constraints = {replace(f) for f in self.nonpositive_constraints}
+        self.nonzero_constraints = {replace(r) for r in self.nonzero_constraints}
+        self.quadratic_constraints = {replace(f) for f in self.quadratic_constraints}
+        self.nonnegative_indeterminates = {replace(f) for f in self.nonnegative_indeterminates}
 
     def remove_vacuous_constraints(self):
         self.linear_constraints = {
@@ -171,6 +194,10 @@ class ConstraintsManager:
         self.quadratic_constraints = {
             f for f in self.quadratic_constraints if not (f == 0)
         }
+
+        # TODO: improve how redundant inequalities are detected in three cases below.
+        # Current implementation is very simple, and will consider scalar multiples of
+        # a single constraint to be different.
         self.nonpositive_constraints = {
             f for f in self.nonpositive_constraints
             if not (f <= 0) and not any(f <= g and f != g for g in self.nonpositive_constraints)
@@ -395,7 +422,10 @@ class BraidSystem:
         descents_to_avoid = self.word_s.left_descents | self.word_t.left_descents
         unconditional = {
             i for i in self.sigma
-            if any(f < 0 for f in self.sigma[i].coefficients.values())
+            if any(
+                self.constraints.is_value_negative(f)
+                for f in self.sigma[i].coefficients.values()
+            )
         }
         intersection = sorted(unconditional & descents_to_avoid)
         if intersection:
@@ -416,7 +446,7 @@ class BraidSystem:
         for i in self.sigma:
             nonpositive_part = CoxeterVector(self.graph)
             for j, f in self.sigma[i]:
-                if f <= 0 or any(f <= g for g in self.constraints.nonpositive_constraints):
+                if self.constraints.is_value_nonpositive(f):
                     nonpositive_part += CoxeterVector(self.graph, j, f)
             if nonpositive_part != 0:
                 return i, nonpositive_part
@@ -480,7 +510,6 @@ class BraidSystem:
                     return []
 
                 history.append(new)
-                print(len(history))
 
                 # periodically whether state is recurrent; 32 is an arbitrary number
                 if len(history) % 32 == 0 and new.is_recurrent(history):
@@ -508,7 +537,7 @@ class BraidSystem:
         """
         if not self.sigma.is_constant():
             return False
-        print(history[-1])
+
         patterns = self._find_patterns(len(history))
         variable = 'x'
         for pattern, repetitions in patterns:

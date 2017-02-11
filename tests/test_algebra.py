@@ -1244,3 +1244,11 @@ class TestMatrix:
         except Exception as exception:
             e = exception
         assert type(e) == OperatorException
+
+    @pytest.mark.parametrize("f, c", [
+        (X**2 + 2 * X + 3, 1),
+        (-QuadraticNumber.sqrt(2) * X**2, -QuadraticNumber.sqrt(2)),
+        (X - X, 0),
+    ])
+    def test_leading_coefficient(self, f, c):
+        assert f.leading_coefficient == c
