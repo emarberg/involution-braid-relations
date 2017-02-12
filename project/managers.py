@@ -865,12 +865,20 @@ class BraidQueue:
         then reduce these to a minimal set. If integer input `limit` is provided,
         then we only look for relations of length less than or equal to this limit.
         """
-        self.find_relations(limit)
-        self.minimize_relations()
+        self.find_minimal_relations(limit)
+        self.summarize()
         if verify:
             self.verify_relations()
 
-    def find_relations(self, limit=None):
+    def find_minimal_relations(self, limit=None):
+        """
+        Compute spanning set of involution braid relations, then reduces this
+        to a minimal subset, which is stored in the `minimal_relation` field.
+        """
+        self.find_sufficient_relations(limit)
+        self.minimize_relations()
+
+    def find_sufficient_relations(self, limit=None):
         logger.info('Step 1: Finding sufficient relations.')
         t0 = time.time()
         while len(self) > 0 and (limit is None or len(self.queue[0]) <= limit):
@@ -973,6 +981,7 @@ class BraidQueue:
         logger.info('')
         logger.info('Duration: %s seconds' % (t2 - t1))
 
+    def summarize(self):
         print('')
         print('-----------------------')
         print('Twisted Coxeter system:')
