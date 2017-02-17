@@ -161,30 +161,6 @@ class TestConstraintsManager:
         manager.add_nonzero_constraint(CoxeterVector(CoxeterGraph.A(5), 1, Polynomial('y')))
         assert str(manager) != ''
 
-    def test_eq(self):
-        manager = ConstraintsManager()
-        a = 12
-        b = RationalNumber(7, 8)
-        c = QuadraticNumber.sqrt(11)
-        d = Polynomial('x')
-        e = Polynomial('x') * Polynomial('y')
-
-        manager.add_zero_constraint(a)
-        manager.add_zero_constraint(b)
-        manager.add_zero_constraint(c)
-
-        other = manager.copy()
-        assert manager == other
-
-        other.add_zero_constraint(d)
-        other.add_zero_constraint(e)
-
-        assert manager.linear_constraints == {a, b, c}
-        assert other.linear_constraints == {a, b, c, d}
-        assert manager.quadratic_constraints == set()
-        assert other.quadratic_constraints == {e}
-        assert manager != other
-
     def test_remove_vacuous_constraints(self):
         manager = ConstraintsManager()
 
@@ -243,6 +219,41 @@ class TestConstraintsManager:
         assert manager.nonpositive_constraints == {1}
         assert manager.nonzero_constraints == {CoxeterVector(g)}
         assert not manager.is_valid()
+
+    def test_is_value_nonpositive(self):
+        x = Polynomial('x')
+        y = Polynomial('y')
+        manager = ConstraintsManager()
+
+        assert manager.is_value_nonpositive(-1)
+        assert manager.is_value_nonpositive(-x - 1)
+        assert not manager.is_value_nonpositive(x - 1)
+
+        manager.nonpositive_constraints = {3 + x}
+        assert manager.is_value_nonpositive(5 * x)
+        assert manager.is_value_nonpositive(5)
+        assert not manager.is_value_nonpositive(y)
+        assert not manager.is_value_nonpositive(x**2)
+
+    def test_is_value_negative(self):
+        x = Polynomial('x')
+        y = Polynomial('y')
+        manager = ConstraintsManager()
+
+        assert manager.is_value_negative(-1)
+        assert manager.is_value_negative(-x - 1)
+        assert not manager.is_value_negative(-x)
+
+        manager.nonpositive_constraints = {x}
+        assert not manager.is_value_negative(2 * x)
+
+        manager.nonpositive_constraints = {-3 + x}
+        assert not manager.is_value_negative(-6 + 2 * x)
+        assert not manager.is_value_negative(-5 + 2 * x)
+        assert manager.is_value_negative(-7 + 2 * x)
+
+        assert not manager.is_value_negative(-y)
+        assert not manager.is_value_negative(-x**2)
 
 
 class TestBraidSystem:
@@ -392,22 +403,22 @@ class TestBraidSystem:
 
     def test_is_recurrent(self):
         g = CoxeterGraph.G_tilde(2)
-        state = BraidSystem(g, s=2, t=3)
-        state.word_s = CoxeterWord(g, (2, 3, 2, 1, 2, 1, 2, 3, 2, 1, 2, 1, 2, 3, 2, 1, 2, 1, 2, 3, 2, 1, 2, 1, 2, 3, 1, 2, 1, 2, 1, 3, 2))
-        state.word_t = CoxeterWord(g, (2, 3, 2, 1, 2, 1, 2, 3, 2, 1, 2, 1, 2, 3, 2, 1, 2, 1, 2, 3, 2, 1, 2, 1, 2, 3, 1, 2, 1, 2, 1, 2, 3))
+        state = BraidSystem(g, s=1, t=2)
+        state.word_s = CoxeterWord(g, (3, 2, 1, 2, 1, 2, 3, 2, 1, 2, 1, 2, 3, 1, 2, 1))
+        state.word_t = CoxeterWord(g, (3, 2, 1, 2, 1, 2, 3, 2, 1, 2, 1, 2, 3, 2, 1, 2))
 
         alpha = \
-            CoxeterVector(g, 1, -32) + \
-            CoxeterVector(g, 2, -22 * QuadraticNumber.sqrt(3)) + \
-            CoxeterVector(g, 3, -11 * QuadraticNumber.sqrt(3))
+            CoxeterVector(g, 1, 5 * QuadraticNumber.sqrt(3)) + \
+            CoxeterVector(g, 2, 11) + \
+            CoxeterVector(g, 3, 6)
         beta = \
-            CoxeterVector(g, 1, 11 * QuadraticNumber.sqrt(3)) + \
-            CoxeterVector(g, 2, 23) + \
-            CoxeterVector(g, 3, 11)
+            CoxeterVector(g, 1, -16 - 6 * QuadraticNumber.sqrt(3)) + \
+            CoxeterVector(g, 2, -12 - 11 * QuadraticNumber.sqrt(3)) + \
+            CoxeterVector(g, 3, -6 - 6 * QuadraticNumber.sqrt(3))
         gamma = \
-            CoxeterVector(g, 1, 9 * QuadraticNumber.sqrt(3)) + \
-            CoxeterVector(g, 2, 18) + \
-            CoxeterVector(g, 3, 10)
+            CoxeterVector(g, 1, 17 + 11 * QuadraticNumber.sqrt(3)) + \
+            CoxeterVector(g, 2, 22 + 11 * QuadraticNumber.sqrt(3)) + \
+            CoxeterVector(g, 3, 11 + 6 * QuadraticNumber.sqrt(3))
 
         state.sigma = PartialTransform(g, {1: alpha, 2: beta, 3: gamma})
         history = [state]

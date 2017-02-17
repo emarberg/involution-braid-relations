@@ -47,16 +47,6 @@ class ConstraintsManager:
         self.nonzero_constraints = set()
         self.nonnegative_indeterminates = set()
 
-    def __eq__(self, other):
-        return \
-            ConstraintsManager == type(other) and \
-            self.linear_constraints == other.linear_constraints and \
-            self.quadratic_constraints == other.quadratic_constraints and \
-            self.nonpositive_constraints == other.nonpositive_constraints and \
-            self.nonzero_constraints == other.nonzero_constraints and \
-            self.quadratic_constraints == other.quadratic_constraints and \
-            self.nonnegative_indeterminates == other.nonnegative_indeterminates
-
     def copy(self):
         other = ConstraintsManager()
         other.nonpositive_constraints = self.nonpositive_constraints.copy()
@@ -72,15 +62,66 @@ class ConstraintsManager:
         is nonpositive for all nonnegative indeterminates. If the function returns False,
         then this property either fails or could not be determined by our naive methods.
 
-        TODO: the implementation of this method works for all finite and affine cases, but
-        could be improved a lot. The current implementation is sensitive to rescalings of
-        the input, for example; it would be easy to fix this, at the cost of performance.
+        TODO: current implementation only involves some simple checks, and could be improved.
+        For example, whether it is feasible for the desired property to fail (the case when
+        the function would return False) could be solved exactly using linear programming.
         """
-        return f <= 0 or any(f <= g for g in self.nonpositive_constraints)
+        if f <= 0:
+            return True
+        if type(f) != Polynomial:
+            f = Polynomial(f)
+        for g in self.nonpositive_constraints | {-h for h in self.nonnegative_indeterminates}:
+            if self._compare_to_rescaled(f, g):
+                return True
+        return False
+
+    @classmethod
+    def _compare_to_rescaled(cls, f, g, strict=False):
+        """
+        Returns True if (cg - f) has all positive coefficients and (if strict is True)
+        nonzero constant term, for some real number c > 0.
+        """
+        upper_bounds, lower_bounds = set(), {0}
+        for m in f.coefficients.keys() | g.coefficients.keys():
+            coeff = g[m]
+            if type(coeff) == int:
+                coeff = RationalNumber(coeff)
+
+            if coeff == 0 and f[m] > 0:
+                return False
+            elif coeff > 0:
+                lower_bounds.add(f[m] / coeff)
+            elif coeff < 0:
+                upper_bounds.add(f[m] / coeff)
+
+        if len(upper_bounds) == 0:
+            # have already checked that constant term of f is nonpositive if g has no constant term.
+            # in strict case, need to check that f or g has constant term.
+            if not strict or f.get_constant_part() != 0 or g.get_constant_part() != 0:
+                return True
+            else:
+                return False
+
+        lower = max(lower_bounds)
+        upper = min(upper_bounds)
+        if lower <= upper:
+            # in strict case, determine if constant term is nonzero for some lower <= c <= upper
+            a = f.get_constant_part()
+            b = g.get_constant_part()
+            if not strict or lower * b - a > 0 or upper * b - a > 0:
+                return True
+        return False
 
     def is_value_negative(self, f):
-        """TODO: improve this method by incorporating current nonpositive constraints."""
-        return f < 0
+        """TODO: improve along the lines of is_value_nonpositive."""
+        if f < 0:
+            return True
+        if type(f) != Polynomial:
+            f = Polynomial(f)
+        for g in self.nonpositive_constraints | {-h for h in self.nonnegative_indeterminates}:
+            if self._compare_to_rescaled(f, g, strict=True):
+                return True
+        return False
 
     def add_zero_constraint(self, constraint):
         """
@@ -130,8 +171,7 @@ class ConstraintsManager:
         """
         Trivially normalize input by coverting to Polynomial object.
 
-        TODO: actually normalize the input (e.g., by dividing by absolute value of leading
-        coefficient) to avoid storying duplicate constraints.
+        TODO: actually rescale `f` to avoid storing duplicate constraints.
         """
         if type(f) in [int, RationalNumber, QuadraticNumber]:
             f = Polynomial(f)
@@ -271,15 +311,6 @@ class BraidSystem:
         else:
             raise InvalidInputException(self, (s, t))
 
-    def __eq__(self, other):
-        return \
-            BraidSystem == type(other) and \
-            self.graph == other.graph and \
-            self.sigma == other.sigma and \
-            self.word_s.left_action == other.word_s.left_action and \
-            self.word_t.left_action == other.word_t.left_action and \
-            self.constraints == other.constraints
-
     def __len__(self):
         return len(self.word_s)
 
@@ -390,13 +421,11 @@ class BraidSystem:
         # add child with no (new) descents
         child = self.copy()
         for i in g.generators:
-            # since child has no descents, it must act as identity element
-            if i in self.sigma:
-                child.constraints.add_zero_constraint(self.sigma[i] - CoxeterVector(g, i))
-            elif i in candidate_descents:
+            if i in candidate_descents:
                 child.sigma[i] = CoxeterVector(g, i)
-        if child.is_valid():
-            children.append(child.reduce())
+        # since child has no descents, it must act as identity element
+        if all(child.sigma[i] == CoxeterVector(g, i) for i in self.sigma):
+            children.append(child)
 
         return children
 
@@ -726,7 +755,7 @@ class BraidSystem:
             return False
         if not self.word_s.right_descents.isdisjoint(self.word_t.right_descents):
             return False
-        if any(self.graph.get_order(u, v) < self.graph.get_order(self.s, self.t)
+        if any(self.graph.get_order(self.s, self.t) < self.graph.get_order(u, v)
            for u in self.word_s.right_descents
            for v in self.word_t.right_descents):
                 return False
@@ -765,13 +794,10 @@ class BraidSystem:
         descents_start = extract_descents(start_word)
         descents_target = extract_descents(target_word)
 
-        # if descents intersect then can pull out common descent to reduce to shorter relation.
-        if not self.word_s.right_descents.isdisjoint(self.word_t.right_descents):
-            return True
-
         # return True if we can pull out descents s', t' in each word with m(s',t') > m(s,t)
         return any(
-            self.graph.get_order(i, j) < self.graph.get_order(self.s, self.t)
+            i == j or
+            self.graph.get_order(self.s, self.t) < self.graph.get_order(i, j)
             for i in descents_start for j in descents_target
         )
 
