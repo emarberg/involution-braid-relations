@@ -43,10 +43,20 @@ def get_arguments():
         help="desired level of logging ('DEBUG', 'INFO', 'WARNING', 'ERROR')",
         default='INFO'
     )
+    parser.add_argument(
+        '--s',
+        type=str,
+        default=None
+    )
+    parser.add_argument(
+        '--t',
+        type=str,
+        default=None
+    )
     return parser.parse_args()
 
 
-def get_coxeter_graph(coxeter_type, rank):
+def get_coxeter_graph(coxeter_type, rank, s, t):
     coxeter_graph_constructor_dict = {
         'A': CoxeterGraph.A,
         'B': CoxeterGraph.B,
@@ -78,7 +88,12 @@ def get_coxeter_graph(coxeter_type, rank):
         'rA~': CoxeterGraph.A_tilde_rotate,
         'fA~': CoxeterGraph.A_tilde_flip
     }
-    return coxeter_graph_constructor_dict[coxeter_type](rank)
+    g = coxeter_graph_constructor_dict[coxeter_type](rank)
+    if s is not None and s not in g.generators:
+        s = int(s)
+    if t is not None and t not in g.generators:
+        t = int(s)
+    return g, s, t
 
 
 def setup_logging(loglevel):
@@ -89,20 +104,23 @@ def setup_logging(loglevel):
     logging.basicConfig(level=numeric_level)
 
 
-def solve(coxeter_type, rank, verify, limit):
+def solve(coxeter_type, rank, verify, limit, s=None, t=None):
     if limit is not None and not verify:
         print('Error: `--verify` is required if `--limit` is given')
         return
     try:
-        g = get_coxeter_graph(coxeter_type, rank)
+        g, s, t = get_coxeter_graph(coxeter_type, rank, s, t)
     except:
         print('Invalid type and rank: (%s, %s)' % (coxeter_type, rank))
     else:
-        q = BraidQueue(g)
+        q = BraidQueue(g, s, t)
         q.go(limit=limit, verify=verify)
+
+        if None not in [s, t]:
+            print('\nNeighborhood: %s' % q.neighborhood)
 
 
 if __name__ == '__main__':
     args = get_arguments()
     setup_logging(args.loglevel)
-    solve(args.type, args.rank, args.verify, args.limit)
+    solve(args.type, args.rank, args.verify, args.limit, args.s, args.t)

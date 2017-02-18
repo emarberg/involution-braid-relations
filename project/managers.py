@@ -844,20 +844,23 @@ class BraidQueue:
     and to do some sanity checks.
     """
 
-    def __init__(self, coxeter_graph, s=None, t=None, is_fixer=True):
+    def __init__(self, coxeter_graph, s=None, t=None):
         """Inputs `s` and `t` should be elements of `coxeter_graph.generators`."""
         self.graph = coxeter_graph
 
         # if s or t is not provided, initialize queue with all pairs of generators (s, t)
         if s is None or t is None:
             self.queue = [
-                BraidSystem(coxeter_graph, s, t, b)
-                for s in coxeter_graph.generators for t in coxeter_graph.generators if s < t
+                BraidSystem(coxeter_graph, u, v, b)
+                for u in coxeter_graph.generators for v in coxeter_graph.generators if u < v
                 for b in [True, False]
             ]
             self.neighborhood = set(self.graph.generators)
         else:
-            self.queue = [BraidSystem(coxeter_graph, s, t, is_fixer)]
+            self.queue = [
+                BraidSystem(coxeter_graph, s, t, True),
+                BraidSystem(coxeter_graph, s, t, False)
+            ]
             self.neighborhood = {s, t}
 
         self.recurrent_states = []
