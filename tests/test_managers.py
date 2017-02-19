@@ -44,14 +44,13 @@ class TestConstraintsManager:
         b = RationalNumber(7, 8)
         c = QuadraticNumber.sqrt(11)
         d = Polynomial('x')
-        e = Polynomial('x') * Polynomial('y')
-        f = Polynomial('x')**3
+        e = Polynomial('x')**3
 
         g = CoxeterGraph.A(5)
         r = CoxeterVector(g, 1, a) + \
             CoxeterVector(g, 2, b) + \
             CoxeterVector(g, 3, c) + \
-            CoxeterVector(g, 4, d) + CoxeterVector(g, 5, e)
+            CoxeterVector(g, 4, d)
 
         manager.add_zero_constraint(a)
         assert a in manager.linear_constraints
@@ -65,13 +64,10 @@ class TestConstraintsManager:
         manager.add_zero_constraint(d)
         assert d in manager.linear_constraints
 
-        manager.add_zero_constraint(e)
-        assert e in manager.quadratic_constraints
-
-        # zero contraints must be linear or quadratic Polynomials
+        # zero contraints must be linear Polynomials
         exception = None
         try:
-            manager.add_zero_constraint(f)
+            manager.add_zero_constraint(e)
         except Exception as exc:
             exception = exc
         assert type(exception) == InvalidInputException
@@ -84,12 +80,10 @@ class TestConstraintsManager:
         assert type(exception) == InvalidInputException
 
         manager.linear_constraints = set()
-        manager.quadratic_constraints = set()
-        assert len(manager.linear_constraints) == len(manager.quadratic_constraints) == 0
+        assert len(manager.linear_constraints) == 0
 
         manager.add_zero_constraint(r)
         assert manager.linear_constraints == {a, b, c, d}
-        assert manager.quadratic_constraints == {e}
 
     def test_add_nonpositive_constraint(self):
         manager = ConstraintsManager()
@@ -126,11 +120,6 @@ class TestConstraintsManager:
         assert manager.nonpositive_constraints == {-1 - d, -1 - e}
         assert manager.linear_constraints == {-a}
 
-        # check that if nonpositive constraints contains both x and -x,
-        # then x gets added as a zero constraints
-        manager.add_nonpositive_constraint(1 + e)
-        assert 1 + e in manager.quadratic_constraints
-
     def test_add_nonzero_constraint(self):
         manager = ConstraintsManager()
         a = -3
@@ -156,7 +145,6 @@ class TestConstraintsManager:
         assert str(manager) == ''
 
         manager.add_zero_constraint(Polynomial('x'))
-        manager.add_zero_constraint(Polynomial('x') * Polynomial('y'))
         manager.add_nonpositive_constraint(Polynomial('x') - 1)
         manager.add_nonzero_constraint(CoxeterVector(CoxeterGraph.A(5), 1, Polynomial('y')))
         assert str(manager) != ''
@@ -164,16 +152,11 @@ class TestConstraintsManager:
     def test_remove_vacuous_constraints(self):
         manager = ConstraintsManager()
 
-        # check that method removes zero polynomials from sets of linear and quadratic constraints
+        # check that method removes zero polynomials from sets of linear constraints
         manager.add_zero_constraint(Polynomial(0))
         assert manager.linear_constraints == {0}
         manager.remove_vacuous_constraints()
         assert manager.linear_constraints == set()
-
-        manager.quadratic_constraints = {Polynomial(0)}
-        assert manager.quadratic_constraints == {0}
-        manager.remove_vacuous_constraints()
-        assert manager.quadratic_constraints == set()
 
         # check that method removes from set of nonpositive constraints any polynomials which have
         # all nonpositive coefficients or which are bounded above by other nonpositive constraints
@@ -205,7 +188,6 @@ class TestConstraintsManager:
         manager.add_zero_constraint(x - y + 2)
         manager.add_zero_constraint(y + z)
         manager.add_nonpositive_constraint(3 - y)
-        manager.add_zero_constraint(x + y**2)
         manager.add_nonzero_constraint(CoxeterVector(g, 1, x))
 
         variable_substitutions = set(manager.simplify())
@@ -215,7 +197,6 @@ class TestConstraintsManager:
             (Monomial('z'), -2)
         }
         assert manager.linear_constraints == set()
-        assert manager.quadratic_constraints == {4}
         assert manager.nonpositive_constraints == {1}
         assert manager.nonzero_constraints == {CoxeterVector(g)}
         assert not manager.is_valid()
@@ -257,7 +238,7 @@ class TestConstraintsManager:
 
 
 class TestBraidSystem:
-    def test_partial_braid_constructor_errors(self):
+    def test_braid_system_constructor_errors(self):
         g = CoxeterGraph.A(3)
 
         # input (s, t) must both be in g.generators
@@ -318,44 +299,21 @@ class TestBraidSystem:
         state = BraidSystem(g, s=1, t=2)
 
         state.sigma = PartialTransform(g, {1: -CoxeterVector(g, 1), 3: -CoxeterVector(g, 3)})
-        assert state.get_conditional_descent() == (1, -CoxeterVector(g, 1))
+        assert state.get_conditional_descent() == 1
 
         state.sigma = PartialTransform(
             g, {1: -CoxeterVector(g, 1) + CoxeterVector(g, 2) - CoxeterVector(g, 3, x)}
         )
-        assert state.get_conditional_descent() == (1, -CoxeterVector(g, 1) - CoxeterVector(g, 3, x))
+        assert state.get_conditional_descent() == 1
 
         state.sigma = PartialTransform(g, {
             1: (1 - x) * CoxeterVector(g, 2),
             2: (x - 1) * (CoxeterVector(g, 1) - CoxeterVector(g, 2) + CoxeterVector(g, 3))
         })
-        assert state.get_conditional_descent() == (None, None)
+        assert state.get_conditional_descent() is None
 
         state.constraints.nonpositive_constraints.add(x - 1)
-        assert state.get_conditional_descent() == \
-            (2, (x - 1) * (CoxeterVector(g, 1) + CoxeterVector(g, 3)))
-
-    def test_get_children_from_quadratic_constraint(self):
-        x = Polynomial('x')
-        g = CoxeterGraph.A(3)
-        state = BraidSystem(g, s=1, t=3)
-        state.word_s = CoxeterWord(g, (1,))
-        state.word_t = CoxeterWord(g, (3,))
-
-        alpha = CoxeterVector(g, 3)
-        beta = \
-            CoxeterVector(g, 1, -x) + \
-            CoxeterVector(g, 2, 1 - 2 * x) + \
-            CoxeterVector(g, 3, -x)
-        gamma = CoxeterVector(g, 1)
-        state.sigma = PartialTransform(g, {1: alpha, 2: beta, 3: gamma})
-
-        state.constraints.add_zero_constraint(2 * x**2 - 2 * x)
-        children = state._get_children_from_quadratic_constraint()
-        assert len(children) == 2
-        assert \
-            {tuple(c.constraints.linear_constraints) for c in children} == \
-            {(x,), (x - 1,)}
+        assert state.get_conditional_descent() == 2
 
     def test_get_children_from_conditional_descent(self):
         x = Polynomial('x')
@@ -504,6 +462,16 @@ class TestBraidQueue:
 
         # check that the following does not cause any errors
         q.next()
+
+    def test_D4(self):  # noqa
+        # Test algorithm in nontrivial case
+        g = CoxeterGraph.D(4)
+        q = BraidQueue(g, 2, 3)
+        q.go(verify=False)
+        assert q.minimal_relations == [
+            ((2, 3), (3, 2)),
+            ((0, 1, 3, 2, 0, 1, 2, 3), (0, 1, 3, 2, 0, 1, 3, 2))
+        ]
 
     def test_get_next_level_of_involutions_to_atoms(self):
         g = CoxeterGraph.A(2)

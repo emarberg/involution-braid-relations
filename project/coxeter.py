@@ -806,7 +806,7 @@ class PartialTransform(TransformMixin):
                 elif self.sigma[i] == b and self.sigma[j] == a:
                     n = self.graph.get_semiorder(i, j, False)
                 else:
-                    continue
+                    n = self.graph.get_order(i, j)
 
                 # skip if relation gives an ordinary braid relation
                 if n == self.graph.get_order(i, j):

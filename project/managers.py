@@ -39,8 +39,6 @@ class ConstraintsManager:
     def __init__(self):
         # list of linear Polynomials which must be == 0
         self.linear_constraints = set()
-        # list of quadratic Polynomials which must be == 0
-        self.quadratic_constraints = set()
         # list of linear Polynomials which must be <= 0
         self.nonpositive_constraints = set()
         # list of CoxeterVectors which must be != 0
@@ -52,7 +50,6 @@ class ConstraintsManager:
         other.nonpositive_constraints = self.nonpositive_constraints.copy()
         other.linear_constraints = self.linear_constraints.copy()
         other.nonzero_constraints = self.nonzero_constraints.copy()
-        other.quadratic_constraints = self.quadratic_constraints.copy()
         other.nonnegative_indeterminates = self.nonnegative_indeterminates.copy()
         return other
 
@@ -125,7 +122,7 @@ class ConstraintsManager:
 
     def add_zero_constraint(self, constraint):
         """
-        Add input Polynomial `constraint` to linear or quadratic constraints accordingly.
+        Add input Polynomial `constraint` to linear constraints accordingly.
         If input is a CoxeterVector, do the same for all of its coefficients.
         """
         if type(constraint) == CoxeterVector:
@@ -143,8 +140,6 @@ class ConstraintsManager:
         degree = constraint.degree()
         if degree in [0, 1]:
             self.linear_constraints.add(constraint)
-        elif degree == 2:
-            self.quadratic_constraints.add(constraint)
         else:
             raise InvalidInputException(self, constraint, 'add_zero_constraint')
 
@@ -226,15 +221,11 @@ class ConstraintsManager:
         self.linear_constraints = {replace(f) for f in self.linear_constraints}
         self.nonpositive_constraints = {replace(f) for f in self.nonpositive_constraints}
         self.nonzero_constraints = {replace(r) for r in self.nonzero_constraints}
-        self.quadratic_constraints = {replace(f) for f in self.quadratic_constraints}
         self.nonnegative_indeterminates = {replace(f) for f in self.nonnegative_indeterminates}
 
     def remove_vacuous_constraints(self):
         self.linear_constraints = {
             f for f in self.linear_constraints if not (f == 0)
-        }
-        self.quadratic_constraints = {
-            f for f in self.quadratic_constraints if not (f == 0)
         }
 
         # TODO: improve how redundant inequalities are detected in three cases below.
@@ -271,10 +262,6 @@ class ConstraintsManager:
             s += '%s. 0 == %s\n' % (pad(i), c)
             i += 1
 
-        for c in self.quadratic_constraints:
-            s += '%s. 0 == %s\n' % (pad(i), c)
-            i += 1
-
         for c in self.nonzero_constraints:
             s += '%s. 0 != %s\n' % (pad(i), c)
             i += 1
@@ -290,7 +277,6 @@ class ConstraintsManager:
             # we do not check f != 0 since this would be true for any nontrivial polynomial;
             # instead, we want to determine if f has all positive/negative coeffs
             any(0 < f or f < 0 for f in self.linear_constraints) or
-            any(0 < f or f < 0 for f in self.quadratic_constraints) or
             any(r == 0 for r in self.nonzero_constraints) or
             any(f < 0 for f in self.nonnegative_indeterminates) or
             (len(self.nonnegative_indeterminates) > 0 and sum(self.nonnegative_indeterminates) == 0)
@@ -316,7 +302,7 @@ class BraidSystem:
 
     def __repr__(self):
         unconditional = self.get_unconditional_descent()
-        conditional, _ = self.get_conditional_descent()
+        conditional = self.get_conditional_descent()
         if self.is_fixer:
             a, b = 's', 't'
         else:
@@ -358,17 +344,19 @@ class BraidSystem:
         while queue:
             child = queue.pop(0)
             if child.sigma.is_constant():
-                # raise error if image of sigma is not contained in domain of sigma
-                image = {j for i in child.sigma for j, _ in child.sigma[i]}
-                domain = {i for i in child.sigma}
-                assert image.issubset(domain)
-
+                child._check_child_image()
                 for reduced in child._eliminate_descents():
                     if not reduced.is_redundant():
                         children.extend(reduced._get_children_with_new_descent())
             else:
                 queue.extend(child.branch())
         return children
+
+    def _check_child_image(self):
+        """Raises error if star(image of sigma) is not contained in domain of sigma."""
+        image = {self.graph.star(j) for i in self.sigma for j, _ in self.sigma[i]}
+        domain = {i for i in self.sigma}
+        assert image.issubset(domain)
 
     def _get_first_children(self):
         logger.debug("Constructing first set of children.")
@@ -421,7 +409,7 @@ class BraidSystem:
             child = self.copy()
             child._clear_constraints()
             child.sigma[i] = sum([-Polynomial({j: 1}) * CoxeterVector(g, j) for j in g.generators])
-            for j in child.sigma:
+            for j in self.sigma:
                 child.constraints.add_zero_constraint(
                     child.sigma[i].eval_bilinear(child.sigma[j]) - g.eval_bilinear(i, j)
                 )
@@ -455,7 +443,7 @@ class BraidSystem:
         if children is not None:
             return reduce_children(children)
 
-        raise Exception('Current state does not match any branching rule: %s' % self)
+        raise Exception('Current state does not match any branching rule: %s' % self)  # pragma: no cover
 
     def get_unconditional_descent(self):
         """
@@ -464,38 +452,26 @@ class BraidSystem:
         f_j is a polynomial with nonpositive coefficients and negative constant term.
         Returns such an index i if one exists, and otherwise None.
         """
-        #descents_to_avoid = self.word_s.left_descents | self.word_t.left_descents
-        unconditional = {
-            i for i in self.sigma
+        for i in sorted(self.sigma):
             if any(
                 self.constraints.is_value_negative(f)
                 for f in self.sigma[i].coefficients.values()
-            )
-        }
-        # intersection = sorted(unconditional & descents_to_avoid)
-        # if intersection:
-        #     return intersection[0]
-        if unconditional:
-            return sorted(unconditional)[0]
+            ):
+                return i
 
     def get_conditional_descent(self):
         """
         A generator index i is a conditional descent if self.sigma[i] is a
-        CoxeterVector of the form sum_j f_j alpha_j and for some j it holds that
-
-        (*)    f_j <= 0 or f_j <= g for some nonpositive constraint g.
-
-        If such an index i exists, then returns the pair (i, sum_j f_j alpha_j)
-        where the sum is over j such that (*) holds. Otherwise returns (None, None).
+        CoxeterVector of the form sum_j f_j alpha_j and for some j it holds
+        that f_j <= 0 or f_j <= g for some nonpositive constraint g.
+        Returns such an index i if one exists, and otherwise None.
         """
-        for i in self.sigma:
-            nonpositive_part = CoxeterVector(self.graph)
-            for j, f in self.sigma[i]:
-                if self.constraints.is_value_nonpositive(f):
-                    nonpositive_part += CoxeterVector(self.graph, j, f)
-            if nonpositive_part != 0:
-                return i, nonpositive_part
-        return None, None
+        for i in sorted(self.sigma):
+            if any(
+                self.constraints.is_value_nonpositive(f)
+                for f in self.sigma[i].coefficients.values()
+            ):
+                return i
 
     def _get_children_from_determinant_constraint(self):
         if not self.sigma.is_complete():
@@ -516,24 +492,6 @@ class BraidSystem:
         else:
             return [positive_child, negative_child]
 
-    def _get_children_from_quadratic_constraint(self):
-        if len(self.constraints.quadratic_constraints) == 0:
-            return None
-
-        constraint = next(iter(self.constraints.quadratic_constraints))
-        try:
-            factors = constraint.get_real_quadratic_factors()
-        except CannotFactorException:  # pragma: no cover
-            return None  # pragma: no cover
-
-        logger.debug("Constructing children from quadratic constraint.")
-        children = []
-        for factor in factors:
-            child = self.copy()
-            child.constraints.add_zero_constraint(factor)
-            children.append(child)
-        return children
-
     def _get_children_from_unconditional_descent(self):
         descent = self.get_unconditional_descent()
         if descent is None:
@@ -548,39 +506,21 @@ class BraidSystem:
 
     def _get_children_from_conditional_descent(self):
         """Returns list of three children constructed from a conditional descent, or None."""
-        descent, nonpositive_root = self.get_conditional_descent()
+        descent = self.get_conditional_descent()
         if descent is None:
             return None
 
         logger.debug("Constructing children from conditional descent.")
+
         ascent = self.copy()
         ascent.constraints.add_nonpositive_constraint(-self.sigma[descent])
+
         children = [
             ascent,
             self._branch_from_descent(descent, commutes=True),
             self._branch_from_descent(descent, commutes=False)
         ]
         return [c for c in children if c is not None]
-
-        # # in this child, `descent` is a commuting descent of sigma
-        # child_a = self._branch_from_descent(descent, commutes=True)
-        # if child_a is not None:
-        #     child_a.constraints.add_nonzero_constraint(nonpositive_root)
-        #     children.append(child_a)
-
-        # # in this child, `descent` is a non-commuting descent of sigma
-        # child_b = self._branch_from_descent(descent, commutes=False)
-        # if child_b is not None:
-        #     child_b.constraints.add_nonzero_constraint(nonpositive_root)
-        #     children.append(child_b)
-
-        # # in last child, `descent` is not a descent of sigma, so nonpositive_root must be 0
-        # child_c = self.copy()
-        # for _, f in nonpositive_root:
-        #     child_c.constraints.add_zero_constraint(f)
-        # children.append(child_c)
-
-        # return children
 
     def _branch_from_descent(self, i, commutes=True):
         """
@@ -629,7 +569,7 @@ class BraidSystem:
 
                 # periodically check whether state is recurrent; 32 is an arbitrary number
                 if len(history) % 32 == 0 and new.is_recurrent(history):
-                    return []  # pragma: no cover
+                    return []
 
         except KeyboardInterrupt:  # pragma: no cover
             logger.warning('Could not compute children for possibly recurrent state:\n%s' % self)  # pragma: no cover
@@ -740,7 +680,7 @@ class BraidSystem:
 
             # check that inductive hypothesis holds
             if sigma != expected[index] or not sigma[i].is_negative():
-                return False  # pragma: no cover
+                return False
 
             # s_i commutes with sigma if and only if the following is zero
             root = sigma[i] + CoxeterVector(self.graph, self.graph.star(i))
@@ -748,7 +688,7 @@ class BraidSystem:
             # check that if root is not zero for all values of X, then it is never zero.
             # return False if this fails, as then the next value of sigma depends on X.
             if not any(f < 0 or f > 0 for _, f in root):
-                return False  # pragma: no cover
+                return False
 
             if root == 0:
                 sigma = sigma * i
