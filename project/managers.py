@@ -317,15 +317,18 @@ class BraidSystem:
     def __repr__(self):
         unconditional = self.get_unconditional_descent()
         conditional, _ = self.get_conditional_descent()
+        if self.is_fixer:
+            a, b = 's', 't'
+        else:
+            a, b = 't', 's'
+
         s = ''
         s += 'BraidSystem data:\n'
         s += '----------------------------------------------------------------\n'
         s += 's = %s, word_s = %s\n' % (self.s, self.word_s)
         s += 't = %s, word_t = %s\n' % (self.t, self.word_t)
-        if self.is_fixer:
-            s += '\ninitial sigma: alpha_s -> alpha_s^*, alpha_t -> alpha_t^*\n'
-        else:
-            s += '\ninitial sigma: alpha_s -> alpha_t^*, alpha_t -> alpha_s^*\n'
+        s += '\n'
+        s += 'initial sigma: alpha_s -> alpha_%s^*, alpha_t -> alpha_%s^*\n' % (a, b)
         s += '\n'
         s += 'sigma = %s' % self.sigma
         s += '\n'
@@ -361,7 +364,7 @@ class BraidSystem:
                 assert image.issubset(domain)
 
                 for reduced in child._eliminate_descents():
-                    if len(reduced.word_s) > len(self.word_s) and not reduced.is_redundant():
+                    if not reduced.is_redundant():
                         children.extend(reduced._get_children_with_new_descent())
             else:
                 queue.extend(child.branch())
@@ -436,19 +439,22 @@ class BraidSystem:
         return children
 
     def branch(self):
-        child_getters = [
-            self._get_children_from_determinant_constraint,
-            self._get_children_from_unconditional_descent,
-            self._get_children_from_conditional_descent
-        ]
-        for getter in child_getters:
-            childen = getter()
-            if childen is not None:
-                for child in childen:
-                    child = child.reduce()
-                    if child.is_valid():
-                        yield child
-                return
+        def reduce_children(child_list):
+            reduced = [child.reduce() for child in child_list]
+            return [child for child in reduced if child.is_valid()]
+
+        children = self._get_children_from_determinant_constraint()
+        if children is not None:
+            return reduce_children(children)
+
+        children = self._get_children_from_unconditional_descent()
+        if children is not None:
+            return reduce_children(children)
+
+        children = self._get_children_from_conditional_descent()
+        if children is not None:
+            return reduce_children(children)
+
         raise Exception('Current state does not match any branching rule: %s' % self)
 
     def get_unconditional_descent(self):
@@ -458,7 +464,7 @@ class BraidSystem:
         f_j is a polynomial with nonpositive coefficients and negative constant term.
         Returns such an index i if one exists, and otherwise None.
         """
-        descents_to_avoid = self.word_s.left_descents | self.word_t.left_descents
+        #descents_to_avoid = self.word_s.left_descents | self.word_t.left_descents
         unconditional = {
             i for i in self.sigma
             if any(
@@ -466,9 +472,9 @@ class BraidSystem:
                 for f in self.sigma[i].coefficients.values()
             )
         }
-        intersection = sorted(unconditional & descents_to_avoid)
-        if intersection:
-            return intersection[0]
+        # intersection = sorted(unconditional & descents_to_avoid)
+        # if intersection:
+        #     return intersection[0]
         if unconditional:
             return sorted(unconditional)[0]
 
@@ -492,6 +498,9 @@ class BraidSystem:
         return None, None
 
     def _get_children_from_determinant_constraint(self):
+        if not self.sigma.is_complete():
+            return None
+
         determinant = self.sigma.determinant()
         if determinant is None or determinant in [-1, 1]:
             return None
@@ -544,27 +553,34 @@ class BraidSystem:
             return None
 
         logger.debug("Constructing children from conditional descent.")
-        children = []
+        ascent = self.copy()
+        ascent.constraints.add_nonpositive_constraint(-self.sigma[descent])
+        children = [
+            ascent,
+            self._branch_from_descent(descent, commutes=True),
+            self._branch_from_descent(descent, commutes=False)
+        ]
+        return [c for c in children if c is not None]
 
-        # in this child, `descent` is a commuting descent of sigma
-        child_a = self._branch_from_descent(descent, commutes=True)
-        if child_a is not None:
-            child_a.constraints.add_nonzero_constraint(nonpositive_root)
-            children.append(child_a)
+        # # in this child, `descent` is a commuting descent of sigma
+        # child_a = self._branch_from_descent(descent, commutes=True)
+        # if child_a is not None:
+        #     child_a.constraints.add_nonzero_constraint(nonpositive_root)
+        #     children.append(child_a)
 
-        # in this child, `descent` is a non-commuting descent of sigma
-        child_b = self._branch_from_descent(descent, commutes=False)
-        if child_b is not None:
-            child_b.constraints.add_nonzero_constraint(nonpositive_root)
-            children.append(child_b)
+        # # in this child, `descent` is a non-commuting descent of sigma
+        # child_b = self._branch_from_descent(descent, commutes=False)
+        # if child_b is not None:
+        #     child_b.constraints.add_nonzero_constraint(nonpositive_root)
+        #     children.append(child_b)
 
-        # in last child, `descent` is not a descent of sigma, so nonpositive_root must be 0
-        child_c = self.copy()
-        for _, f in nonpositive_root:
-            child_c.constraints.add_zero_constraint(f)
-        children.append(child_c)
+        # # in last child, `descent` is not a descent of sigma, so nonpositive_root must be 0
+        # child_c = self.copy()
+        # for _, f in nonpositive_root:
+        #     child_c.constraints.add_zero_constraint(f)
+        # children.append(child_c)
 
-        return children
+        # return children
 
     def _branch_from_descent(self, i, commutes=True):
         """
