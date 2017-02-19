@@ -92,7 +92,7 @@ def get_coxeter_graph(coxeter_type, rank, s, t):
     if s is not None and s not in g.generators:
         s = int(s)
     if t is not None and t not in g.generators:
-        t = int(s)
+        t = int(t)
     return g, s, t
 
 

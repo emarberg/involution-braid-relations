@@ -354,9 +354,15 @@ class BraidSystem:
         queue = [self.copy().reduce()]
         while queue:
             child = queue.pop(0)
-            if child.sigma.is_constant() and child.sigma.is_positive():
-                if len(child.word_s) > len(self.word_s) and not child.is_redundant():
-                    children.extend(child._get_children_with_new_descent())
+            if child.sigma.is_constant():
+                # raise error if image of sigma is not contained in domain of sigma
+                image = {j for i in child.sigma for j, _ in child.sigma[i]}
+                domain = {i for i in child.sigma}
+                assert image.issubset(domain)
+
+                for reduced in child._eliminate_descents():
+                    if len(reduced.word_s) > len(self.word_s) and not reduced.is_redundant():
+                        children.extend(reduced._get_children_with_new_descent())
             else:
                 queue.extend(child.branch())
         return children
@@ -432,7 +438,6 @@ class BraidSystem:
     def branch(self):
         child_getters = [
             self._get_children_from_determinant_constraint,
-            self._get_children_from_quadratic_constraint,
             self._get_children_from_unconditional_descent,
             self._get_children_from_conditional_descent
         ]
@@ -506,12 +511,13 @@ class BraidSystem:
         if len(self.constraints.quadratic_constraints) == 0:
             return None
 
-        logger.debug("Constructing children from quadratic constraint.")
         constraint = next(iter(self.constraints.quadratic_constraints))
         try:
             factors = constraint.get_real_quadratic_factors()
         except CannotFactorException:  # pragma: no cover
             return None  # pragma: no cover
+
+        logger.debug("Constructing children from quadratic constraint.")
         children = []
         for factor in factors:
             child = self.copy()
@@ -525,27 +531,81 @@ class BraidSystem:
             return None
 
         logger.debug("Constructing children from unconditional descents.")
-        if not self.sigma[descent].is_constant():
-            children = [
-                self._branch_from_descent(descent, commutes=True),
-                self._branch_from_descent(descent, commutes=False)
-            ]
-            return [c for c in children if c is not None]
+        children = [
+            self._branch_from_descent(descent, commutes=True),
+            self._branch_from_descent(descent, commutes=False)
+        ]
+        return [c for c in children if c is not None]
 
-        return self._iterate_descents(descent)
+    def _get_children_from_conditional_descent(self):
+        """Returns list of three children constructed from a conditional descent, or None."""
+        descent, nonpositive_root = self.get_conditional_descent()
+        if descent is None:
+            return None
 
-    def _iterate_descents(self, descent):
+        logger.debug("Constructing children from conditional descent.")
+        children = []
+
+        # in this child, `descent` is a commuting descent of sigma
+        child_a = self._branch_from_descent(descent, commutes=True)
+        if child_a is not None:
+            child_a.constraints.add_nonzero_constraint(nonpositive_root)
+            children.append(child_a)
+
+        # in this child, `descent` is a non-commuting descent of sigma
+        child_b = self._branch_from_descent(descent, commutes=False)
+        if child_b is not None:
+            child_b.constraints.add_nonzero_constraint(nonpositive_root)
+            children.append(child_b)
+
+        # in last child, `descent` is not a descent of sigma, so nonpositive_root must be 0
+        child_c = self.copy()
+        for _, f in nonpositive_root:
+            child_c.constraints.add_zero_constraint(f)
+        children.append(child_c)
+
+        return children
+
+    def _branch_from_descent(self, i, commutes=True):
+        """
+        Returns BraidSystem derived from self with respect to generator index i,
+        which we define as the BraidSystem given by replacing self.sigma by its
+        Demazure conjugate by s_i, extending self.word_s and self.word_t by i on
+        the left, and adding the constraint that self.sigma[i] is a negative root.
+        If input `commutes` is True, we assume self.sigma s_i = s_i^* self.sigma
+        and include the relavent constraint in the derived BraidSystem.
+        """
+        alpha = CoxeterVector(self.graph, self.graph.star(i))
+        beta = self.sigma[i]
+
+        new = self.copy()
+        new.constraints.add_nonpositive_constraint(beta)
+        new.word_s.extend_left(i)
+        new.word_t.extend_left(i)
+        if not new._are_words_valid():
+            return None
+
+        if commutes:
+            new.constraints.add_zero_constraint(alpha + beta)
+            new.sigma = new.sigma * i
+        else:
+            new.constraints.add_nonzero_constraint(alpha + beta)
+            new.sigma = self.graph.star(i) * new.sigma * i
+        return new
+
+    def _eliminate_descents(self):
         history = [self]
         try:
             while True:
                 new = history[-1]
+
+                descent = new.get_unconditional_descent()
+                if descent is None:
+                    return [new]
+
                 commutes = new.sigma[descent] == -CoxeterVector(new.graph, new.graph.star(descent))
                 new = new._branch_from_descent(descent, commutes=commutes)
-                if new is None:
-                    return []
-
-                new = new.reduce()
-                if not new.is_valid():
+                if new is None or not new.is_valid():
                     return []
 
                 logger.debug("  descent depth: %s", len(history))
@@ -555,9 +615,6 @@ class BraidSystem:
                 if len(history) % 32 == 0 and new.is_recurrent(history):
                     return []  # pragma: no cover
 
-                descent = new.get_unconditional_descent()
-                if descent is None or not new.sigma[descent].is_constant():
-                    return [new]
         except KeyboardInterrupt:  # pragma: no cover
             logger.warning('Could not compute children for possibly recurrent state:\n%s' % self)  # pragma: no cover
             raise RecurrentStateException(new)  # pragma: no cover
@@ -682,62 +739,6 @@ class BraidSystem:
             else:
                 sigma = self.graph.star(i) * sigma * i
         return True
-
-    def _get_children_from_conditional_descent(self):
-        """Returns list of three children constructed from a conditional descent, or None."""
-        descent, nonpositive_root = self.get_conditional_descent()
-        if descent is None:
-            return None
-
-        logger.debug("Constructing children from conditional descent.")
-        children = []
-
-        # in this child, `descent` is a commuting descent of sigma
-        child_a = self._branch_from_descent(descent, commutes=True)
-        if child_a is not None:
-            child_a.constraints.add_nonzero_constraint(nonpositive_root)
-            children.append(child_a)
-
-        # in this child, `descent` is a non-commuting descent of sigma
-        child_b = self._branch_from_descent(descent, commutes=False)
-        if child_b is not None:
-            child_b.constraints.add_nonzero_constraint(nonpositive_root)
-            children.append(child_b)
-
-        # in last child, `descent` is not a descent of sigma, so nonpositive_root must be 0
-        child_c = self.copy()
-        for _, f in nonpositive_root:
-            child_c.constraints.add_zero_constraint(f)
-        children.append(child_c)
-
-        return children
-
-    def _branch_from_descent(self, i, commutes=True):
-        """
-        Returns BraidSystem derived from self with respect to generator index i,
-        which we define as the BraidSystem given by replacing self.sigma by its
-        Demazure conjugate by s_i, extending self.word_s and self.word_t by i on
-        the left, and adding the constraint that self.sigma[i] is a negative root.
-        If input `commutes` is True, we assume self.sigma s_i = s_i^* self.sigma
-        and include the relavent constraint in the derived BraidSystem.
-        """
-        alpha = CoxeterVector(self.graph, self.graph.star(i))
-        beta = self.sigma[i]
-
-        new = self.copy()
-        new.constraints.add_nonpositive_constraint(beta)
-        new.word_s.extend_left(i)
-        new.word_t.extend_left(i)
-        if not new._are_words_valid():
-            return None
-
-        if commutes:
-            new.constraints.add_zero_constraint(alpha + beta)
-            new.sigma = new.sigma * i
-        else:
-            new.constraints.add_nonzero_constraint(alpha + beta)
-            new.sigma = self.graph.star(i) * new.sigma * i
-        return new
 
     def is_valid(self):
         """Return True if current state could be parent of final state for a braid relation."""
