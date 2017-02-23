@@ -798,27 +798,18 @@ class PartialTransform(TransformMixin):
                 if i >= j:
                     continue
 
-                # determine length of prospective relation
                 a = CoxeterVector(self.graph, self.graph.star(i))
                 b = CoxeterVector(self.graph, self.graph.star(j))
-                if self.sigma[i] == a and self.sigma[j] == b:
-                    n = self.graph.get_semiorder(i, j, True)
-                elif self.sigma[i] == b and self.sigma[j] == a:
-                    n = self.graph.get_semiorder(i, j, False)
-                else:
-                    n = self.graph.get_order(i, j)
 
-                # skip if relation gives an ordinary braid relation
-                if n == self.graph.get_order(i, j):
-                    continue
-
-                # generate relation
-                gens = [i, j]
-                rel_i, rel_j = [], []
-                for k in range(n):
-                    rel_i += [gens[k % 2]]
-                    rel_j += [gens[(k + 1) % 2]]
-                relations.add((tuple(rel_i), tuple(rel_j)))
+                if {self.sigma[i], self.sigma[j]} == {a, b}:
+                    n = self.graph.get_semiorder(i, j, self.sigma[i] == a)
+                    # generate relation of length n
+                    gens = [i, j]
+                    rel_i, rel_j = [], []
+                    for k in range(n):
+                        rel_i += [gens[k % 2]]
+                        rel_j += [gens[(k + 1) % 2]]
+                    relations.add((tuple(rel_i), tuple(rel_j)))
         return relations
 
 

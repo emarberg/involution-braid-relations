@@ -21,7 +21,6 @@ from project.coxeter import (
 from project.utils import (
     reverse_tuple,
     InvalidInputException,
-    CannotFactorException,
     RecurrentStateException
 )
 
@@ -344,19 +343,12 @@ class BraidSystem:
         while queue:
             child = queue.pop(0)
             if child.sigma.is_constant():
-                child._check_child_image()
-                for reduced in child._eliminate_descents():
+                for reduced in child.eliminate_descents():
                     if not reduced.is_redundant():
                         children.extend(reduced._get_children_with_new_descent())
             else:
                 queue.extend(child.branch())
         return children
-
-    def _check_child_image(self):
-        """Raises error if star(image of sigma) is not contained in domain of sigma."""
-        image = {self.graph.star(j) for i in self.sigma for j, _ in self.sigma[i]}
-        domain = {i for i in self.sigma}
-        assert image.issubset(domain)
 
     def _get_first_children(self):
         logger.debug("Constructing first set of children.")
@@ -391,7 +383,7 @@ class BraidSystem:
         We also include in the returned list one child with no new descents.
         """
         if len(self.sigma) == 0 or not self.sigma.is_constant() or not self.sigma.is_positive():
-            raise Exception  # pragma: no cover
+            raise Exception(self.sigma)  # pragma: no cover
         if self.sigma.is_complete():
             return [self]
 
@@ -444,6 +436,36 @@ class BraidSystem:
             return reduce_children(children)
 
         raise Exception('Current state does not match any branching rule: %s' % self)  # pragma: no cover
+
+    def eliminate_descents(self):
+        """
+        Given constant BraidSystem, successively conjugate by its descents until no descents
+        remain, or we can determine that the system is invalid, redundant, or unrealizable.
+        """
+        history = [self]
+        try:
+            while True:
+                new = history[-1]
+
+                descent = new.get_unconditional_descent()
+                if descent is None:
+                    return [new]
+
+                commutes = new.sigma[descent] == -CoxeterVector(new.graph, new.graph.star(descent))
+                new = new._branch_from_descent(descent, commutes=commutes)
+                if new is None or not new.is_valid():
+                    return []
+
+                logger.debug("  descent depth: %s", len(history))
+                history.append(new)
+
+                # periodically check whether state is recurrent; 32 is an arbitrary number
+                if len(history) % 32 == 0 and new.is_recurrent(history):
+                    return []
+
+        except KeyboardInterrupt:  # pragma: no cover
+            logger.warning('Could not compute children for possibly recurrent state:\n%s' % self)  # pragma: no cover
+            raise RecurrentStateException(new)  # pragma: no cover
 
     def get_unconditional_descent(self):
         """
@@ -548,32 +570,6 @@ class BraidSystem:
             new.constraints.add_nonzero_constraint(alpha + beta)
             new.sigma = self.graph.star(i) * new.sigma * i
         return new
-
-    def _eliminate_descents(self):
-        history = [self]
-        try:
-            while True:
-                new = history[-1]
-
-                descent = new.get_unconditional_descent()
-                if descent is None:
-                    return [new]
-
-                commutes = new.sigma[descent] == -CoxeterVector(new.graph, new.graph.star(descent))
-                new = new._branch_from_descent(descent, commutes=commutes)
-                if new is None or not new.is_valid():
-                    return []
-
-                logger.debug("  descent depth: %s", len(history))
-                history.append(new)
-
-                # periodically check whether state is recurrent; 32 is an arbitrary number
-                if len(history) % 32 == 0 and new.is_recurrent(history):
-                    return []
-
-        except KeyboardInterrupt:  # pragma: no cover
-            logger.warning('Could not compute children for possibly recurrent state:\n%s' % self)  # pragma: no cover
-            raise RecurrentStateException(new)  # pragma: no cover
 
     def is_recurrent(self, history):
         """
@@ -723,18 +719,12 @@ class BraidSystem:
         Returns True if prospective relation encoded by BraidSystem reduces to a shorter
         relation that holds by induction, or is rendered invalid by such a relation.
         """
-        sigma = self.sigma
-        if len(self.word_s.word) > 2 and sigma.is_constant() and not sigma.is_complete():
-            if self._words_can_be_reduced(self.word_s.word, self.word_t.word):
-                return True
-        return False
+        if not self.sigma.is_constant() or self.sigma.is_complete():
+            return False
 
-    def _words_can_be_reduced(self, start_word, target_word):
-        """
-        Returns True if relation between start_word and target_word reduces to a shorter
-        relation that holds by induction, or is rendered invalid by such a relation.
-        """
+        # filter relations to retain only those shorter than current words
         relations = self.sigma.get_relations()
+        relations = {(a, b) for a, b in relations if len(a) < len(self.word_s.word)}
 
         def extract_descents(word):
             """
@@ -748,8 +738,8 @@ class BraidSystem:
                 descents |= w.get_inverse().right_descents
             return descents
 
-        descents_start = extract_descents(start_word)
-        descents_target = extract_descents(target_word)
+        descents_start = extract_descents(self.word_s.word)
+        descents_target = extract_descents(self.word_t.word)
 
         # return True if we can pull out descents s', t' in each word with m(s',t') > m(s,t)
         return any(
@@ -818,7 +808,7 @@ class BraidQueue:
                 BraidSystem(coxeter_graph, s, t, True),
                 BraidSystem(coxeter_graph, s, t, False)
             ]
-            self.neighborhood = {s, t}
+            self.neighborhood = {s, t, self.graph.star(s), self.graph.star(t)}
 
         self.recurrent_states = []
         self.sufficient_relations = set()
@@ -910,7 +900,7 @@ class BraidQueue:
         """Add new states from input list `children` to self.queue or to self.final."""
         new_states = []
         for child in children:
-            self.neighborhood |= set(child.sigma)
+            self._update_neighborhood(child)
             if child.is_leaf():
                 self._add_to_sufficient_relations(child)
             else:
@@ -930,6 +920,14 @@ class BraidQueue:
         if len(new_states) == 0:
             logger.debug('(no states added)')
             logger.debug('')
+
+    def _update_neighborhood(self, child):
+        self.neighborhood |= set(child.sigma)
+        self.neighborhood |= {
+            j for i in child.sigma
+            for j, _ in child.sigma[i] if child.sigma[i].is_constant()
+        }
+        self.neighborhood |= {self.graph.star(j) for j in self.neighborhood}
 
     def _insert(self, child):
         """Insert child into queue in position preserving ordering by length."""
