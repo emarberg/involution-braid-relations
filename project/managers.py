@@ -324,7 +324,7 @@ class BraidSystem:
         return s
 
     def copy(self):
-        other = BraidSystem(self.graph, self.s, self.t)
+        other = BraidSystem(self.graph, self.s, self.t, self.is_fixer)
         other.sigma = self.sigma.copy()
         other.word_s = self.word_s.copy()
         other.word_t = self.word_t.copy()
@@ -346,6 +346,8 @@ class BraidSystem:
                 for reduced in child.eliminate_descents():
                     if not reduced.is_redundant():
                         children.extend(reduced._get_children_with_new_descent())
+                    else:
+                        logger.debug("Redundant system: %s" % reduced)
             else:
                 queue.extend(child.branch())
         return children
@@ -452,9 +454,13 @@ class BraidSystem:
                     return [new]
 
                 commutes = new.sigma[descent] == -CoxeterVector(new.graph, new.graph.star(descent))
-                new = new._branch_from_descent(descent, commutes=commutes)
-                if new is None or not new.is_valid():
+                next_new = new._branch_from_descent(descent, commutes=commutes)
+                if next_new is None:
                     return []
+                if not next_new.is_valid():
+                    logger.debug("Invalid system: %s" % next_new)
+                    return []
+                new = next_new
 
                 logger.debug("  descent depth: %s", len(history))
                 history.append(new)
@@ -561,6 +567,7 @@ class BraidSystem:
         new.word_s.extend_left(i)
         new.word_t.extend_left(i)
         if not new._are_words_valid():
+            logger.debug("Invalid words: %s" % new)
             return None
 
         if commutes:
@@ -898,28 +905,22 @@ class BraidQueue:
 
     def _update(self, children):
         """Add new states from input list `children` to self.queue or to self.final."""
-        new_states = []
-        for child in children:
+        for i, child in enumerate(children):
+            logger.debug('%s. %s' % (i + 1, child))
             self._update_neighborhood(child)
             if child.is_leaf():
                 self._add_to_sufficient_relations(child)
             else:
                 self._insert(child)
-                new_states.append(child)
 
-        logger.info('States in queue                  : %s' % len(self))
+        if len(children) == 0:
+            logger.debug('(no new children)')
+
+        logger.info('Systems in queue                 : %s' % len(self))
         logger.info('Multiplicities by word length    : %s' % self.word_multiplicities())
         logger.info('Multiplicities by non-blank roots: %s' % self.root_multiplicities())
         logger.info('Relations found                  : %s' % len(self.sufficient_relations))
-        logger.info('Unresolved states                : %s' % len(self.recurrent_states))
-
-        logger.debug('')
-        logger.debug('Child states.')
-        for i, child in enumerate(new_states):
-            logger.debug('%s. %s' % (i + 1, child))
-        if len(new_states) == 0:
-            logger.debug('(no states added)')
-            logger.debug('')
+        logger.info('Unresolved systems               : %s' % len(self.recurrent_states))
 
     def _update_neighborhood(self, child):
         self.neighborhood |= set(child.sigma)

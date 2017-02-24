@@ -409,6 +409,15 @@ class TestBraidSystem:
         state.sigma = PartialTransform(g, {1: alpha[5], 2: alpha[4], 3: alpha[3], 4: alpha[2]})
         assert state.is_redundant()
 
+    def test_repr(self):
+        a = 'initial sigma: alpha_s -> alpha_s^*, alpha_t -> alpha_t^*'
+        b = 'initial sigma: alpha_s -> alpha_t^*, alpha_t -> alpha_s^*'
+        g = CoxeterGraph.D(5)
+        state = BraidSystem(g, 3, 4, True)
+        assert a in str(state) and b not in str(state)
+        state = BraidSystem(g, 3, 4, False)
+        assert a not in str(state) and b in str(state)
+
 
 class TestBraidQueue:
     def test_A3(self):  # noqa
