@@ -444,6 +444,7 @@ class BraidSystem:
         Given constant BraidSystem, successively conjugate by its descents until no descents
         remain, or we can determine that the system is invalid, redundant, or unrealizable.
         """
+        logger.debug("Eliminating descents from constant system.")
         history = [self]
         try:
             while True:
@@ -455,10 +456,7 @@ class BraidSystem:
 
                 commutes = new.sigma[descent] == -CoxeterVector(new.graph, new.graph.star(descent))
                 next_new = new._branch_from_descent(descent, commutes=commutes)
-                if next_new is None:
-                    return []
                 if not next_new.is_valid():
-                    logger.debug("Invalid system: %s" % next_new)
                     return []
                 new = next_new
 
@@ -530,7 +528,7 @@ class BraidSystem:
             self._branch_from_descent(descent, commutes=True),
             self._branch_from_descent(descent, commutes=False)
         ]
-        return [c for c in children if c is not None]
+        return children
 
     def _get_children_from_conditional_descent(self):
         """Returns list of three children constructed from a conditional descent, or None."""
@@ -548,7 +546,7 @@ class BraidSystem:
             self._branch_from_descent(descent, commutes=True),
             self._branch_from_descent(descent, commutes=False)
         ]
-        return [c for c in children if c is not None]
+        return children
 
     def _branch_from_descent(self, i, commutes=True):
         """
@@ -566,9 +564,6 @@ class BraidSystem:
         new.constraints.add_nonpositive_constraint(beta)
         new.word_s.extend_left(i)
         new.word_t.extend_left(i)
-        if not new._are_words_valid():
-            logger.debug("Invalid words: %s" % new)
-            return None
 
         if commutes:
             new.constraints.add_zero_constraint(alpha + beta)
@@ -576,6 +571,7 @@ class BraidSystem:
         else:
             new.constraints.add_nonzero_constraint(alpha + beta)
             new.sigma = self.graph.star(i) * new.sigma * i
+
         return new
 
     def is_recurrent(self, history):
@@ -701,9 +697,11 @@ class BraidSystem:
 
     def is_valid(self):
         """Return True if current state could be parent of final state for a braid relation."""
-        return \
-            self._is_sigma_valid() and \
-            self.constraints.is_valid()
+        if self._are_words_valid() and self._is_sigma_valid() and self.constraints.is_valid():
+            return True
+        else:
+            logger.debug("Invalid or redundant system: %s" % self)
+            return False
 
     def _are_words_valid(self):
         """
