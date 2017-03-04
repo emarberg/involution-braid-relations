@@ -259,9 +259,6 @@ class TestBraidSystem:
         g = CoxeterGraph([(1, 2, m)])
 
         state = BraidSystem(g, 1, 2, is_fixer)
-        assert state.word_s.word == () and state.word_s.word == ()
-
-        state._extend_words()
         assert state.word_s.word == expected
 
         other = tuple(map(lambda i: 3 - i, expected))
@@ -343,21 +340,24 @@ class TestBraidSystem:
         state.sigma = PartialTransform(g, {1: CoxeterVector(g, 1) - CoxeterVector(g, 2)})
         assert not state._is_sigma_valid()
 
+    def test_is_realized(self):
+        g = CoxeterGraph.A(3)
+        state = BraidSystem(g, s=1, t=2)
         state.sigma = PartialTransform(g, {
             1: CoxeterVector(g, 3),
             2: CoxeterVector(g, 2),
             3: CoxeterVector(g, 1)
         })
-        assert not state._is_sigma_valid()
+        assert not state.is_realized()
 
         state.sigma = PartialTransform.identity(g)
         state.word_s = CoxeterWord(g, (1, 2))
         state.word_t = CoxeterWord(g, (3, 2))
-        assert not state._is_sigma_valid()
+        assert not state.is_realized()
 
         state.word_s = CoxeterWord(g, (1, 2))
         state.word_t = CoxeterWord(g, (2, 1))
-        assert state._is_sigma_valid()
+        assert state.is_realized()
 
     def test_is_recurrent(self):
         g = CoxeterGraph.G_tilde(2)

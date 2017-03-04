@@ -289,12 +289,26 @@ class BraidSystem:
             self.s = s
             self.t = t
             self.is_fixer = is_fixer
-            self.sigma = PartialTransform(coxeter_graph)
             self.word_s = CoxeterWord(coxeter_graph)
             self.word_t = CoxeterWord(coxeter_graph)
             self.constraints = ConstraintsManager()
+
+            self._extend_words()
+            if self.is_fixer:
+                alpha = CoxeterVector(self.graph, self.graph.star(self.s))
+                beta = CoxeterVector(self.graph, self.graph.star(self.t))
+            else:
+                alpha = CoxeterVector(self.graph, self.graph.star(self.t))
+                beta = CoxeterVector(self.graph, self.graph.star(self.s))
+            self.sigma = PartialTransform(self.graph, {self.s: alpha, self.t: beta})
         else:
             raise InvalidInputException(self, (s, t))
+
+    def _extend_words(self):
+        gens = [self.s, self.t]
+        for i in range(self.graph.get_semiorder(self.s, self.t, self.is_fixer)):
+            self.word_s.extend_left(gens[i % 2])
+            self.word_t.extend_left(gens[(i + 1) % 2])
 
     def __len__(self):
         return len(self.word_s)
@@ -335,59 +349,32 @@ class BraidSystem:
         self.constraints = ConstraintsManager()
 
     def get_children(self):
-        if len(self.sigma) == 0:
-            return self._get_first_children()
-
         children = []
-        queue = [self.copy().reduce()]
+        queue = self._get_initialized_children()
         while queue:
             child = queue.pop(0)
             if child.sigma.is_constant():
                 for reduced in child.eliminate_descents():
                     if not reduced.is_redundant():
-                        children.extend(reduced._get_children_with_new_descent())
+                        children.append(reduced)
                     else:
                         logger.debug("Redundant system: %s" % reduced)
             else:
                 queue.extend(child.branch())
         return children
 
-    def _get_first_children(self):
-        logger.debug("Constructing first set of children.")
-
-        child = BraidSystem(self.graph, self.s, self.t, self.is_fixer)
-        child._extend_words()
-        if not child._are_words_valid():
-            return []
-
-        if self.is_fixer:
-            i, j = self.s, self.t
-        else:
-            i, j = self.t, self.s
-        alpha = CoxeterVector(self.graph, self.graph.star(i))
-        beta = CoxeterVector(self.graph, self.graph.star(j))
-        child.sigma = PartialTransform(self.graph, {self.s: alpha, self.t: beta})
-        return child._get_children_with_new_descent()
-
-    def _extend_words(self):
-        gens = [self.s, self.t]
-        for i in range(self.graph.get_semiorder(self.s, self.t, self.is_fixer)):
-            self.word_s.extend_left(gens[i % 2])
-            self.word_t.extend_left(gens[(i + 1) % 2])
-
-    def _get_children_with_new_descent(self):
+    def _get_initialized_children(self):
         """
-        If self.sigma is not constant, or if self.sigma[i] is defined for all
-        generator indices i, or if self.sigma has a descent, returns None.
+        If self.sigma is not constant, or if self.sigma has a descent, raises an Exception.
         Otherwise, returns list of children constructed from current BraidSystem
         by replacing a single undefined value of self.sigma[i] by a generic
         CoxeterVector of the form - sum_i X_i alpha_i, so that i becomes a descent.
-        We also include in the returned list one child with no new descents.
+        If the BraidSystem has no undefined values, returns the empty list.
         """
         if len(self.sigma) == 0 or not self.sigma.is_constant() or not self.sigma.is_positive():
             raise Exception(self.sigma)  # pragma: no cover
         if self.sigma.is_complete():
-            return [self]
+            return []
 
         logger.debug("Constructing children with new descent.")
         g = self.graph
@@ -407,17 +394,8 @@ class BraidSystem:
                 child.constraints.add_zero_constraint(
                     child.sigma[i].eval_bilinear(child.sigma[j]) - g.eval_bilinear(i, j)
                 )
+            child = child.reduce()
             children.append(child)
-
-        # add child with no (new) descents
-        child = self.copy()
-        for i in g.generators:
-            if i in candidate_descents:
-                child.sigma[i] = CoxeterVector(g, i)
-        # since child has no descents, it must act as identity element
-        if all(child.sigma[i] == CoxeterVector(g, i) for i in self.sigma):
-            children.append(child)
-
         return children
 
     def branch(self):
@@ -755,23 +733,19 @@ class BraidSystem:
 
     def _is_sigma_valid(self):
         # invalid if sigma sends any root to 0 or non-negative/positive combination of simple roots
-        if any(not root.is_valid() for root in self.sigma.values()):
-            return False
+        return not any(not root.is_valid() for root in self.sigma.values())
 
-        # if sigma sends all roots to positive roots, and no variables remain
-        if self.sigma.is_constant() and self.sigma.is_complete() and self.sigma.is_positive():
-            # invalid if sigma is not trivial
-            if not self.sigma.is_identity():
-                return False
-            # invalid if word_s and word_t are not involution words for the same element
+    def is_realized(self):
+        """
+        Returns True if self.sigma acts trivially, self.word_s and self._word_t
+        are involution words for the same twisted involution.
+        """
+        if all(self.sigma[i] == CoxeterVector(self.graph, i) for i in self.sigma):
             x = self.word_s.to_involution()
             y = self.word_t.to_involution()
-            if not (x.is_reduced and y.is_reduced and x.left_action == y.left_action):
-                return False
-        return True
-
-    def is_leaf(self):
-        return self.sigma.is_constant()
+            if x.is_reduced and y.is_reduced and x.left_action == y.left_action:
+                return True
+        return False
 
     def reduce(self):
         """Reduce constraints, apply resulting simplifications to self.sigma, and return self."""
@@ -809,15 +783,16 @@ class BraidQueue:
             ]
             self.neighborhood = set(self.graph.generators)
         else:
+            assert s in self.graph.generators and t in self.graph.generators and s != t
             self.queue = [
                 BraidSystem(coxeter_graph, s, t, True),
                 BraidSystem(coxeter_graph, s, t, False)
             ]
             self.neighborhood = {s, t, self.graph.star(s), self.graph.star(t)}
 
+        self.queue = [state for state in self.queue if state.is_valid()]
         self.recurrent_states = []
         self.sufficient_relations = set()
-        self.leaf_states = []
         self.minimal_relations = []
 
     def __len__(self):
@@ -884,6 +859,9 @@ class BraidQueue:
             logger.info('Queue is empty')
         else:
             next_state = self._get_next_state()
+            self._update_neighborhood(next_state)
+            self._update_sufficient_relations(next_state)
+
             try:
                 t0 = time.time()
                 children = next_state.get_children()
@@ -905,11 +883,7 @@ class BraidQueue:
         """Add new states from input list `children` to self.queue or to self.final."""
         for i, child in enumerate(children):
             logger.debug('%s. %s' % (i + 1, child))
-            self._update_neighborhood(child)
-            if child.is_leaf():
-                self._add_to_sufficient_relations(child)
-            else:
-                self._insert(child)
+            self._insert(child)
 
         if len(children) == 0:
             logger.debug('(no new children)')
@@ -923,9 +897,10 @@ class BraidQueue:
     def _update_neighborhood(self, child):
         self.neighborhood |= set(child.sigma)
         self.neighborhood |= {
-            j for i in child.sigma
-            for j, _ in child.sigma[i] if child.sigma[i].is_constant()
+            j for j in (set(self.graph.generators) - set(child.sigma))
+            if any(self.graph.get_order(i, j) > 2 for i in child.sigma)
         }
+        self.neighborhood |= {j for i in child.sigma for j, _ in child.sigma[i]}
         self.neighborhood |= {self.graph.star(j) for j in self.neighborhood}
 
     def _insert(self, child):
@@ -935,15 +910,15 @@ class BraidQueue:
             i += 1
         self.queue.insert(i, child)
 
-    def _add_to_sufficient_relations(self, child):
+    def _update_sufficient_relations(self, child):
         """Convert BraidSystem `child` to pair of words and add to self.sufficient_relations."""
-        u = tuple(child.word_s.word)
-        v = tuple(child.word_t.word)
-        if u < v:
-            self.sufficient_relations.add((u, v))
-        else:
-            self.sufficient_relations.add((v, u))
-        self.leaf_states.append(child)
+        if child.is_realized():
+            u = tuple(child.word_s.word)
+            v = tuple(child.word_t.word)
+            if u < v:
+                self.sufficient_relations.add((u, v))
+            else:
+                self.sufficient_relations.add((v, u))
 
     def minimize_relations(self):
         """
