@@ -1,4 +1,5 @@
 from collections import defaultdict
+import numpy as np
 import time
 import itertools
 import logging
@@ -283,17 +284,36 @@ class ConstraintsManager:
 
 
 class BraidSystem:
+
+    """
+    Class for objects containing the following data:
+
+        1. Two CoxeterWord objects of the same length.
+        2. A PartialTransform object.
+        3. A ConstraintsManager object.
+
+    Each of these objects must be defined with respect to a common CoxeterGraph.
+    The class implements methods for checking whether the BraidSystem is valid or
+    redundant (in an appropriate technical sense) and for expanding a given system
+    into a collection of more constrained systems.
+    """
+
     def __init__(self, coxeter_graph, s, t, is_fixer=True):
+        """
+        The initial value of self.sigma must define a bijection from
+        {alpha_s, alpha_t} to {alpha_s^*, alpha_t^*}. Which bijection is
+        chosen controlled by the input `is_fixer`.
+        """
         if s in coxeter_graph.generators and t in coxeter_graph.generators:
+            self.constraints = ConstraintsManager()
             self.graph = coxeter_graph
             self.s = s
             self.t = t
             self.is_fixer = is_fixer
             self.word_s = CoxeterWord(coxeter_graph)
             self.word_t = CoxeterWord(coxeter_graph)
-            self.constraints = ConstraintsManager()
-
             self._extend_words()
+
             if self.is_fixer:
                 alpha = CoxeterVector(self.graph, self.graph.star(self.s))
                 beta = CoxeterVector(self.graph, self.graph.star(self.t))
@@ -305,6 +325,7 @@ class BraidSystem:
             raise InvalidInputException(self, (s, t))
 
     def _extend_words(self):
+        """Helper method for initializing self.word_s and self.word_t."""
         gens = [self.s, self.t]
         for i in range(self.graph.get_semiorder(self.s, self.t, self.is_fixer)):
             self.word_s.extend_left(gens[i % 2])
@@ -697,6 +718,10 @@ class BraidSystem:
                 return False
         return True
 
+    def _is_sigma_valid(self):
+        """Returns False if sigma sends any root to 0 or vector which is not negative/positive."""
+        return not any(not root.is_valid() for root in self.sigma.values())
+
     def is_redundant(self):
         """
         Returns True if prospective relation encoded by BraidSystem reduces to a shorter
@@ -731,13 +756,9 @@ class BraidSystem:
             for i in descents_start for j in descents_target
         )
 
-    def _is_sigma_valid(self):
-        # invalid if sigma sends any root to 0 or non-negative/positive combination of simple roots
-        return not any(not root.is_valid() for root in self.sigma.values())
-
     def is_realized(self):
         """
-        Returns True if self.sigma acts trivially, self.word_s and self._word_t
+        Returns True if self.sigma acts trivially, and self.word_s and self._word_t
         are involution words for the same twisted involution.
         """
         if all(self.sigma[i] == CoxeterVector(self.graph, i) for i in self.sigma):
@@ -761,9 +782,9 @@ class BraidQueue:
     """
     Class implementing a queue for storing BraidSystem objects.
 
-    The queue is processed by popping the first BraidSystem, computing its children,
-    and then either adding each of these back into the queue or, when a child is a leaf,
-    converting it to a involution braid relation. See methods `next` and `go`.
+    The queue is processed by popping the first BraidSystem, computing its children
+    and extracting any possible involution braid relations, and then adding all child
+    systems to the back of the queue. See methods `next` and `go`.
 
     Once all processing is done, the class has methods which can be used to compute
     the minimal spanning subset of a sufficient set of involution braid relations,
@@ -773,8 +794,11 @@ class BraidQueue:
     def __init__(self, coxeter_graph, s=None, t=None):
         """Inputs `s` and `t` should be elements of `coxeter_graph.generators`."""
         self.graph = coxeter_graph
+        self.recurrent_states = []
+        self.minimal_relations = []
+        self.sufficient_relations = set()
 
-        # if s or t is not provided, initialize queue with all pairs of generators (s, t)
+        # if s or t is not provided, initialize queue with all non-commuting pairs (s, t)
         if s is None or t is None:
             self.queue = [
                 BraidSystem(coxeter_graph, u, v, b)
@@ -783,17 +807,30 @@ class BraidQueue:
             ]
             self.neighborhood = set(self.graph.generators)
         else:
-            assert s in self.graph.generators and t in self.graph.generators and s != t
+            assert s in self.graph.generators and t in self.graph.generators
+            assert coxeter_graph.get_order(s, t) not in [1, np.infty]
             self.queue = [
                 BraidSystem(coxeter_graph, s, t, True),
                 BraidSystem(coxeter_graph, s, t, False)
             ]
             self.neighborhood = {s, t, self.graph.star(s), self.graph.star(t)}
 
-        self.queue = [state for state in self.queue if state.is_valid()]
-        self.recurrent_states = []
-        self.sufficient_relations = set()
-        self.minimal_relations = []
+        self._filter_initial_queue()
+
+    def _filter_initial_queue(self):
+        """
+        Remove BraidSystems from self.queue involving commuting generators,
+        s and t and add corresponding relations when s^* = t.
+        """
+        filtered = []
+        for state in self.queue:
+            s, t = tuple(sorted([state.s, state.t]))
+            if 2 < self.graph.get_order(s, t) < np.infty:
+                filtered += [state]
+            elif self.graph.get_order(s, t) == 2 and not state.is_fixer and self.graph.star(s) == t:
+                filtered += [state]
+                self.sufficient_relations.add(((s,), (t,)))
+        self.queue = filtered
 
     def __len__(self):
         return len(self.queue)
