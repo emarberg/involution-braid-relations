@@ -819,8 +819,9 @@ class BraidQueue:
 
     def _filter_initial_queue(self):
         """
-        Remove BraidSystems from self.queue involving commuting generators,
-        s and t and add corresponding relations when s^* = t.
+        Removes BraidSystems from self.queue involving commuting generators s and t,
+        since we can predict ahead of time that all such systems will become redundant
+        after one iteration. Adds relevant half-braid relation when s^* = t.
         """
         filtered = []
         for state in self.queue:
