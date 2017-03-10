@@ -3,6 +3,16 @@ def reverse_tuple(input_tuple):
     return tuple(reversed(input_tuple))
 
 
+def get_braids(i, j, n):
+    """Returns pair of n-element tuples of form (..., j, i, j, i) and (..., i, j, i, j)."""
+    gens = [i, j]
+    rel_i, rel_j = [], []
+    for k in range(n):
+        rel_i += [gens[k % 2]]
+        rel_j += [gens[(k + 1) % 2]]
+    return tuple(rel_i), tuple(rel_j)
+
+
 class IndeterminatePowerException(Exception):
     def __init__(self):
         super(IndeterminatePowerException, self).__init__('Cannot compute indeterminate power 0**0')

@@ -2,6 +2,7 @@ import numpy as np
 
 from project.utils import (
     reverse_tuple,
+    get_braids,
     InvalidInputException,
     OperatorException,
     NumberMixin,
@@ -224,6 +225,21 @@ class CoxeterGraph:
         start = CoxeterTransform.from_word(self, reverse_tuple(start_word))
         relations = {(reverse_tuple(a), reverse_tuple(b)) for a, b in relations}
         return start.span_by_right_relations(relations)
+
+    def get_half_braid_relations(self):
+        """Returns half-braid relations of twisted Coxeter system."""
+        relations = set()
+        for i in self.generators:
+            for j in self.generators:
+                # relations encode symmetric data, so can skip half of them
+                if i >= j:
+                    continue
+
+                if {i, j} == {self.star(i), self.star(j)}:
+                    n = self.get_semiorder(i, j, self.star(i) == i)
+                    if n < self.get_order(i, j):
+                        relations.add(get_braids(i, j, n))
+        return relations
 
     @staticmethod
     def A(n, star=None):  # noqa
@@ -803,13 +819,7 @@ class PartialTransform(TransformMixin):
 
                 if {self.sigma[i], self.sigma[j]} == {a, b}:
                     n = self.graph.get_semiorder(i, j, self.sigma[i] == a)
-                    # generate relation of length n
-                    gens = [i, j]
-                    rel_i, rel_j = [], []
-                    for k in range(n):
-                        rel_i += [gens[k % 2]]
-                        rel_j += [gens[(k + 1) % 2]]
-                    relations.add((tuple(rel_i), tuple(rel_j)))
+                    relations.add(get_braids(i, j, n))
         return relations
 
 

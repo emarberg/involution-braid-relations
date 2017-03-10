@@ -21,6 +21,7 @@ from project.coxeter import (
 
 from project.utils import (
     reverse_tuple,
+    get_braids,
     InvalidInputException,
     RecurrentStateException
 )
@@ -796,7 +797,7 @@ class BraidQueue:
         self.graph = coxeter_graph
         self.recurrent_states = []
         self.minimal_relations = []
-        self.sufficient_relations = set()
+        self.sufficient_relations = coxeter_graph.get_half_braid_relations()
 
         # if s or t is not provided, initialize queue with all non-commuting pairs (s, t)
         if s is None or t is None:
@@ -830,7 +831,6 @@ class BraidQueue:
                 filtered += [state]
             elif self.graph.get_order(s, t) == 2 and not state.is_fixer and self.graph.star(s) == t:
                 filtered += [state]
-                self.sufficient_relations.add(((s,), (t,)))
         self.queue = filtered
 
     def __len__(self):

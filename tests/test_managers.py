@@ -426,12 +426,19 @@ class TestBraidQueue:
         # test algorithm where trivial output is expected
         q = BraidQueue(g, 1, 3)
         q.go()
-        assert q.sufficient_relations == set() and q.minimal_relations == []
+        assert q.sufficient_relations == {
+            ((1, 2), (2, 1)),
+            ((2, 3), (3, 2))
+        }
+        assert q.minimal_relations == [
+            ((1, 2), (2, 1)),
+            ((2, 3), (3, 2))
+        ]
 
         # test algorithm in small case where nontrivial output is expected
         q = BraidQueue(g)
         assert {(state.s, state.t) for state in q.queue} == {(1, 2), (2, 3)}
-        assert q.sufficient_relations == set()
+        assert q.sufficient_relations == {((1, 2), (2, 1)), ((2, 3), (3, 2))}
         assert q.minimal_relations == []
 
         q.go()
@@ -481,6 +488,8 @@ class TestBraidQueue:
         q = BraidQueue(g, 2, 3)
         q.go(verify=False)
         assert q.minimal_relations == [
+            ((0, 2), (2, 0)),
+            ((1, 2), (2, 1)),
             ((2, 3), (3, 2)),
             ((0, 1, 3, 2, 0, 1, 2, 3), (0, 1, 3, 2, 0, 1, 3, 2))
         ]
