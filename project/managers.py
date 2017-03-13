@@ -464,7 +464,7 @@ class BraidSystem:
                 history.append(new)
 
                 # periodically check whether state is recurrent; 32 is an arbitrary number
-                if len(history) % 32 == 0 and new.is_recurrent(history):
+                if len(history) % 32 == 0 and new.is_unrealizable(history):
                     return []
 
         except KeyboardInterrupt:  # pragma: no cover
@@ -574,7 +574,7 @@ class BraidSystem:
 
         return new
 
-    def is_recurrent(self, history):
+    def is_unrealizable(self, history):
         """
         Returns True if we can determine automatically that sigma_j has a descent i_j
         for all j (and therefore is never the identity), where we define
@@ -584,7 +584,7 @@ class BraidSystem:
 
         We achieve this by trying to interpolate a polynomial formula for sigma_j over
         certain periods of j and then checking this formula by induction. If a BraidSystem
-        is recurrent in this sense, then self.sigma cannot represent a Coxeter group element,
+        has this property, then self.sigma cannot represent a Coxeter group element,
         so the BraidSystem is invalid and has no children.
         """
         if not self.sigma.is_constant():
