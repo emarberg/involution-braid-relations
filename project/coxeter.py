@@ -432,6 +432,14 @@ class CoxeterGraph:
         return CoxeterGraph.D_tilde(n, star)
 
     @staticmethod
+    def D_tilde_small_twist(n):  # noqa
+        return CoxeterGraph.D_tilde(n, star=[(0, 1), (n - 1, n)])
+
+    @staticmethod
+    def D_tilde_half_twist(n):  # noqa
+        return CoxeterGraph.D_tilde(n, star=[(0, 1)])
+
+    @staticmethod
     def E_tilde(n, star=None):  # noqa
         """
         Dynkin diagram labelings are:

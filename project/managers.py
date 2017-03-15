@@ -33,7 +33,7 @@ class ConstraintsManager:
 
     """
     Objects of this class represent a set constraints, given by equalities and inequalities
-    involving (mostly linear) polynomials. The class provides methods to simplify such
+    involving linear polynomials. The class provides methods to simplify such
     constraints, and to determine when they are impossible to simultaneously satisfy.
     """
 

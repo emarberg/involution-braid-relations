@@ -17,7 +17,7 @@ def get_arguments():
                  '2A', '2B', '2C', '2D', '2E', '2F', '2G',
                  'A~', 'B~', 'C~', 'D~', 'E~', 'F~', 'G~',
                  '2A~', '2B~', '2C~', '2D~', '2E~',
-                 'rA~', 'fA~']
+                 'rA~', 'fA~', 'hD~', 'sD~']
     )
     parser.add_argument(
         '--rank',
@@ -86,9 +86,12 @@ def get_coxeter_graph(coxeter_type, rank, s, t):
         '2D~': CoxeterGraph.D_tilde_twist,
         '2E~': CoxeterGraph.E_tilde_twist,
         'rA~': CoxeterGraph.A_tilde_rotate,
-        'fA~': CoxeterGraph.A_tilde_flip
+        'fA~': CoxeterGraph.A_tilde_flip,
+        'hD~': CoxeterGraph.D_tilde_half_twist,
+        'sD~': CoxeterGraph.D_tilde_small_twist,
     }
     g = coxeter_graph_constructor_dict[coxeter_type](rank)
+    # convert strings s, t to integers if necessary
     if s is not None and s not in g.generators:
         s = int(s)
     if t is not None and t not in g.generators:
