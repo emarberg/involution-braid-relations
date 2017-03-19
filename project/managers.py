@@ -953,7 +953,9 @@ class BraidQueue:
         if child.is_realized():
             u = tuple(child.word_s.word)
             v = tuple(child.word_t.word)
-            if u < v:
+            if self.are_atoms_connected(self.sufficient_relations, u, v):
+                return
+            elif u < v:
                 self.sufficient_relations.add((u, v))
             else:
                 self.sufficient_relations.add((v, u))
@@ -1061,32 +1063,11 @@ class BraidQueue:
                 complement = [x for x in rest if x not in current]
                 if all(self.are_atoms_connected(candidate, u, v) for u, v in complement):
                     logger.info("       Works!")
-                    return self._finalize_relations(candidate)
+                    return candidate
                 else:
                     logger.info("       Does not span.")
 
         raise Exception('Error in BraidQueue._finalize_necessary_relations: returning None')  # pragma: no cover
-
-    def _finalize_relations(self, relations):
-        """
-        Rewrites relations of the form
-
-            (a_1,...,a_k,s,t,s,...) <---> (a_1,...,a_k,t,s,t,...)
-
-        so that the prefix (a_1,...,a_k) is lexicographically minimal,
-        while still spanning the same equivalence classes.
-        """
-        finalized = []
-        for u, v in relations:
-            # find largest common initial prefix of u and v
-            i = len(u)
-            while 0 < i and u[:i] != v[:i]:
-                i -= 1
-            start_word = u[:i]
-            inverse_atoms = self.graph.get_inverse_atoms(relations, start_word)
-            w = min(reverse_tuple(a.minimal_reduced_word) for a in inverse_atoms)
-            finalized += [(w + u[i:], w + v[i:])]
-        return finalized
 
     @classmethod
     def _get_next_level_of_involutions_to_atoms(cls, graph, current_level=None):
