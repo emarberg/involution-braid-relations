@@ -71,9 +71,7 @@ class CoxeterGraph:
         """Construct dictionary with orders m_ij of products of simple generators."""
         self.orders = {}
         for i, j, m in edges:
-            # value of m must be an integer with 1 <= m <= infty
             valid_order = (type(m) == int and 1 <= m) or m == np.infty
-            # must have m == 1 iff i == j
             valid_order = valid_order and ((m == 1) == (i == j))
             valid_generators = i in self.generators and j in self.generators
 

@@ -53,16 +53,16 @@ class TestConstraintsManager:
             CoxeterVector(g, 4, d)
 
         manager.add_zero_constraint(a)
-        assert a in manager.linear_constraints
+        assert a in manager.zero_constraints
 
         manager.add_zero_constraint(b)
-        assert b in manager.linear_constraints
+        assert b in manager.zero_constraints
 
         manager.add_zero_constraint(c)
-        assert c in manager.linear_constraints
+        assert c in manager.zero_constraints
 
         manager.add_zero_constraint(d)
-        assert d in manager.linear_constraints
+        assert d in manager.zero_constraints
 
         # zero contraints must be linear Polynomials
         exception = None
@@ -79,11 +79,11 @@ class TestConstraintsManager:
             exception = exc
         assert type(exception) == InvalidInputException
 
-        manager.linear_constraints = set()
-        assert len(manager.linear_constraints) == 0
+        manager.zero_constraints = set()
+        assert len(manager.zero_constraints) == 0
 
         manager.add_zero_constraint(r)
-        assert manager.linear_constraints == {a, b, c, d}
+        assert manager.zero_constraints == {a, b, c, d}
 
     def test_add_nonpositive_constraint(self):
         manager = ConstraintsManager()
@@ -118,7 +118,7 @@ class TestConstraintsManager:
         # check that adding CoxeterVector as constraint introduces constraint for each coeff
         manager.add_nonpositive_constraint(-r)
         assert manager.nonpositive_constraints == {-1 - d, -1 - e}
-        assert manager.linear_constraints == {-a}
+        assert manager.zero_constraints == {-a}
 
     def test_add_nonzero_constraint(self):
         manager = ConstraintsManager()
@@ -130,7 +130,7 @@ class TestConstraintsManager:
         r = CoxeterVector(g, 1, a) + CoxeterVector(g, 4, b) + CoxeterVector(g, 5, c)
 
         manager.add_nonzero_constraint(r)
-        assert manager.nonzero_constraints == {r}
+        assert manager.nonzero_roots == {r}
 
         # input to manager.add_nonzero_constraint must be a CoxeterVector
         exception = None
@@ -154,9 +154,9 @@ class TestConstraintsManager:
 
         # check that method removes zero polynomials from sets of linear constraints
         manager.add_zero_constraint(Polynomial(0))
-        assert manager.linear_constraints == {0}
+        assert manager.zero_constraints == {0}
         manager.remove_vacuous_constraints()
-        assert manager.linear_constraints == set()
+        assert manager.zero_constraints == set()
 
         # check that method removes from set of nonpositive constraints any polynomials which have
         # all nonpositive coefficients or which are bounded above by other nonpositive constraints
@@ -172,9 +172,9 @@ class TestConstraintsManager:
         g = CoxeterGraph.A(5)
         r = CoxeterVector(g, 1)
         manager.add_nonzero_constraint(r)
-        assert manager.nonzero_constraints == {r}
+        assert manager.nonzero_roots == {r}
         manager.remove_vacuous_constraints()
-        assert manager.nonzero_constraints == set()
+        assert manager.nonzero_roots == set()
 
     def test_simplify(self):
         """Tests for method of ConstraintsManager which reduces various constraints."""
@@ -196,9 +196,9 @@ class TestConstraintsManager:
             (Monomial('y'), 2),
             (Monomial('z'), -2)
         }
-        assert manager.linear_constraints == set()
+        assert manager.zero_constraints == set()
         assert manager.nonpositive_constraints == {1}
-        assert manager.nonzero_constraints == {CoxeterVector(g)}
+        assert manager.nonzero_roots == {CoxeterVector(g)}
         assert not manager.is_valid()
 
     def test_is_value_nonpositive(self):

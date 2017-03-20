@@ -38,29 +38,26 @@ class ConstraintsManager:
     """
 
     def __init__(self):
-        # list of linear Polynomials which must be == 0
-        self.linear_constraints = set()
-        # list of linear Polynomials which must be <= 0
+        self.zero_constraints = set()
         self.nonpositive_constraints = set()
-        # list of CoxeterVectors which must be != 0
-        self.nonzero_constraints = set()
+        self.nonzero_roots = set()
         self.nonnegative_indeterminates = set()
 
     def copy(self):
         other = ConstraintsManager()
         other.nonpositive_constraints = self.nonpositive_constraints.copy()
-        other.linear_constraints = self.linear_constraints.copy()
-        other.nonzero_constraints = self.nonzero_constraints.copy()
+        other.zero_constraints = self.zero_constraints.copy()
+        other.nonzero_roots = self.nonzero_roots.copy()
         other.nonnegative_indeterminates = self.nonnegative_indeterminates.copy()
         return other
 
     def is_value_nonpositive(self, f):
         """
-        If the function returns True, then current nonpositive constraints imply that f
+        If the function returns True, then the current nonpositive constraints imply that f
         is nonpositive for all nonnegative indeterminates. If the function returns False,
-        then this property either fails or could not be determined by our naive methods.
+        then this property either fails or could not be determined.
 
-        TODO: current implementation only involves some simple checks, and could be improved.
+        Current implementation only involves some simple checks, and could be improved.
         For example, whether it is feasible for the desired property to fail (the case when
         the function would return False) could be solved exactly using linear programming.
         """
@@ -94,7 +91,6 @@ class ConstraintsManager:
 
         if len(upper_bounds) == 0:
             # have already checked that constant term of f is nonpositive if g has no constant term.
-            # in strict case, need to check that f or g has constant term.
             if not strict or f.get_constant_part() != 0 or g.get_constant_part() != 0:
                 return True
             else:
@@ -111,7 +107,11 @@ class ConstraintsManager:
         return False
 
     def is_value_negative(self, f):
-        """TODO: improve along the lines of is_value_nonpositive."""
+        """
+        If the function returns True, then the current nonpositive constraints imply that f
+        is negative for all nonnegative indeterminates. If the function returns False,
+        then this property either fails or could not be determined.
+        """
         if f < 0:
             return True
         if type(f) != Polynomial:
@@ -140,7 +140,7 @@ class ConstraintsManager:
 
         degree = constraint.degree()
         if degree in [0, 1]:
-            self.linear_constraints.add(constraint)
+            self.zero_constraints.add(constraint)
         else:
             raise InvalidInputException(self, constraint, 'add_zero_constraint')
 
@@ -164,19 +164,13 @@ class ConstraintsManager:
             self.nonpositive_constraints.add(constraint)
 
     def _normalize_input(self, f):
-        """
-        Trivially normalize input by coverting to Polynomial object.
-
-        TODO: actually rescale `f` to avoid storing duplicate constraints.
-        """
         if type(f) in [int, RationalNumber, QuadraticNumber]:
             f = Polynomial(f)
         return f
 
     def add_nonzero_constraint(self, root):
         if type(root) == CoxeterVector:
-            # TODO: normalize `root` to avoid storing duplicate constraints.
-            self.nonzero_constraints.add(root)
+            self.nonzero_roots.add(root)
         else:
             raise InvalidInputException(self, root, 'add_nonzero_constraint')
 
@@ -187,8 +181,8 @@ class ConstraintsManager:
         """
         variable_substitutions = []
         degenerate_constraints = set()
-        while self.linear_constraints:
-            row = self.linear_constraints.pop()
+        while self.zero_constraints:
+            row = self.zero_constraints.pop()
 
             # find nonzero indeterminate x_i appearing in row, or continue if row == 0
             variables = row.get_variables()
@@ -209,7 +203,7 @@ class ConstraintsManager:
             variable_substitutions.append((var, substitution))
             self.apply_variable_substitution(var, substitution)
 
-        self.linear_constraints = degenerate_constraints
+        self.zero_constraints = degenerate_constraints
         self.remove_vacuous_constraints()
         return variable_substitutions
 
@@ -217,27 +211,28 @@ class ConstraintsManager:
         def replace(f):
             return f.set_variable(var, substitution)
 
-        # TODO: use dedicated add_xxxx_constraint methods rather than doing in place substitutions.
-        # This is slightly tricky to get right, and simple implementation is usually good enough.
-        self.linear_constraints = {replace(f) for f in self.linear_constraints}
+        # This could be improved by using dedicated add_xxxx_constraint methods rather
+        # than doing in place substitutions. This is slightly tricky to get right, and
+        # simple implementation is usually good enough.
+        self.zero_constraints = {replace(f) for f in self.zero_constraints}
         self.nonpositive_constraints = {replace(f) for f in self.nonpositive_constraints}
-        self.nonzero_constraints = {replace(r) for r in self.nonzero_constraints}
+        self.nonzero_roots = {replace(r) for r in self.nonzero_roots}
         self.nonnegative_indeterminates = {replace(f) for f in self.nonnegative_indeterminates}
 
     def remove_vacuous_constraints(self):
-        self.linear_constraints = {
-            f for f in self.linear_constraints if not (f == 0)
+        self.zero_constraints = {
+            f for f in self.zero_constraints if not (f == 0)
         }
 
-        # TODO: improve how redundant inequalities are detected in three cases below.
+        # How redundant inequalities are detected in the cases below could be improved.
         # Current implementation is very simple, and will consider scalar multiples of
         # a single constraint to be different.
         self.nonpositive_constraints = {
             f for f in self.nonpositive_constraints
             if not (f <= 0) and not any(f <= g and f != g for g in self.nonpositive_constraints)
         }
-        self.nonzero_constraints = {
-            r for r in self.nonzero_constraints
+        self.nonzero_roots = {
+            r for r in self.nonzero_roots
             if not any(v < 0 or 0 < v for v in r.coefficients.values())
         }
         self.nonnegative_indeterminates = {
@@ -259,11 +254,11 @@ class ConstraintsManager:
             s += '%s. 0 <= %s\n' % (pad(i), c)
             i += 1
 
-        for c in self.linear_constraints:
+        for c in self.zero_constraints:
             s += '%s. 0 == %s\n' % (pad(i), c)
             i += 1
 
-        for c in self.nonzero_constraints:
+        for c in self.nonzero_roots:
             s += '%s. 0 != %s\n' % (pad(i), c)
             i += 1
 
@@ -277,8 +272,8 @@ class ConstraintsManager:
             any(0 < f for f in self.nonpositive_constraints) or
             # we do not check f != 0 since this would be true for any nontrivial polynomial;
             # instead, we want to determine if f has all positive/negative coeffs
-            any(0 < f or f < 0 for f in self.linear_constraints) or
-            any(r == 0 for r in self.nonzero_constraints) or
+            any(0 < f or f < 0 for f in self.zero_constraints) or
+            any(r == 0 for r in self.nonzero_roots) or
             any(f < 0 for f in self.nonnegative_indeterminates) or
             (len(self.nonnegative_indeterminates) > 0 and sum(self.nonnegative_indeterminates) == 0)
         )
@@ -303,7 +298,7 @@ class BraidSystem:
         """
         The initial value of self.sigma must define a bijection from
         {alpha_s, alpha_t} to {alpha_s^*, alpha_t^*}. Which bijection is
-        chosen controlled by the input `is_fixer`.
+        chosen is controlled by the input `is_fixer`.
         """
         if s in coxeter_graph.generators and t in coxeter_graph.generators:
             self.constraints = ConstraintsManager()
@@ -326,7 +321,6 @@ class BraidSystem:
             raise InvalidInputException(self, (s, t))
 
     def _extend_words(self):
-        """Helper method for initializing self.word_s and self.word_t."""
         gens = [self.s, self.t]
         for i in range(self.graph.get_semiorder(self.s, self.t, self.is_fixer)):
             self.word_s.extend_left(gens[i % 2])
@@ -400,7 +394,7 @@ class BraidSystem:
 
         logger.debug("Constructing children with new descent.")
         g = self.graph
-        # exclude the descents which will not give rise to valid states
+        # exclude the descents which will not give rise to valid systems
         candidate_descents = [
             i for i in g.generators
             if i not in self.sigma and any(g.get_order(i, j) != 2 for j in self.sigma)
