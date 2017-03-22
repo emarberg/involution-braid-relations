@@ -90,6 +90,8 @@ def get_coxeter_graph(coxeter_type, rank, s, t):
         'hD~': CoxeterGraph.D_tilde_half_twist,
         'sD~': CoxeterGraph.D_tilde_small_twist,
     }
+    if coxeter_type.endswith('~'):
+        rank -= 1
     g = coxeter_graph_constructor_dict[coxeter_type](rank)
     # convert strings s, t to integers if necessary
     if s is not None and s not in g.generators:
