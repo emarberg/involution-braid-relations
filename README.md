@@ -1,7 +1,7 @@
 # Braid relations for involutions in Coxeter groups
 
 The code in this repository implements the algorithms described in the paper
-"Braid relations for Demazure conjugation in affine Coxeter groups" by Eric Marberg.
+"Braid relations for involution words in affine Coxeter groups" by Eric Marberg.
 The main program takes a twisted Coxeter system as input, and tries to compute
 a minimal set of "braid relations" which span and preserve all sets of involution words
 for twisted involutions in the provided Coxeter group.
