@@ -1117,14 +1117,14 @@ class BraidQueue:
 
     def _check_preservation(self):
         """Checks that minimal relations are involution words for same twisted involution."""
-        logger.info('  * Relations preserve atoms: ', end='')
+        item = '  * Relations preserve atoms: '
         g = self.graph
         for a, b in self.minimal_relations:
             y, z = CoxeterWord(g, a).to_involution(), CoxeterWord(g, b).to_involution()
             if y.left_action != z.left_action:
-                logger.info('no')
+                logger.info(item + 'no')
                 raise Exception('Error: minimal relations do not preserve all sets of atoms.')
-        logger.info('yes')
+        logger.info(item + 'yes')
 
     def _check_spanning(self, max_length):
         """
@@ -1134,12 +1134,12 @@ class BraidQueue:
         g = self.graph
         next_level = self._get_next_level_of_involutions_to_atoms(g)
         for length in range(max_length + 1):
-            logger.info('  * Relations span atoms of length %s/%s: ' % (length, max_length), end='')
+            item = '  * Relations span atoms of length %s/%s: ' % (length, max_length)
             for involution, atoms in next_level.items():
                 atom = next(iter(atoms))
                 word = atom.minimal_reduced_word
                 if len(self.graph.get_inverse_atoms(self.minimal_relations, word)) < len(atoms):
-                    logger.info('no')
+                    logger.info(item + 'no')
                     raise Exception('Error: minimal relations fail to span all sets of atoms.')
-            logger.info('yes')
+            logger.info(item + 'yes')
             next_level = self._get_next_level_of_involutions_to_atoms(g, next_level)
