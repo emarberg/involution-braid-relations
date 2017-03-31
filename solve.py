@@ -46,11 +46,13 @@ def get_arguments():
     parser.add_argument(
         '--s',
         type=str,
+        help="index of generator s for abbreviated calculation",
         default=None
     )
     parser.add_argument(
         '--t',
         type=str,
+        help="index of generator t for abbreviated calculation",
         default=None
     )
     return parser.parse_args()
@@ -90,6 +92,7 @@ def get_coxeter_graph(coxeter_type, rank, s, t):
         'hD~': CoxeterGraph.D_tilde_half_twist,
         'sD~': CoxeterGraph.D_tilde_small_twist,
     }
+    # subtract 1 in affine case since affine constructors return systems of rank n + 1
     if coxeter_type.endswith('~'):
         rank -= 1
     g = coxeter_graph_constructor_dict[coxeter_type](rank)
@@ -113,6 +116,9 @@ def solve(coxeter_type, rank, verify, limit, s=None, t=None):
     if limit is not None and not verify:
         print('Error: `--verify` is required if `--limit` is given')
         return
+    if s == t and t is not None:
+        print('Error: `inputs for `--s` and `--t` must be distinct')
+        return
     try:
         g, s, t = get_coxeter_graph(coxeter_type, rank, s, t)
     except:
@@ -120,9 +126,16 @@ def solve(coxeter_type, rank, verify, limit, s=None, t=None):
     else:
         q = BraidQueue(g, s, t)
         q.go(limit=limit, verify=verify)
+        summarize_parabolic_config(s, t, q)
 
-        if None not in [s, t]:
-            print('\nNeighborhood: %s' % q.neighborhood)
+
+def summarize_parabolic_config(s, t, q):
+    if None not in [s, t]:
+        print('')
+        print('Calculation shows that (W, S, J, * | s, t) is a parabolic system for:')
+        print('  s = %s' % s)
+        print('  t = %s' % t)
+        print('  J = %s' % q.neighborhood)
 
 
 if __name__ == '__main__':

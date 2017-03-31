@@ -40,13 +40,39 @@ When `--limit` is set, the program will only search for relations of length up t
 This is a useful option if the Coxeter group is infinite. The `--log` flag controls
 how much output the program logs during execution.
 
-Some examples (which should terminate in finite time):
+Some examples:
 ```
 python3.5 solve.py --type D --rank 4 --verify
 ```
 ```
-python3.5 solve.py --type 2F --rank 4
+python3.5 solve.py --type 2F --rank 4 --log=debug
 ```
 ```
-python3.5 solve.py --type A~ --rank 3 --verify --limit 2
+python3.5 solve.py --type D~ --rank 5 --verify --limit 2
+```
+```
+python3.5 solve.py --type G~ --rank 3
+```
+To generate Table 1 in the accompanying paper, we run these commands:
+* Type 2A9: 
+```
+python3.5 solve.py --type 2A --rank 9 --s 4 --t 5
+```
+* Type B5:
+```
+python3.5 solve.py --type B --rank 5 --s 4 --t 5
+```
+* Types D7 and D'7:
+```
+python3.5 solve.py --type D --rank 7 --s 4 --t 5
+```
+```
+python3.5 solve.py --type D --rank 7 --s 5 --t 6
+```
+* Types 2D7 and 2D'7:
+```
+python3.5 solve.py --type 2D --rank 7 --s 4 --t 5
+```
+```
+python3.5 solve.py --type 2D --rank 7 --s 5 --t 6
 ```

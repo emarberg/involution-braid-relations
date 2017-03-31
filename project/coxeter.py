@@ -258,18 +258,18 @@ class CoxeterGraph:
     @staticmethod
     def B_twist(n=2):  # noqa
         assert n == 2
-        return CoxeterGraph([(0, 1, 4)], star=[(0, 1)])
+        return CoxeterGraph([(1, 2, 4)], star=[(1, 2)])
 
     @staticmethod
     def B(n):  # noqa
         """
         Dynkin diagram labeling is:
 
-            0==1--2--...--(n-1)
+            1--2--...--(n-1)==n
 
         """
         assert 2 <= n
-        edges = [(i, i + 1, 3) for i in range(1, n - 1)] + [(0, 1, 4)]
+        edges = [(i, i + 1, 3) for i in range(1, n - 1)] + [(n - 1, n, 4)]
         return CoxeterGraph(edges)
 
     @staticmethod
@@ -277,20 +277,19 @@ class CoxeterGraph:
         """
         Dynkin diagram labeling is:
 
-               0
-               |
-            1--2--3--...--(n-1)
+                           n
+                           |
+            1--2--3--...--(n-2)--(n-1)
 
         """
         assert 4 <= n
-        edges = [(i, i + 1, 3) for i in range(1, n - 1)] + [(0, 2, 3)]
+        edges = [(i, i + 1, 3) for i in range(1, n - 1)] + [(n - 2, n, 3)]
         return CoxeterGraph(edges, star=star)
 
     @staticmethod
     def D_twist(n):  # noqa
         assert 4 <= n
-        star = [(0, 1)] + [(i, i) for i in range(2, n)]
-        return CoxeterGraph.D(n, star=star)
+        return CoxeterGraph.D(n, star=[(n - 1, n)])
 
     @staticmethod
     def E(n, star=None):  # noqa
@@ -339,26 +338,26 @@ class CoxeterGraph:
         """
         Dynkin diagram labeling is:
 
-            1==2--...--n
+            1--2--...--(n-1)==n
 
         where edge == has label 5.
         """
         assert n in [3, 4]
         if n == 3:
-            edges = [(1, 2, 5), (2, 3, 3)]
+            edges = [(1, 2, 3), (2, 3, 5)]
         elif n == 4:
-            edges = [(1, 2, 5), (2, 3, 3), (3, 4, 3)]
+            edges = [(1, 2, 3), (2, 3, 3), (3, 4, 5)]
         return CoxeterGraph(edges)
 
     @staticmethod
     def A_tilde(n, star=None):  # noqa
         assert n >= 2
-        edges = [(i, i + 1, 3) for i in range(1, n)] + [(n, n + 1, 3), (n + 1, 1, 3)]
+        edges = [(i, i + 1, 3) for i in range(1, n)] + [(n, 0, 3), (0, 1, 3)]
         return CoxeterGraph(edges, star=star)
 
     @staticmethod
     def A_tilde_twist(n):  # noqa
-        star = [(i, n + 2 - i) for i in range(1, n + 2)]
+        star = [(i, n - i) for i in range(n + 1)]
         return CoxeterGraph.A_tilde(n, star)
 
     @staticmethod
@@ -371,7 +370,7 @@ class CoxeterGraph:
     def A_tilde_rotate(n):  # noqa
         assert n % 2 != 0
         r = (n + 1) // 2
-        star = [(i, (i - 1 + r) % (n + 1) + 1) for i in range(1, n + 2)]
+        star = [(i, (i + r) % (n + 1)) for i in range(n + 1)]
         return CoxeterGraph.A_tilde(n, star)
 
     @staticmethod
@@ -379,18 +378,18 @@ class CoxeterGraph:
         """
         Dynkin diagram labeling is:
 
-                           n
-                           |
-            0==1--2--...--(n-2)--(n-1)
+               0
+               |
+            1--2--...--(n-1)==n
 
         """
         assert n >= 3
-        edges = [(i, i + 1, 3) for i in range(1, n - 1)] + [(0, 1, 4)] + [(n - 2, n, 3)]
+        edges = [(i, i + 1, 3) for i in range(1, n - 1)] + [(n - 1, n, 4)] + [(0, 2, 3)]
         return CoxeterGraph(edges, star=star)
 
     @staticmethod
     def B_tilde_twist(n):  # noqa
-        star = [(n - 1, n)]
+        star = [(0, 1)]
         return CoxeterGraph.B_tilde(n, star)
 
     @staticmethod

@@ -206,7 +206,7 @@ class TestCoxeterGraph:
             # test that can convert to str without errors
             str(g)
 
-        assert h4.get_braid(1, 2) == (1, 2, 1, 2, 1)
+        assert h4.get_braid(3, 4) == (3, 4, 3, 4, 3)
         assert f4.get_braid(2, 3) == (2, 3, 2, 3)
         e = None
         try:
@@ -227,8 +227,8 @@ class TestCoxeterGraph:
         assert a5.eval_bilinear(1, 1) == 1
         assert a5.eval_bilinear(1, 3) == 0
         assert a5.eval_bilinear(1, 2) == -RationalNumber(1) / 2
-        assert b6.eval_bilinear(0, 1) == -QuadraticNumber.sqrt(2) / 2
-        assert h4.eval_bilinear(1, 2) == -(QuadraticNumber.sqrt(5) + 1) / 4
+        assert b6.eval_bilinear(5, 6) == -QuadraticNumber.sqrt(2) / 2
+        assert h4.eval_bilinear(3, 4) == -(QuadraticNumber.sqrt(5) + 1) / 4
         assert g2.eval_bilinear(1, 2) == -QuadraticNumber.sqrt(3) / 2
         assert k.eval_bilinear(1, 2) == -(QuadraticNumber.sqrt(6) + QuadraticNumber.sqrt(2)) / 4
         assert i.eval_bilinear(1, 2) == -1
@@ -599,13 +599,13 @@ class TestPartialTransform:
 
     def test_get_relations(self):
         g = CoxeterGraph.B(3)
-        t = PartialTransform(g, {0: CoxeterVector(g, 0), 1: CoxeterVector(g, 1)})
-        assert t.get_relations() == {((0, 1, 0), (1, 0, 1))}
+        t = PartialTransform(g, {2: CoxeterVector(g, 2), 3: CoxeterVector(g, 3)})
+        assert t.get_relations() == {((2, 3, 2), (3, 2, 3))}
 
-        t = PartialTransform(g, {0: CoxeterVector(g, 1), 1: CoxeterVector(g, 0)})
-        assert t.get_relations() == {((0, 1), (1, 0))}
+        t = PartialTransform(g, {2: CoxeterVector(g, 3), 3: CoxeterVector(g, 2)})
+        assert t.get_relations() == {((2, 3), (3, 2))}
 
-        t = PartialTransform(g, {0: CoxeterVector(g, 1), 1: CoxeterVector(g, 2)})
+        t = PartialTransform(g, {3: CoxeterVector(g, 2), 2: CoxeterVector(g, 1)})
         assert t.get_relations() == set()
 
 
@@ -625,9 +625,9 @@ class TestCoxeterTransform:
         assert t.sigma == sigma
         sigma.clear()
         assert t.sigma == {i: -CoxeterVector(g, i) for i in g.generators}
-        assert t.right_descents == {0, 1, 2}
-        assert t.minimal_right_descent is 0
-        assert t.minimal_reduced_word == (2, 1, 0, 1, 2, 1, 0, 1, 0)
+        assert t.right_descents == {1, 2, 3}
+        assert t.minimal_right_descent is 1
+        assert t.minimal_reduced_word == (3, 2, 3, 1, 2, 3, 1, 2, 1)
 
     def test_constructor_errors(self):
         # Check error handling for invalid constructor inputs.
@@ -643,9 +643,9 @@ class TestCoxeterTransform:
         e = None
         try:
             CoxeterTransform(g, {
-                0: CoxeterVector(g, 0),
                 1: CoxeterVector(g, 1),
-                2: CoxeterVector(h, 2)
+                2: CoxeterVector(g, 2),
+                3: CoxeterVector(h, 3)
             })
         except Exception as exception:
             e = exception
@@ -654,8 +654,8 @@ class TestCoxeterTransform:
         e = None
         try:
             CoxeterTransform(g, {
-                0: CoxeterVector(g, 0),
-                1: CoxeterVector(g, 1),
+                0: CoxeterVector(g, 1),
+                1: CoxeterVector(g, 2),
                 2: CoxeterVector(g, Polynomial('x'))
             })
         except Exception as exception:
@@ -668,32 +668,32 @@ class TestCoxeterTransform:
         assert t == t.get_inverse()
 
         u = CoxeterTransform(g)
-        assert (u * 0 * 1).get_inverse() == u * 1 * 0
+        assert (u * 3 * 2).get_inverse() == u * 2 * 3
 
     def test_eq(self):
         g = CoxeterGraph.B(2)
-        t = PartialTransform(g, {0: CoxeterVector(g, 0), 1: CoxeterVector(g, 1)})
-        u = CoxeterTransform(g, {0: CoxeterVector(g, 0), 1: CoxeterVector(g, 1)})
+        t = PartialTransform(g, {1: CoxeterVector(g, 1), 2: CoxeterVector(g, 2)})
+        u = CoxeterTransform(g, {1: CoxeterVector(g, 1), 2: CoxeterVector(g, 2)})
         assert t == u
 
         v = u.copy()
-        v[0] = -CoxeterVector(g, 0)
         v[1] = -CoxeterVector(g, 1)
+        v[2] = -CoxeterVector(g, 2)
 
         assert t == u and u != v
         assert not hasattr(t, 'minimal_reduced_word')
         assert u.minimal_reduced_word == ()
-        assert v.minimal_reduced_word == (1, 0, 1, 0)
+        assert v.minimal_reduced_word == (2, 1, 2, 1)
         assert len({t, u, v}) == 2
 
     def test_setitem_errors(self):
         g = CoxeterGraph.B(2)
-        v = CoxeterTransform(g, {0: CoxeterVector(g, 0), 1: CoxeterVector(g, 1)})
+        v = CoxeterTransform(g, {1: CoxeterVector(g, 1), 2: CoxeterVector(g, 2)})
 
         # cannot assign value which is non-constant CoxeterVector
         e = None
         try:
-            v[0] = -CoxeterVector(g, 0, Polynomial('x'))
+            v[1] = -CoxeterVector(g, 1, Polynomial('x'))
         except Exception as exception:
             e = exception
         assert type(e) == InvalidInputException
@@ -701,7 +701,7 @@ class TestCoxeterTransform:
         # cannot assign to index which is not in g.generators
         e = None
         try:
-            v[2] = CoxeterVector(g, 1)
+            v[0] = CoxeterVector(g, 1)
         except Exception as exception:
             e = exception
         assert type(e) == InvalidInputException
@@ -755,32 +755,33 @@ class TestCoxeterWord:
         assert w.right_descents == set()
         assert w.minimal_reduced_word == ()
 
-        w = CoxeterWord(g, (1, 0, 1, 0))
-        assert w.word == (1, 0, 1, 0)
-        assert w.left_action == CoxeterTransform.from_word(g, (0, 1, 0, 1))
+        w = CoxeterWord(g, (2, 3, 2, 3))
+        assert w.word == (2, 3, 2, 3)
+        assert w.left_action == CoxeterTransform.from_word(g, (2, 3, 2, 3))
         assert w.right_action == w.left_action.get_inverse()
         assert w.is_reduced
-        assert w.left_descents == {0, 1}
-        assert w.right_descents == {0, 1}
-        assert w.minimal_reduced_word == (0, 1, 0, 1)
+        assert w.left_descents == {2, 3}
+        assert w.right_descents == {2, 3}
+        assert w.minimal_reduced_word == (2, 3, 2, 3)
 
-        v = CoxeterWord(g, (0, 1, 0, 1))
+        v = CoxeterWord(g, (3, 2, 3, 2))
+        assert v.minimal_reduced_word == (2, 3, 2, 3)
         assert v != w and v.left_action == w.left_action and v.right_action == v.right_action
         assert hash(v) != hash(w)
 
-        v = CoxeterWord(g, (0, 1, 0, 1, 1, 1))
+        v = CoxeterWord(g, (3, 2, 3, 2, 2, 2))
         assert not v.is_reduced
         assert v != w and v.left_action == w.left_action and v.right_action == v.right_action
         assert hash(v) != hash(w)
 
         assert len(w) == 4 and len(v) == 6
-        assert str(v) == 'unreduced word (0, 1, 0, 1, 1, 1)'
-        assert str(w) == 'reduced word (1, 0, 1, 0)'
+        assert str(v) == 'unreduced word (3, 2, 3, 2, 2, 2)'
+        assert str(w) == 'reduced word (2, 3, 2, 3)'
 
     @pytest.mark.parametrize("word, involution_word", [
-        ((1, 0), (0, 1, 0)),
-        ((0, 2), (0, 2)),
-        ((1, 0, 1, 0), (0, 1, 0, 1, 0))
+        ((2, 3), (3, 2, 3)),
+        ((3, 1), (3, 1)),
+        ((2, 3, 2, 3), (3, 2, 3, 2, 3))
     ])
     def test_to_involution(self, word, involution_word):
         g = CoxeterGraph.B(3)
@@ -789,8 +790,8 @@ class TestCoxeterWord:
 
     def test_get_reduced_words(self):
         g = CoxeterGraph.B(3)
-        w = CoxeterWord(g, (1, 0, 1, 0))
-        assert w.get_reduced_words() == {(1, 0, 1, 0), (0, 1, 0, 1)}
+        w = CoxeterWord(g, (3, 2, 3, 2))
+        assert w.get_reduced_words() == {(3, 2, 3, 2), (2, 3, 2, 3)}
 
     def test_copy(self):
         g = CoxeterGraph.B(3)
@@ -798,54 +799,54 @@ class TestCoxeterWord:
         v = w.copy()
         assert v == w
 
-        w.extend_left(0)
-        assert w.word == (0,) and v.word == ()
+        w.extend_left(1)
+        assert w.word == (1,) and v.word == ()
 
     def test_multiply(self):
         g = CoxeterGraph.B(3)
         assert CoxeterWord(g) * CoxeterWord(g) == CoxeterWord(g)
 
-        w = ((CoxeterWord(g) * 0) * 1) * 2
-        assert w.word == (0, 1, 2)
-        assert (w * w).word == (0, 1, 2, 0, 1, 2)
+        w = ((CoxeterWord(g) * 3) * 2) * 1
+        assert w.word == (3, 2, 1)
+        assert (w * w).word == (3, 2, 1, 3, 2, 1)
 
-        w = 0 * (1 * (2 * CoxeterWord(g)))
-        assert w.word == (0, 1, 2)
-        assert (w * w).word == (0, 1, 2, 0, 1, 2)
-        assert w.__rmul__(w).word == (0, 1, 2, 0, 1, 2)
+        w = 3 * (2 * (1 * CoxeterWord(g)))
+        assert w.word == (3, 2, 1)
+        assert (w * w).word == (3, 2, 1, 3, 2, 1)
+        assert w.__rmul__(w).word == (3, 2, 1, 3, 2, 1)
 
-        w = 0 * (1 * (2 * ((CoxeterWord(g) * 0) * 1))) * 2
-        assert w.word == (0, 1, 2, 0, 1, 2)
+        w = 3 * (2 * (1 * ((CoxeterWord(g) * 3) * 2))) * 1
+        assert w.word == (3, 2, 1, 3, 2, 1)
 
     def test_multiply_errors(self):
         g = CoxeterGraph.B(3)
         h = CoxeterGraph.A(3)
 
-        # cannot multiply by non-generator 3, as g.generators = [0, 1, 2]
+        # cannot multiply by non-generator 0, as g.generators = [1, 2, 3]
         e = None
         try:
-            CoxeterWord(g) * 3
+            CoxeterWord(g) * 0
         except Exception as exception:
             e = exception
         assert type(e) == InvalidInputException
 
         e = None
         try:
-            3 * CoxeterWord(g)
+            0 * CoxeterWord(g)
         except Exception as exception:
             e = exception
         assert type(e) == InvalidInputException
 
         e = None
         try:
-            CoxeterWord(g).extend_right(3)
+            CoxeterWord(g).extend_right(0)
         except Exception as exception:
             e = exception
         assert type(e) == InvalidInputException
 
         e = None
         try:
-            CoxeterWord(g).extend_left(3)
+            CoxeterWord(g).extend_left(0)
         except Exception as exception:
             e = exception
         assert type(e) == InvalidInputException
@@ -864,4 +865,3 @@ class TestCoxeterWord:
         except Exception as exception:
             e = exception
         assert type(e) == InvalidInputException
-

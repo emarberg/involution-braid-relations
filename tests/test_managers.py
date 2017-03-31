@@ -457,8 +457,8 @@ class TestBraidQueue:
         q.go()
         assert q.minimal_relations == [
             ((1, 2), (2, 1)),
-            ((0, 1, 0), (1, 0, 1)),
-            ((0, 1, 2, 0, 1, 0), (0, 1, 2, 1, 0, 1))
+            ((2, 3, 2), (3, 2, 3)),
+            ((3, 2, 1, 2, 3, 2), (3, 2, 1, 3, 2, 3))
         ]
 
     def test_2A3(self):  # noqa
@@ -487,10 +487,10 @@ class TestBraidQueue:
         q = BraidQueue(g, 2, 3)
         q.go(verify=False)
         assert q.minimal_relations == [
-            ((0, 2), (2, 0)),
             ((1, 2), (2, 1)),
             ((2, 3), (3, 2)),
-            ((3, 0, 2, 1, 2, 0, 2, 3), (3, 0, 2, 1, 2, 0, 3, 2))
+            ((2, 4), (4, 2)),
+            ((3, 1, 2, 4, 2, 1, 2, 3), (3, 1, 2, 4, 2, 1, 3, 2))
         ]
 
     def test_get_next_level_of_involutions_to_atoms(self):
@@ -521,14 +521,14 @@ class TestBraidQueue:
         q = BraidQueue(g)
 
         # check error handling when too many relations are present
-        q.minimal_relations = [((0, 1), (1, 0)), ((1, 2), (2, 1))]
+        q.minimal_relations = [((1, 2), (2, 1)), ((2, 3), (3, 2))]
         try:
             q.verify_relations(None)
         except Exception as e:
             assert str(e) == 'Error: minimal relations do not preserve all sets of atoms.'
 
         # check error handling when too few relations are present
-        q.minimal_relations = [((0, 1, 0), (1, 0, 1)), ((1, 2), (2, 1))]
+        q.minimal_relations = [((2, 3, 2), (3, 2, 3)), ((1, 2), (2, 1))]
         try:
             q.verify_relations(None)
         except Exception as e:
@@ -538,5 +538,5 @@ class TestBraidQueue:
         q.verify_relations(upper_length=3)
 
         # also raise no exceptions if atom length is unlimited but we use sufficient relations
-        q.minimal_relations += [((0, 1, 2, 0, 1, 0), (0, 1, 2, 1, 0, 1))]
+        q.minimal_relations += [((3, 2, 1, 2, 3, 2), (3, 2, 1, 3, 2, 3))]
         q.verify_relations(None)
