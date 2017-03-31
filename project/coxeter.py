@@ -20,7 +20,7 @@ from project.algebra import (
 class CoxeterGraph:
 
     """
-    Class for objects representing Coxeter graphs with a distinguisehd graph involution.
+    Class for objects representing Coxeter graphs with a distinguished graph involution.
     This data classifies twisted Coxeter systems up to isomorphism.
     """
 
