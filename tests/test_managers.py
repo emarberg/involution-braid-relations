@@ -359,7 +359,7 @@ class TestBraidSystem:
         state.word_t = CoxeterWord(g, (2, 1))
         assert state.is_realized()
 
-    def test_is_unrealizable(self):
+    def test_is_descent_periodic(self):
         g = CoxeterGraph.G_tilde(2)
         state = BraidSystem(g, s=1, t=2)
         state.word_s = CoxeterWord(g, (3, 2, 1, 2, 1, 2, 3, 2, 1, 2, 1, 2, 3, 1, 2, 1))
@@ -387,17 +387,17 @@ class TestBraidSystem:
             print(descent, new)
             new = new._branch_from_descent(descent, commutes=commutes).reduce()
             history.append(new)
-        assert new.is_unrealizable(history)
+        assert new.is_descent_periodic(history)
 
         q = BraidQueue(g)
         q.recurrent_states = [state]
         q.minimize_relations()
 
         state.sigma = PartialTransform(g, {1: 2 * alpha, 2: beta, 3: gamma})
-        assert not state.is_unrealizable([state])
+        assert not state.is_descent_periodic([state])
 
         state.sigma = PartialTransform(g, {1: Polynomial('x') * alpha, 2: beta, 3: gamma})
-        assert not state.is_unrealizable([state])
+        assert not state.is_descent_periodic([state])
 
     def test_is_redundant(self):
         g = CoxeterGraph.A_twist(5)

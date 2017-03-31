@@ -290,8 +290,8 @@ class BraidSystem:
 
     Each of these objects must be defined with respect to a common CoxeterGraph.
     The class implements methods for checking whether the BraidSystem is valid or
-    redundant (in an appropriate technical sense) and for expanding a given system
-    into a collection of more constrained systems.
+    redundant or descent-periodic (in an appropriate technical sense) and for
+    expanding a given system into a collection of more constrained systems.
     """
 
     def __init__(self, coxeter_graph, s, t, is_fixer=True):
@@ -436,7 +436,7 @@ class BraidSystem:
     def eliminate_descents(self):
         """
         Given constant BraidSystem, successively conjugate by its descents until no descents
-        remain, or we can determine that the system is invalid, redundant, or unrealizable.
+        remain, or we can determine that the system is invalid, redundant, or descent-periodic.
         """
         logger.debug("Eliminating descents from constant system.")
         history = [self]
@@ -458,7 +458,7 @@ class BraidSystem:
                 history.append(new)
 
                 # periodically check whether state is recurrent; 32 is an arbitrary number
-                if len(history) % 32 == 0 and new.is_unrealizable(history):
+                if len(history) % 32 == 0 and new.is_descent_periodic(history):
                     return []
 
         except KeyboardInterrupt:  # pragma: no cover
@@ -568,7 +568,7 @@ class BraidSystem:
 
         return new
 
-    def is_unrealizable(self, history):
+    def is_descent_periodic(self, history):
         """
         Returns True if we can determine automatically that sigma_j has a descent i_j
         for all j (and therefore is never the identity), where we define
