@@ -54,6 +54,7 @@ python3.5 solve.py --type D~ --rank 5 --verify --limit 2
 python3.5 solve.py --type G~ --rank 3
 ```
 To generate Table 1 in the accompanying paper, we run these commands:
+
 * Type 2A9: 
 ```
 python3.5 solve.py --type 2A --rank 9 --s 4 --t 5

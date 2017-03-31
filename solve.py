@@ -126,16 +126,25 @@ def solve(coxeter_type, rank, verify, limit, s=None, t=None):
     else:
         q = BraidQueue(g, s, t)
         q.go(limit=limit, verify=verify)
-        summarize_parabolic_config(s, t, q)
+        summarize_parabolic_config(g, s, t, q)
 
 
-def summarize_parabolic_config(s, t, q):
-    if None not in [s, t]:
+def summarize_parabolic_config(coxeter_graph, s, t, q):
+    if None in [s, t]:
+        return
+    if q.neighborhood == set(coxeter_graph.generators):
+        print('')
+        print('Calculation shows that (W, S, J, * | s, t) is a never parabolic system for:')
+        print('  s = %s' % s)
+        print('  t = %s' % t)
+        print('No proper subset J of S satisfies the required conditions.')
+    else:
         print('')
         print('Calculation shows that (W, S, J, * | s, t) is a parabolic system for:')
         print('  s = %s' % s)
         print('  t = %s' % t)
         print('  J = %s' % q.neighborhood)
+        print('  S = %s' % set(coxeter_graph.generators))
 
 
 if __name__ == '__main__':
