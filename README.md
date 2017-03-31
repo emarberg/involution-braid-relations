@@ -1,4 +1,4 @@
-# Braid relations for involutions in Coxeter groups
+# Braid relations for involution words in Coxeter groups
 
 The code in this repository implements the algorithms described in the paper
 "Braid relations for involution words in affine Coxeter groups," available online at
