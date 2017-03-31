@@ -28,11 +28,13 @@ The main things to specify when running the program are the type and rank of the
 ```
 python3.5 solve.py --type <Coxeter graph type> \
 				   --rank <Coxeter graph rank> \
+				   [--s <optional simple generator>] \
+				   [--t <optional simple generator>] \
 				   [--verify] \
 				   [--limit <maximum braid length>] \
 				   [--log=<logging level>]
 ```
-The last three parameters are optional.
+The last five parameters are optional.
 Including the `--verify` flag will make the program explicitly check that the relations
 it finds actually span and preserve all sets of involution words for the group under consideration.
 This flag is required if a numeric value for `--limit` is provided.
