@@ -390,7 +390,7 @@ class TestBraidSystem:
         assert new.is_descent_periodic(history)
 
         q = BraidQueue(g)
-        q.recurrent_states = [state]
+        q.descent_periodic_systems = [state]
         q.minimize_relations()
 
         state.sigma = PartialTransform(g, {1: 2 * alpha, 2: beta, 3: gamma})

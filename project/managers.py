@@ -789,7 +789,7 @@ class BraidQueue:
     def __init__(self, coxeter_graph, s=None, t=None):
         """Inputs `s` and `t` should be elements of `coxeter_graph.generators`."""
         self.graph = coxeter_graph
-        self.recurrent_states = []
+        self.descent_periodic_systems = []
         self.minimal_relations = []
         self.sufficient_relations = coxeter_graph.get_half_braid_relations()
 
@@ -867,7 +867,7 @@ class BraidQueue:
         self.minimize_relations()
 
     def find_sufficient_relations(self, limit=None):
-        logger.info('Step 1: Finding sufficient relations.')
+        logger.info('Step 1: Finding relations.')
         t0 = time.time()
         while len(self) > 0 and (limit is None or len(self.queue[0]) <= limit):
             self.next()
@@ -879,9 +879,9 @@ class BraidQueue:
         # sort by word length, then lexicographically
         sufficient = sorted(self.sufficient_relations, key=lambda x: (len(x[0]), x))
         logger.info('')
-        logger.info('---------------------')
-        logger.info('Sufficient relations:')
-        logger.info('---------------------')
+        logger.info('----------')
+        logger.info('Relations:')
+        logger.info('----------')
         for u, v in sufficient:
             logger.info('%s <---> %s' % (u, v))
 
@@ -901,7 +901,7 @@ class BraidQueue:
                 logger.info("")
                 logger.info("Time: %s seconds" % (t1 - t0))
             except RecurrentStateException as e:
-                self.recurrent_states += [e.state]
+                self.descent_periodic_systems += [e.state]
             else:
                 self._update(children)
 
@@ -924,7 +924,7 @@ class BraidQueue:
         logger.info('Multiplicities by word length    : %s' % self.word_multiplicities())
         logger.info('Multiplicities by non-blank roots: %s' % self.root_multiplicities())
         logger.info('Relations found                  : %s' % len(self.sufficient_relations))
-        logger.info('Unresolved systems               : %s' % len(self.recurrent_states))
+        logger.info('Unresolved systems               : %s' % len(self.descent_periodic_systems))
 
     def _update_neighborhood(self, child):
         self.neighborhood |= set(child.sigma)
@@ -961,7 +961,7 @@ class BraidQueue:
         """
         logger.info('')
         logger.info('')
-        logger.info('Step 2: Finding minimal sufficient relations.')
+        logger.info('Step 2: Finding minimal relations.')
 
         t1 = time.time()
         sufficient = sorted(self.sufficient_relations, key=lambda x: (len(x[0]), x))
@@ -981,19 +981,19 @@ class BraidQueue:
         print(self.graph)
 
         print('')
-        print('-----------------------------')
-        print('Minimal sufficient relations:')
-        print('-----------------------------')
+        print('------------------')
+        print('Minimal relations:')
+        print('------------------')
         for u, v in self.minimal_relations:
             print('%s <---> %s' % (u, v))
 
-        if len(self.recurrent_states) > 0:
+        if len(self.descent_periodic_systems) > 0:
             print('')
-            print('------------------')
-            print('Unresolved states:')
-            print('------------------')
+            print('-------------------')
+            print('Unresolved systems:')
+            print('-------------------')
             print('')
-            for i, state in enumerate(self.recurrent_states):
+            for i, state in enumerate(self.descent_periodic_systems):
                 print('%s. %s' % (i + 1, state))
 
     def are_atoms_connected(self, relations, start_word, target_word):

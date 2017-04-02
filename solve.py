@@ -132,9 +132,9 @@ def solve(coxeter_type, rank, verify, limit, s=None, t=None):
 def summarize_parabolic_config(coxeter_graph, s, t, q):
     if None in [s, t]:
         return
-    if q.neighborhood == set(coxeter_graph.generators):
+    elif q.neighborhood == set(coxeter_graph.generators):
         print('')
-        print('Calculation shows that (W, S, J, * | s, t) is a never parabolic system for:')
+        print('Calculation shows that (W, S, J, * | s, t) is not a parabolic system for:')
         print('  s = %s' % s)
         print('  t = %s' % t)
         print('No proper subset J of S satisfies the required conditions.')
