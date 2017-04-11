@@ -215,6 +215,27 @@ class TestCoxeterGraph:
             e = exception
         assert type(e) == CoxeterGraph.GetBraidException
 
+    @pytest.mark.parametrize("ctor, base_ctor", [
+        (CoxeterGraph.AxA_twist, CoxeterGraph.A),
+        (CoxeterGraph.BxB_twist, CoxeterGraph.B),
+        (CoxeterGraph.DxD_twist, CoxeterGraph.D)
+    ])
+    def test_product_systems(self, ctor, base_ctor):
+        """
+        Test that product Coxeter graphs returned by static methods AxA_twist, BxB_twist, and
+        DxD_twist are expected disjoint unions of graphs of type A, B, and D.
+        """
+        k = 5
+        n = 2 * k
+        g = ctor(n)
+        h = base_ctor(k)
+        assert g.generators == list(range(1, n + 1))
+        assert all(
+            g.get_order(i, j) == g.get_order(i + k, j + k) == h.get_order(i, j)
+            for i in range(1, k + 1)
+            for j in range(1, k + 1)
+        )
+
     def test_eval_bilinear(self):
         a5 = CoxeterGraph.A(5)
         b6 = CoxeterGraph.B(6)

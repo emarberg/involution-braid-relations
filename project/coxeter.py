@@ -498,6 +498,33 @@ class CoxeterGraph:
         assert n == 2
         return CoxeterGraph([(1, 2, 6), (2, 3, 3)])
 
+    @staticmethod
+    def AxA_twist(n):  # noqa
+        assert n % 2 == 0
+        n = n // 2
+        edges = [(i, i + 1, 3) for i in range(1, n)]
+        edges += [(i + n, j + n, m) for i, j, m in edges]
+        star = [(i, i + n) for i in range(1, n + 1)]
+        return CoxeterGraph(edges, star=star)
+
+    @staticmethod
+    def BxB_twist(n):  # noqa
+        assert n % 2 == 0
+        n = n // 2
+        edges = [(i, i + 1, 3) for i in range(1, n - 1)] + [(n - 1, n, 4)]
+        edges += [(i + n, j + n, m) for i, j, m in edges]
+        star = [(i, i + n) for i in range(1, n + 1)]
+        return CoxeterGraph(edges, star=star)
+
+    @staticmethod
+    def DxD_twist(n):  # noqa
+        assert n % 2 == 0
+        n = n // 2
+        edges = [(i, i + 1, 3) for i in range(1, n - 1)] + [(n - 2, n, 3)]
+        edges += [(i + n, j + n, m) for i, j, m in edges]
+        star = [(i, i + n) for i in range(1, n + 1)]
+        return CoxeterGraph(edges, star=star)
+
 
 class CoxeterVector(VectorMixin, NumberMixin):
 

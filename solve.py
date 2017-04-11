@@ -17,7 +17,8 @@ def get_arguments():
                  '2A', '2B', '2C', '2D', '2E', '2F', '2G',
                  'A~', 'B~', 'C~', 'D~', 'E~', 'F~', 'G~',
                  '2A~', '2B~', '2C~', '2D~', '2E~',
-                 'rA~', 'fA~', 'hD~', 'sD~']
+                 'rA~', 'fA~', 'hD~', 'sD~',
+                 '2AxA', '2BxB', '2DxD']
     )
     parser.add_argument(
         '--rank',
@@ -91,6 +92,9 @@ def get_coxeter_graph(coxeter_type, rank, s, t):
         'fA~': CoxeterGraph.A_tilde_flip,
         'hD~': CoxeterGraph.D_tilde_half_twist,
         'sD~': CoxeterGraph.D_tilde_small_twist,
+        '2AxA': CoxeterGraph.AxA_twist,
+        '2BxB': CoxeterGraph.BxB_twist,
+        '2DxD': CoxeterGraph.DxD_twist,
     }
     # subtract 1 in affine case since affine constructors return systems of rank n + 1
     if coxeter_type.endswith('~'):
