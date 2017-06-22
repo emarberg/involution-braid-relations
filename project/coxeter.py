@@ -248,7 +248,8 @@ class CoxeterGraph:
 
         """
         edges = [(i, i + 1, 3) for i in range(1, n)]
-        return CoxeterGraph(edges, star=star)
+        generators = list(range(1, n + 1))
+        return CoxeterGraph(edges, generators=generators, star=star)
 
     @staticmethod
     def A_twist(n):  # noqa
