@@ -141,6 +141,14 @@ class TestCoxeterGraph:
         assert h != i and i != h
         assert hash(g) == hash(h)
 
+    def test_type_a_small_rank(self):
+        """Check that constructions of type A0 and A1 are distinct."""
+        g = CoxeterGraph.A(0)
+        h = CoxeterGraph.A(1)
+        assert g.generators == []
+        assert h.generators == [1]
+        assert g != h
+
     def test_convenience_methods(self):
         """
         Test methods for creating common finite Coxeter systems and the method
