@@ -442,7 +442,7 @@ class CoxeterGraph:
         """
         Dynkin diagram labelings are:
 
-                  *
+                  0
                   |
                   3
                   |
@@ -450,30 +450,30 @@ class CoxeterGraph:
 
                      3
                      |
-            *--1--2--4--5--6--7
+            0--1--2--4--5--6--7
 
                   3
                   |
-            1--2--4--5--6--7--8--*
+            1--2--4--5--6--7--8--0
 
         """
         assert n in [6, 7, 8]
-        edges = [('1', '2', 3), ('2', '4', 3)] + [(str(i), str(i + 1), 3) for i in range(3, n)]
+        edges = [(1, 2, 3), (2, 4, 3)] + [(i, i + 1, 3) for i in range(3, n)]
         if n == 6:
-            edges += [('3', '*', 3)]
+            edges += [(3, 0, 3)]
         elif n == 7:
-            edges += [('*', '1', 3)]
+            edges += [(0, 1, 3)]
         elif n == 8:
-            edges += [('8', '*', 3)]
+            edges += [(8, 0, 3)]
         return CoxeterGraph(edges, star=star)
 
     @staticmethod
     def E_tilde_twist(n):  # noqa
         assert n in [6, 7]
         if n == 6:
-            star = [('1', '6'), ('2', '5')]
+            star = [(1, 6), (2, 5)]
         elif n == 7:
-            star = [('*', '7'), ('1', '6'), ('2', '5')]
+            star = [(0, 7), (1, 6), (2, 5)]
         return CoxeterGraph.E_tilde(n, star)
 
     @staticmethod
@@ -493,7 +493,7 @@ class CoxeterGraph:
         """
         Dynkin diagram labeling is:
 
-            1≡≡2--3
+            1==2--3
 
         """
         assert n == 2

@@ -587,9 +587,9 @@ class Monomial:
         for i, e in sorted(self.exponents.items()):
             base = self.index_to_string(i)
             if e != 1:
-                base = base + '^' + str(e)
+                base = base + '**' + str(e)
             terms += [base]
-        return ' '.join(terms)
+        return ' * '.join(terms)
 
     def degree(self):
         deg = 0
@@ -771,6 +771,7 @@ class Polynomial(VectorMixin, OperatorMixin, NumberMixin):
     def __repr__(self):
         if len(self) == 0:
             return '0'
+        sep = ' * '
         s = ''
         for monomial, coeff in sorted(self.coefficients.items()):
             if type(coeff) == QuadraticNumber and coeff.is_rational():
@@ -786,11 +787,11 @@ class Polynomial(VectorMixin, OperatorMixin, NumberMixin):
                 else:
                     s += ' + ' + str(coeff)
             elif coeff_is_rational and coeff < 0:
-                s += ' - ' + str(-coeff) + str(monomial)
+                s += ' - ' + str(-coeff) + sep + str(monomial)
             elif coeff_is_rational:
-                s += ' + ' + str(coeff) + str(monomial)
+                s += ' + ' + str(coeff) + sep + str(monomial)
             else:
-                s += ' + ' + str(coeff) + '' + str(monomial)
+                s += ' + ' + str(coeff) + sep + str(monomial)
         if s.startswith(' - '):
             s = '-' + s[3:]
         elif s.startswith(' + '):
@@ -987,8 +988,23 @@ class Matrix:
         return self.rows[i]
 
     def __mul__(self, other):
-        """Other should be iterable representing a vector."""
-        if len(other) != self.num_cols:
+        """Other should be a matrix of an iterable representing a vector."""
+        if type(other) == Matrix:
+            variables = {self.variable, other.variable} - {None}
+            if self.num_cols != other.num_rows or len(variables) == 2:
+                raise OperatorException(self, other, '__mul__')
+            if variables:
+                var = variables.pop()
+            else:
+                var = None
+            return Matrix([
+                [
+                    sum(self[i][j] * other[j][k] for j in range(self.num_cols))
+                    for k in range(other.num_cols)
+                ]
+                for i in range(self.num_rows)
+            ], variable=var)
+        elif len(other) != self.num_cols:
             raise OperatorException(self, other, '__mul__')
         return [sum(row[i] * other[i] for i in range(len(other))) for row in self.rows]
 

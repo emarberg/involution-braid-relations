@@ -665,7 +665,7 @@ class TestMonomial:
         assert str(Monomial('x')) == 'x'
         assert str(Monomial(-1)) == 'x[-1]'
         assert str(Monomial('-1')) == "x['-1']"
-        assert str(Monomial({0: 1, 1: 2, 2: 3})) == 'x[0] x[1]^2 x[2]^3'
+        assert str(Monomial({0: 1, 1: 2, 2: 3})) == 'x[0] * x[1]**2 * x[2]**3'
 
     def test_eq(self):
         """Test == operator for Monomials."""
@@ -788,9 +788,9 @@ class TestPolynomial:
         assert str(Polynomial(1)) == '1'
         assert str(Polynomial(-10)) == '-10'
         assert str(-x) == '-x'
-        assert str(-5 * x) == '-5x'
-        assert str(RationalNumber(7, 8) * x) == '7/8x'
-        assert str(QuadraticNumber.sqrt(7) * 8 * x**2) == '(8*sqrt(7))x^2'
+        assert str(-5 * x) == '-5 * x'
+        assert str(RationalNumber(7, 8) * x) == '7/8 * x'
+        assert str(QuadraticNumber.sqrt(7) * 8 * x**2) == '(8*sqrt(7)) * x**2'
 
     @pytest.mark.parametrize("numbers", [
         [0, RationalNumber(0), QuadraticNumber(0), Polynomial(0)],

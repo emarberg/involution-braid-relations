@@ -21,7 +21,6 @@ from project.coxeter import (
 
 from project.utils import (
     reverse_tuple,
-    get_braids,
     InvalidInputException,
     RecurrentStateException
 )
