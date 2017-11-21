@@ -27,19 +27,19 @@ The main things to specify when running the program are the type and rank of the
 (twisted) Coxeter system to consider:
 ```
 python3.5 solve.py --type <Coxeter graph type> \
-				   --rank <Coxeter graph rank> \
-				   [--s <optional simple generator>] \
-				   [--t <optional simple generator>] \
-				   [--verify] \
-				   [--limit <maximum braid length>] \
-				   [--log=<logging level>]
+                   --rank <Coxeter graph rank> \
+                  [--s <optional simple generator>] \
+                  [--t <optional simple generator>] \
+                  [--verify] \
+                  [--limit <maximum braid length>] \
+                  [--log=<logging level>]
 ```
-The last five parameters are optional.
-Including the `--verify` flag will make the program explicitly check that the relations
+The last five arguments are optional.
+Including the `--verify` option will make the program explicitly check that the relations
 it finds actually span and preserve all sets of involution words for the group under consideration.
-This flag is required if a numeric value for `--limit` is provided.
+This option is required if a numeric value for `--limit` is provided.
 When `--limit` is set, the program will only search for relations of length up to the given limit.
-This is a useful option if the Coxeter group is infinite. The `--log` flag controls
+This is a useful option if the Coxeter group is infinite. The `--log` option controls
 how much output the program logs during execution.
 
 Some examples:
