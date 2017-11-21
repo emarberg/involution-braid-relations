@@ -1,6 +1,6 @@
 # Braid relations for involution words in Coxeter groups
 
-The code in this repository implements the algorithms described in the paper
+The code in this repository implements the algorithms described in the note
 "Braid relations for involution words in affine Coxeter groups," available online at
 
 https://arxiv.org/abs/1703.10437.
@@ -57,7 +57,7 @@ python3.5 solve.py --type G~ --rank 3
 ```
 
 ## Computations
-To generate Table 1 in the accompanying paper, run these commands:
+To generate Table 1 in the accompanying arXiv preprint, run these commands:
 
 * Type 2A9: 
 ```
