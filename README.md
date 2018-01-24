@@ -11,7 +11,7 @@ for twisted involutions in the provided Coxeter group.
 
 ## Setup
 1. Create a virtual environment: `virtualenv -p python3.5 py3`
-1. Active the virtual environment: `source py3/bin/activate`
+1. Activate the virtual environment: `source py3/bin/activate`
 1. Install requirements: `pip3 install -r requirements/base.txt`
 
 ## Tests
